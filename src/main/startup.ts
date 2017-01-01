@@ -16,13 +16,22 @@
 
 ///<reference path='./DrawWindow.ts'/>
 
+///<reference path='../decl/node.d.ts'/>
+
 /*
 	Startup: gets the ball rolling.
 */
 
 function runSketchEl(root:JQuery):void
 {
-	//console.log('Fnord!');
+	// node/electron imports; note these are defined inside the function so as not to perturb normal web-access, which does not
+	// include these libraries
+	const path = require('path');
+	const electron = require('electron');
+	const process = require('process');
+
+	var url = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+	RPC.RESOURCE_URL = path.normalize(url + '/../res');
 
 	let mol = Molecule.fromString(
 		'SketchEl!(10,10)\n' +
@@ -48,12 +57,10 @@ function runSketchEl(root:JQuery):void
 		'8-10=2,0\n' +
 		'!End');	
 
-	root.css('background-color', '#A0FFE0');
+	root.css('background-color', '#F8F8F8');
 
-	let mw = new MainWindow(root);
+	// TODO: unpack command line parameters, diverge accordingly
 
-	let table = $('<table class="data"></table>').appendTo(root);
-	let tr = $('<tr></tr>').appendTo(table);
-	let td = $('<td class="data"></td>').appendTo(tr);
-	td.text('Fnord fnord fnord');
+	let dw = new DrawWindow(root);
+	dw.setMolecule(mol);
 }

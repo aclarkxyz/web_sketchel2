@@ -1,29 +1,32 @@
 {
 	"version": "0.2.0",
-	"configurations": [
-		/*{
-			"name": "Launch",
+	"configurations": 
+	[
+		{
 			"type": "node",
 			"request": "launch",
-			"program": "${workspaceRoot}/main.js",
-			"stopOnEntry": false,
-			"args": [],
+			"name": "Launch Program",
+			"program": "${workspaceRoot}/app/main.js",
 			"cwd": "${workspaceRoot}",
-			"preLaunchTask": null,
-			"runtimeExecutable": null,
-			"runtimeArgs": 
+			"outFiles": [],
+			"sourceMaps": true,
+			"runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron",
+			"runtimeArgs": ["--enable-logging"],
+			"console": "integratedTerminal",
+			"args": 
 			[
-				"--nolazy"
-			],
-			"env": 
-			{
-				"NODE_ENV": "development"
-			},
-			"externalConsole": false,
-			"sourceMaps": false,
-			"outDir": null
-		},*/
+                "play"
+			]
+		},
 		{
+			"type": "node",
+			"request": "attach",
+			"name": "Attach to Process",
+			"port": 5858,
+			"outFiles": [],
+			"sourceMaps": true
+		}
+		/*{
             "name": "Launch",
             "type": "node",
 			"request": "launch",
@@ -58,6 +61,6 @@
 			"port": 5858,
 			"sourceMaps": false,
 			"outDir": null
-		}
+		}*/
 	]
 }

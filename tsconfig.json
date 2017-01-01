@@ -6,63 +6,14 @@
         "removeComments": true,
         "preserveConstEnums": true,
         "outFile": "app/sketchel2.js",
-        "sourceMap": true
+        "sourceMap": true,
+        "target": "ES6"
     },
-    "files": 
+    "include": 
     [
-        // ------------ WebMolKit includes ------------
-
-        "../WebMolKit/src/decl/jquery.d.ts",
+        "src/**/*.ts",
         
-        "../WebMolKit/src/data/DataSheet.ts",
-        "../WebMolKit/src/data/DataSheetStream.ts",
-        "../WebMolKit/src/data/FormatList.ts",
-        "../WebMolKit/src/data/Molecule.ts",
-        "../WebMolKit/src/data/MoleculeStream.ts",
-        "../WebMolKit/src/data/MolUtil.ts",
-        "../WebMolKit/src/data/Rendering.ts",
-        "../WebMolKit/src/data/SketchUtil.ts",
-        
-        "../WebMolKit/src/dialog/Dialog.ts",
-        "../WebMolKit/src/dialog/Download.ts",
-        "../WebMolKit/src/dialog/EditCompound.ts",
-        "../WebMolKit/src/dialog/MapReaction.ts",
-        "../WebMolKit/src/dialog/PickRecent.ts",
-        
-        "../WebMolKit/src/gfx/FontData.ts",
-        "../WebMolKit/src/gfx/Geom.ts",
-        "../WebMolKit/src/gfx/MetaVector.ts",
-        
-        "../WebMolKit/src/rpc/Account.ts",
-        "../WebMolKit/src/rpc/Func.ts",
-        "../WebMolKit/src/rpc/Pile.ts",
-        "../WebMolKit/src/rpc/RPC.ts",
-        "../WebMolKit/src/rpc/Search.ts",
-
-        "../WebMolKit/src/sketcher/CommandBank.ts",
-        "../WebMolKit/src/sketcher/MoleculeActivity.ts",
-        "../WebMolKit/src/sketcher/Sketcher.ts",
-        "../WebMolKit/src/sketcher/TemplateBank.ts",
-        "../WebMolKit/src/sketcher/ToolBank.ts",
-
-        "../WebMolKit/src/ui/ButtonBank.ts",
-        "../WebMolKit/src/ui/ButtonView.ts",
-        "../WebMolKit/src/ui/CircleButton.ts",
-        "../WebMolKit/src/ui/OptionList.ts",
-        "../WebMolKit/src/ui/RowView.ts",
-        "../WebMolKit/src/ui/SearchPanel.ts",
-        "../WebMolKit/src/ui/SearchMolecules.ts",
-        "../WebMolKit/src/ui/SearchReactions.ts",
-        "../WebMolKit/src/ui/Tooltip.ts",
-        "../WebMolKit/src/ui/ViewStructure.ts",
-        "../WebMolKit/src/ui/Widget.ts",
-        
-        "../WebMolKit/src/util/Cookies.ts",
-        "../WebMolKit/src/util/util.ts",
-        "../WebMolKit/src/util/vec.ts",
-
-        // ------------ SketchEl proper ------------
-
-        "src/main/startup.ts"
+        // imported from WebMolKit
+        "../../WebMolKit/src/**/*.ts"
     ]
 }

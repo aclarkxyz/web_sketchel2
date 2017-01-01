@@ -23,11 +23,28 @@
 
 class DrawWindow extends MainWindow
 {
-	private sketcher:Sketcher;
-
+	private sketcher = new Sketcher(null);
 
 	constructor(root:JQuery)
 	{
 		super(root);
+
+		let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
+		this.sketcher.setSize(w, h);
+		this.sketcher.setup(function() {this.sketcher.render(root);}, this);
+	}
+
+	public setMolecule(mol:Molecule):void
+	{
+        this.sketcher.defineMolecule(mol);
+		// !!
+	}
+
+	protected onResize()
+	{
+		super.onResize();
+
+		let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
+		this.sketcher.changeSize(w, h);
 	}
 } 
