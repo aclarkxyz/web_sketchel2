@@ -1,0 +1,6 @@
+#!/bin/sh
+echo ---- SketchEl2 ----
+git status
+echo ---- WebMolKit ----
+cd ../WebMolKit
+git status
