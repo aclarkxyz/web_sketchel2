@@ -10,13 +10,13 @@
 	[PKG=sketchel2]
 */
 
+///<reference path='../decl/node.d.ts'/>
+
 ///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
 ///<reference path='../../../WebMolKit/src/decl/jquery.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 
-///<reference path='./DrawWindow.ts'/>
-
-///<reference path='../decl/node.d.ts'/>
+///<reference path='./DrawPanel.ts'/>
 
 /*
 	Startup: gets the ball rolling.
@@ -61,6 +61,6 @@ function runSketchEl(root:JQuery):void
 
 	// TODO: unpack command line parameters, diverge accordingly
 
-	let dw = new DrawWindow(root);
+	let dw = new DrawPanel(root);
 	dw.setMolecule(mol);
 }

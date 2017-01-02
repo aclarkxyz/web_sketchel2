@@ -13787,19 +13787,22 @@ class Sketcher extends Widget {
     }
 }
 Sketcher.UNDO_SIZE = 20;
-class MainWindow {
+class MainPanel {
     constructor(root) {
         this.root = root;
         const self = this;
         root.css('width', '100%');
         root.css('height', document.documentElement.clientHeight + 'px');
         $(window).resize(function () { self.onResize(); });
+        root.on('menuAction', function (event, cmd) { self.menuAction(cmd); });
     }
     onResize() {
         this.root.css('height', document.documentElement.clientHeight + 'px');
     }
+    menuAction(cmd) {
+    }
 }
-class DrawWindow extends MainWindow {
+class DrawPanel extends MainPanel {
     constructor(root) {
         super(root);
         this.sketcher = new Sketcher(null);
@@ -13814,6 +13817,9 @@ class DrawWindow extends MainWindow {
         super.onResize();
         let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
         this.sketcher.changeSize(w, h);
+    }
+    menuAction(cmd) {
+        console.log('MENU:' + cmd);
     }
 }
 function runSketchEl(root) {
@@ -13845,7 +13851,7 @@ function runSketchEl(root) {
         '8-10=2,0\n' +
         '!End');
     root.css('background-color', '#F8F8F8');
-    let dw = new DrawWindow(root);
+    let dw = new DrawPanel(root);
     dw.setMolecule(mol);
 }
 //# sourceMappingURL=sketchel2.js.map
