@@ -44,6 +44,25 @@ class DrawPanel extends MainPanel
         this.sketcher.defineMolecule(mol);
 	}
 
+	public loadFile(filename:string):void
+	{
+		const fs = require('fs');
+		const self = this;
+		fs.readFile(filename, 'utf-8', function (err:any, data:string):void
+		{
+			if (err) throw err;
+			let mol = Molecule.fromString(data);
+			if (!mol)
+			{
+				let mdl = new MDLMOLReader(data);
+				mol = mdl.parse();
+			}
+			// (other formats to be added later)
+			if (!mol) {alert('Molecule not readable:\n\n' + filename); return;}
+			self.sketcher.defineMolecule(mol);
+		});		
+	}
+
 	protected onResize()
 	{
 		super.onResize();
@@ -54,13 +73,30 @@ class DrawPanel extends MainPanel
 
 	public menuAction(cmd:string):void
 	{
-		if (cmd == 'new')
-		{
-			openNewWindow('DrawPanel');
-		}
+		if (cmd == 'new') openNewWindow('DrawPanel');
+		else if (cmd == 'open') this.actionFileOpen();
 		else console.log('MENU:'+cmd);
 	}
 
 	// ------------ private methods ------------
 
+	private actionFileOpen():void
+	{
+		const electron = require('electron');
+		const dialog = electron.remote.dialog; 
+		let params:any =
+		{
+			'title': 'Open Molecule',
+			'properties': ['openFile'],
+			'filters':
+			[
+				{'name': 'SketchEl Molecule', 'extensions': ['el']},
+				{'name': 'MDL Molfile', 'extensions': ['mol']}
+			]
+		};
+		dialog.showOpenDialog(params, function(filenames:string[]):void
+		{
+			if (filenames) for (let fn of filenames) openNewWindow('DrawPanel', fn);
+		});
+	}
 } 

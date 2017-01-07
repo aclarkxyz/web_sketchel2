@@ -13798,6 +13798,8 @@ class MainPanel {
         $(window).resize(function () { self.onResize(); });
         root.on('menuAction', function (event, cmd) { self.menuAction(cmd); });
     }
+    loadFile(filename) {
+    }
     onResize() {
         this.root.css('height', document.documentElement.clientHeight + 'px');
     }
@@ -13815,17 +13817,53 @@ class DrawPanel extends MainPanel {
     setMolecule(mol) {
         this.sketcher.defineMolecule(mol);
     }
+    loadFile(filename) {
+        const fs = require('fs');
+        const self = this;
+        fs.readFile(filename, 'utf-8', function (err, data) {
+            if (err)
+                throw err;
+            let mol = Molecule.fromString(data);
+            if (!mol) {
+                let mdl = new MDLMOLReader(data);
+                mol = mdl.parse();
+            }
+            if (!mol) {
+                alert('Molecule not readable:\n\n' + filename);
+                return;
+            }
+            self.sketcher.defineMolecule(mol);
+        });
+    }
     onResize() {
         super.onResize();
         let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
         this.sketcher.changeSize(w, h);
     }
     menuAction(cmd) {
-        if (cmd == 'new') {
+        if (cmd == 'new')
             openNewWindow('DrawPanel');
-        }
+        else if (cmd == 'open')
+            this.actionFileOpen();
         else
             console.log('MENU:' + cmd);
+    }
+    actionFileOpen() {
+        const electron = require('electron');
+        const dialog = electron.remote.dialog;
+        let params = {
+            'title': 'Open Molecule',
+            'properties': ['openFile'],
+            'filters': [
+                { 'name': 'SketchEl Molecule', 'extensions': ['el'] },
+                { 'name': 'MDL Molfile', 'extensions': ['mol'] }
+            ]
+        };
+        dialog.showOpenDialog(params, function (filenames) {
+            if (filenames)
+                for (let fn of filenames)
+                    openNewWindow('DrawPanel', fn);
+        });
     }
 }
 let BASE_APP = '';
@@ -13838,16 +13876,16 @@ function runSketchEl(root) {
     RPC.RESOURCE_URL = path.normalize(url + '/../res');
     let params = window.location.search.substring(1).split('&');
     let panelClass = null;
-    let fileName = null;
+    let filename = null;
     for (let p of params) {
         let eq = p.indexOf('=');
         if (eq < 0)
             continue;
-        let key = p.substring(0, eq), val = p.substring(eq + 1);
+        let key = p.substring(0, eq), val = decodeURIComponent(p.substring(eq + 1));
         if (key == 'panel')
             panelClass = val;
         else if (key == 'fn')
-            fileName = val;
+            filename = val;
     }
     if (!panelClass) {
         let mol = Molecule.fromString('SketchEl!(10,10)\n' +
@@ -13878,14 +13916,16 @@ function runSketchEl(root) {
     else {
         let constructor = eval(panelClass);
         let dw = new constructor(root);
+        if (filename)
+            dw.loadFile(filename);
     }
 }
-function openNewWindow(panelClass, fileName) {
+function openNewWindow(panelClass, filename) {
     const electron = require('electron');
     let bw = new electron.remote.BrowserWindow({ 'width': 800, 'height': 700 });
     let url = BASE_APP + '/index.html?panel=' + panelClass;
-    if (fileName)
-        url += '&fn=' + encodeURIComponent(fileName);
+    if (filename)
+        url += '&fn=' + encodeURIComponent(filename);
     bw.loadURL(url);
 }
 //# sourceMappingURL=sketchel2.js.map
