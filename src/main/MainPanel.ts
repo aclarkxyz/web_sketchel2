@@ -31,6 +31,11 @@ class MainPanel
 		root.on('menuAction', function(event:any, cmd:string) {self.menuAction(cmd);});
 	}
 
+	// stub: may be called early on to provide a source file upon which to work
+	public loadFile(filename:string):void
+	{
+	}
+
 	// minimum required functionality for resizing windows; override to capture
 	protected onResize()
 	{

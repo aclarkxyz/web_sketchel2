@@ -54,7 +54,11 @@ class DrawPanel extends MainPanel
 
 	public menuAction(cmd:string):void
 	{
-		console.log('MENU:'+cmd);
+		if (cmd == 'new')
+		{
+			openNewWindow('DrawPanel');
+		}
+		else console.log('MENU:'+cmd);
 	}
 
 	// ------------ private methods ------------
