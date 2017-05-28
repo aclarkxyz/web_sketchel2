@@ -15,5 +15,11 @@
         
         // imported from WebMolKit
         "../../WebMolKit/src/**/*.ts"
+    ],
+    "exclude":
+    [
+        "node_modules",
+        "dist"
     ]
 }
+
