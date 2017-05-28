@@ -35,7 +35,7 @@ function runSketchEl(root:JQuery):void
 	BASE_APP = path.normalize('file:/' + __dirname);
 
 	var url = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-	RPC.RESOURCE_URL = path.normalize(url + '/../res');
+	RPC.RESOURCE_URL = path.normalize(url + '/res');
 
 	// unpack web params: if present, they determine where to go from here
  	let params = window.location.search.substring(1).split('&');
@@ -93,7 +93,7 @@ function runSketchEl(root:JQuery):void
 function openNewWindow(panelClass:string, filename?:string):void
 {
 	const electron = require('electron');
-	let bw = new electron.remote.BrowserWindow({'width':800, 'height':700});
+	let bw = new electron.remote.BrowserWindow({'width':800, 'height':700, 'icon': 'app/img/icon.png'});
 	let url = BASE_APP + '/index.html?panel=' + panelClass;
 	if (filename) url += '&fn=' + encodeURIComponent(filename);
 	bw.loadURL(url);

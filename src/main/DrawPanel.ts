@@ -128,7 +128,25 @@ class DrawPanel extends MainPanel
 
 	private actionCopy(andCut:boolean):void
 	{
-		alert('copy');
+		let input = this.sketcher.getState(), mol = input.mol;
+		let mask = Vec.booleanArray(false, mol.numAtoms);
+		if (Vec.anyTrue(input.selectedMask)) mask = input.selectedMask;
+		else if (input.currentAtom > 0) mask[input.currentAtom - 1] = true;
+		else if (input.currentBond > 0) {mask[mol.bondFrom(input.currentBond) - 1] = true; mask[mol.bondTo(input.currentBond) - 1] = true;}
+		else mask = Vec.booleanArray(true, mol.numAtoms);
+		
+		let copyMol = Vec.allTrue(mask) ? mol.clone() : MolUtil.subgraphWithAttachments(mol, mask);
+
+		if (andCut)
+		{
+			this.sketcher.clearSubject();
+			this.setMolecule(MolUtil.subgraphMask(mol, Vec.notMask(mask)));
+		}
+
+		const {clipboard} = require('electron');
+		clipboard.writeText(copyMol.toString());
+
+		this.sketcher.showMessage('Molecule with ' + copyMol.numAtoms + ' atom' + (copyMol.numAtoms == 1 ? '' : 's') + ' copied to clipboard.');
 	}
 
 	private actionPaste():void

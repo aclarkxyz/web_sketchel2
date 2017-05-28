@@ -1,10 +1,6 @@
 {
-  "name": "sketchel_2",
-  "version": "0.1.0",
-  "main": "main.js",
-  "productName": "SketchEl",
-  "description": "Molecular diagram sketcher",
-  "author": "Molecular Materials Informatics, Inc.",
+  "name": "placeholder",
+  "version": "0.0.0",
   "devDependencies": 
   {
     "electron": "^1.6.10",

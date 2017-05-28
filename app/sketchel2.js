@@ -12609,7 +12609,7 @@ class Sketcher extends Widget {
             }
         this.autoScale();
     }
-    showMessage(msg, isError) {
+    showMessage(msg, isError = false) {
         let watermark = ++this.fadeWatermark;
         this.divMessage.css('color', isError ? '#FF0000' : '#008000');
         this.divMessage.text(msg);
@@ -12664,6 +12664,15 @@ class Sketcher extends Widget {
             this.selectedMask.push(false);
         }
         this.selectedMask[N - 1] = sel;
+        this.delayedRedraw();
+    }
+    clearSubject() {
+        if (this.currentAtom == 0 && this.currentBond == 0 && Vec.allFalse(this.selectedMask))
+            return;
+        this.currentAtom = 0;
+        this.currentBond = 0;
+        this.selectedMask = Vec.booleanArray(false, this.mol.numAtoms);
+        this.delayedRedraw();
     }
     getLassoed(N) {
         if (this.lassoMask == null || N > this.lassoMask.length)
@@ -12891,10 +12900,10 @@ class Sketcher extends Widget {
         this.redrawOver();
     }
     redrawUnder() {
-        let HOVER_COL = 0x80808080;
-        let CURRENT_COL = 0x40FFC0, CURRENT_BORD = 0x00A43C;
-        let SELECT_COL = 0x40C4A8;
-        let LASSO_COL = 0xA0D4C8;
+        let HOVER_COL = 0xE0E0E0;
+        let CURRENT_COL = 0xA0A0A0, CURRENT_BORD = 0x808080;
+        let SELECT_COL = 0xC0C0C0;
+        let LASSO_COL = 0xD0D0D0;
         let density = pixelDensity();
         this.canvasUnder.width = this.width * density;
         this.canvasUnder.height = this.height * density;
@@ -13030,9 +13039,9 @@ class Sketcher extends Widget {
             for (let n = 1; n < this.lassoX.length; n++)
                 path.lineTo(this.lassoX[n], this.lassoY[n]);
             path.closePath();
-            ctx.fillStyle = colourCanvas(erasing ? 0xD0FF0000 : 0xD00000FF);
+            ctx.fillStyle = colourCanvas(erasing ? 0xD0FF0000 : 0xF0000000);
             ctx.fill(path);
-            ctx.strokeStyle = erasing ? '#804040' : '#404080';
+            ctx.strokeStyle = erasing ? '#804040' : '#808080';
             ctx.lineWidth = 0.5;
             ctx.stroke(path);
         }
@@ -14035,7 +14044,26 @@ class DrawPanel extends MainPanel {
         alert('save:as=' + saveAs);
     }
     actionCopy(andCut) {
-        alert('copy');
+        let input = this.sketcher.getState(), mol = input.mol;
+        let mask = Vec.booleanArray(false, mol.numAtoms);
+        if (Vec.anyTrue(input.selectedMask))
+            mask = input.selectedMask;
+        else if (input.currentAtom > 0)
+            mask[input.currentAtom - 1] = true;
+        else if (input.currentBond > 0) {
+            mask[mol.bondFrom(input.currentBond) - 1] = true;
+            mask[mol.bondTo(input.currentBond) - 1] = true;
+        }
+        else
+            mask = Vec.booleanArray(true, mol.numAtoms);
+        let copyMol = Vec.allTrue(mask) ? mol.clone() : MolUtil.subgraphWithAttachments(mol, mask);
+        if (andCut) {
+            this.sketcher.clearSubject();
+            this.setMolecule(MolUtil.subgraphMask(mol, Vec.notMask(mask)));
+        }
+        const { clipboard } = require('electron');
+        clipboard.writeText(copyMol.toString());
+        this.sketcher.showMessage('Molecule with ' + copyMol.numAtoms + ' atom' + (copyMol.numAtoms == 1 ? '' : 's') + ' copied to clipboard.');
     }
     actionPaste() {
         alert('paste');
@@ -14048,7 +14076,7 @@ function runSketchEl(root) {
     const process = require('process');
     BASE_APP = path.normalize('file:/' + __dirname);
     var url = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-    RPC.RESOURCE_URL = path.normalize(url + '/../res');
+    RPC.RESOURCE_URL = path.normalize(url + '/res');
     let params = window.location.search.substring(1).split('&');
     let panelClass = null;
     let filename = null;
@@ -14099,7 +14127,7 @@ function runSketchEl(root) {
 }
 function openNewWindow(panelClass, filename) {
     const electron = require('electron');
-    let bw = new electron.remote.BrowserWindow({ 'width': 800, 'height': 700 });
+    let bw = new electron.remote.BrowserWindow({ 'width': 800, 'height': 700, 'icon': 'app/img/icon.png' });
     let url = BASE_APP + '/index.html?panel=' + panelClass;
     if (filename)
         url += '&fn=' + encodeURIComponent(filename);

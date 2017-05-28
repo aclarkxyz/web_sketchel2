@@ -14,7 +14,7 @@ app.on('window-all-closed', function()
 
 app.on('ready', function() 
 { 
-	mainWindow = new BrowserWindow({'width': 800, 'height': 700}); 
+	mainWindow = new BrowserWindow({'width': 800, 'height': 700, 'icon': 'app/img/icon.png'}); 
 	mainWindow.loadURL('file://' + __dirname + '/index.html'); 
 	mainWindow.on('closed', function() {mainWindow = null;});
 	setupMenu();
