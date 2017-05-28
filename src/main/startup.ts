@@ -52,7 +52,10 @@ function runSketchEl(root:JQuery):void
 
 	if (!panelClass)
 	{
-		let mol = Molecule.fromString(
+		let dw = new DrawPanel(root);
+		if (filename) dw.loadFile(filename);
+
+		/*let mol = Molecule.fromString(
 			'SketchEl!(10,10)\n' +
 			'C=0.2995,3.2750;0,0,i0\n' +
 			'C=-0.9995,2.5250;0,0,i1\n' +
@@ -75,11 +78,7 @@ function runSketchEl(root:JQuery):void
 			'8-9=1,0\n' +
 			'8-10=2,0\n' +
 			'!End');	
-
-		// TODO: unpack command line parameters, diverge accordingly
-		let dw = new DrawPanel(root);
-		if (filename) dw.loadFile(filename);
-		dw.setMolecule(mol);
+		dw.setMolecule(mol);*/
 	}
 	else
 	{

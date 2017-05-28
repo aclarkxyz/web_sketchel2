@@ -10,7 +10,7 @@
 			"cwd": "${workspaceRoot}",
 			"outFiles": [],
 			"sourceMaps": true,
-			"runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron",
+			"runtimeExecutable": "electron",
 			"runtimeArgs": ["--enable-logging"],
 			"console": "integratedTerminal",
 			"args": 
@@ -26,41 +26,5 @@
 			"outFiles": [],
 			"sourceMaps": true
 		}
-		/*{
-            "name": "Launch",
-            "type": "node",
-			"request": "launch",
-            "program": "${workspaceRoot}/app/main.js",
-            "stopOnEntry": false,
-            "args": [],
-            "cwd": "${workspaceRoot}",
-            // next line is very important
-            "runtimeExecutable": "${workspaceRoot}/node_modules/electron-prebuilt/dist/electron",
-            //"runtimeArguments": [],
-            "env": { }, 
-            "sourceMaps": false,
-			"externalConsole": false
-		},
-		{
-			"name": "Attach",
-			"type": "node",
-			"request": "attach",
-			"port": 5858,
-			"address": "localhost",
-			"restart": false,
-			"sourceMaps": false,
-			"outDir": null,
-			"localRoot": "${workspaceRoot}",
-			"remoteRoot": null
-		},
-		{
-			"name": "Attach to Process",
-			"type": "node",
-			"request": "attach",
-			"processId": "${command.PickProcess}",
-			"port": 5858,
-			"sourceMaps": false,
-			"outDir": null
-		}*/
 	]
 }
