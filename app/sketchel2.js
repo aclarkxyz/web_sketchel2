@@ -53,6 +53,15 @@ class Vec {
                 return false;
         return true;
     }
+    static equivalent(arr1, arr2) {
+        const len1 = arr1 == null ? 0 : arr1.length, len2 = arr2 == null ? 0 : arr2.length;
+        if (len1 != len2)
+            return false;
+        for (let n = 0; n < len1; n++)
+            if (arr1[n] != arr2[n])
+                return false;
+        return true;
+    }
     static booleanArray(val, sz) {
         let arr = new Array(sz);
         for (let n = sz - 1; n >= 0; n--)
@@ -92,6 +101,24 @@ class Vec {
         for (let n = 1; n < arr.length; n++)
             v = Math.max(v, arr[n]);
         return v;
+    }
+    static idxMin(arr) {
+        if (arr == null || arr.length == 0)
+            return -1;
+        let idx = 0;
+        for (let n = 1; n < arr.length; n++)
+            if (arr[n] < arr[idx])
+                idx = n;
+        return idx;
+    }
+    static idxMax(arr) {
+        if (arr == null || arr.length == 0)
+            return -1;
+        let idx = 0;
+        for (let n = 1; n < arr.length; n++)
+            if (arr[n] > arr[idx])
+                idx = n;
+        return idx;
     }
     static reverse(arr) {
         let ret = [];
@@ -240,11 +267,11 @@ class Vec {
         let idx = new Array(arr.length);
         for (let n = 0; n < arr.length; n++)
             idx[n] = n;
-        idx.sort(function (a, b) { return arr[a] < arr[b] ? -1 : arr[a] > arr[b] ? 1 : 0; });
+        idx.sort((a, b) => arr[a] < arr[b] ? -1 : arr[a] > arr[b] ? 1 : 0);
         return idx;
     }
     static sort(arr) {
-        arr.sort(function (v1, v2) { return v1 - v2; });
+        arr.sort((v1, v2) => v1 - v2);
     }
     static sorted(arr) {
         arr = arr.slice(0);
@@ -611,7 +638,7 @@ function drawLine(ctx, x1, y1, x2, y2) {
     ctx.stroke();
 }
 const ASCENT_FUDGE = 1.4;
-function fontSansSerif(ascent) { return `${ascent * ASCENT_FUDGE}px sans`; }
+function fontSansSerif(ascent) { return `${ascent * ASCENT_FUDGE}px sans-serif`; }
 function pixelDensity() {
     if ('devicePixelRatio' in window && window.devicePixelRatio > 1)
         return window.devicePixelRatio;
@@ -627,7 +654,7 @@ function escapeHTML(text) {
     if (!text)
         return '';
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, function (m) { return map[m]; });
+    return text.replace(/[&<>"']/g, (m) => map[m]);
 }
 class Cookies {
     constructor() {
@@ -1027,12 +1054,12 @@ class QuickHull {
     }
 }
 class Pos {
+    static zero() { return new Pos(); }
+    static fromArray(src) { return new Pos(src[0], src[1]); }
     constructor(x, y) {
         this.x = x == null ? 0 : x;
         this.y = y == null ? 0 : y;
     }
-    static zero() { return new Pos(); }
-    static fromArray(src) { return new Pos(src[0], src[1]); }
     clone() { return new Pos(this.x, this.y); }
     scaleBy(mag) {
         if (mag == 1)
@@ -1047,12 +1074,12 @@ class Pos {
     toString() { return '[' + this.x + ',' + this.y + ']'; }
 }
 class Size {
+    static zero() { return new Size(); }
+    static fromArray(src) { return new Size(src[0], src[1]); }
     constructor(w, h) {
         this.w = w == null ? 0 : w;
         this.h = h == null ? 0 : h;
     }
-    static zero() { return new Size(); }
-    static fromArray(src) { return new Size(src[0], src[1]); }
     clone() { return new Size(this.w, this.h); }
     scaleBy(mag) {
         if (mag == 1)
@@ -1072,16 +1099,16 @@ class Size {
     toString() { return '[' + this.w + ',' + this.h + ']'; }
 }
 class Box {
+    static zero() { return new Box(); }
+    static fromSize(sz) { return new Box(0, 0, sz.w, sz.h); }
+    static fromOval(oval) { return new Box(oval.cx - oval.rw, oval.cy - oval.rh, 2 * oval.rw, 2 * oval.rh); }
+    static fromArray(src) { return new Box(src[0], src[1], src[2], src[3]); }
     constructor(x, y, w, h) {
         this.x = x == null ? 0 : x;
         this.y = y == null ? 0 : y;
         this.w = w == null ? 0 : w;
         this.h = h == null ? 0 : h;
     }
-    static zero() { return new Box(); }
-    static fromSize(sz) { return new Box(0, 0, sz.w, sz.h); }
-    static fromOval(oval) { return new Box(oval.cx - oval.rw, oval.cy - oval.rh, 2 * oval.rw, 2 * oval.rh); }
-    static fromArray(src) { return new Box(src[0], src[1], src[2], src[3]); }
     clone() { return new Box(this.x, this.y, this.w, this.h); }
     setPos(pos) {
         this.x = pos.x;
@@ -1115,15 +1142,15 @@ class Box {
     toString() { return '[' + this.x + ',' + this.y + ';' + this.w + ',' + this.h + ']'; }
 }
 class Oval {
+    static zero() { return new Oval(); }
+    static fromBox(box) { return new Oval(box.x + 0.5 * box.w, box.y + 0.5 * box.h, 0.5 * box.w, 0.5 * box.h); }
+    static fromArray(src) { return new Oval(src[0], src[1], src[2], src[3]); }
     constructor(cx, cy, rw, rh) {
         this.cx = cx == null ? 0 : cx;
         this.cy = cy == null ? 0 : cy;
         this.rw = rw == null ? 0 : rw;
         this.rh = rh == null ? 0 : rh;
     }
-    static zero() { return new Oval(); }
-    static fromBox(box) { return new Oval(box.x + 0.5 * box.w, box.y + 0.5 * box.h, 0.5 * box.w, 0.5 * box.h); }
-    static fromArray(src) { return new Oval(src[0], src[1], src[2], src[3]); }
     clone() { return new Oval(this.cx, this.cy, this.rw, this.rh); }
     setCentre(pos) {
         this.cx = pos.x;
@@ -1152,13 +1179,13 @@ class Oval {
     toString() { return '[' + this.cx + ',' + this.cy + ';' + this.rw + ',' + this.rh + ']'; }
 }
 class Line {
+    static zero() { return new Line(); }
     constructor(x1, y1, x2, y2) {
         this.x1 = x1 == null ? 0 : x1;
         this.y1 = y1 == null ? 0 : y1;
         this.x2 = x2 == null ? 0 : x2;
         this.y2 = y2 == null ? 0 : y2;
     }
-    static zero() { return new Line(); }
     clone() { return new Line(this.x1, this.y1, this.x2, this.y2); }
     setPos1(pos) {
         this.x1 = pos.x;
@@ -1191,7 +1218,7 @@ class Line {
 var globalPopover = null;
 var globalTooltip = null;
 var globalPopWatermark = 0;
-function addTooltip(parent, bodyHTML, titleHTML) {
+function addTooltip(parent, bodyHTML, titleHTML, delay) {
     let widget = $(parent);
     if (globalPopover == null) {
         globalPopover = $(document.createElement('div'));
@@ -1203,11 +1230,11 @@ function addTooltip(parent, bodyHTML, titleHTML) {
         globalPopover.hide();
         globalPopover.appendTo(document.body);
     }
-    const tooltip = new Tooltip(widget, bodyHTML, titleHTML);
+    const tooltip = new Tooltip(widget, bodyHTML, titleHTML, delay == null ? 1000 : delay);
     let prevEnter = widget.attr('onmouseenter'), prevLeave = widget.attr('onmouseleave');
-    widget.mouseenter(function (e) { tooltip.start(); if (prevEnter)
+    widget.mouseenter((e) => { tooltip.start(); if (prevEnter)
         prevEnter(e); });
-    widget.mouseleave(function (e) { tooltip.stop(); if (prevLeave)
+    widget.mouseleave((e) => { tooltip.stop(); if (prevLeave)
         prevLeave(e); });
 }
 function clearTooltip() {
@@ -1217,19 +1244,19 @@ function clearTooltip() {
     globalTooltip.lower();
 }
 class Tooltip {
-    constructor(widget, bodyHTML, titleHTML) {
+    constructor(widget, bodyHTML, titleHTML, delay) {
         this.widget = widget;
         this.bodyHTML = bodyHTML;
         this.titleHTML = titleHTML;
+        this.delay = delay;
     }
     start() {
         globalPopover.hide();
         this.watermark = ++globalPopWatermark;
-        let self = this;
-        window.setTimeout(function () {
-            if (self.watermark == globalPopWatermark)
-                self.raise();
-        }, 1000);
+        window.setTimeout(() => {
+            if (this.watermark == globalPopWatermark)
+                this.raise();
+        }, this.delay);
     }
     stop() {
         if (this.watermark == globalPopWatermark)
@@ -1299,56 +1326,61 @@ class RenderPolicy {
         }
     }
     ;
+    static defaultBlackOnWhite() {
+        var policy = new RenderPolicy();
+        return policy;
+    }
+    ;
+    static defaultWhiteOnBlack() {
+        var policy = new RenderPolicy();
+        policy.data.foreground = 0xFFFFFF;
+        policy.data.background = 0x000000;
+        for (var n = 0; n <= 111; n++)
+            policy.data.atomCols[n] = 0xFFFFFF;
+        return policy;
+    }
+    ;
+    static defaultColourOnWhite() {
+        var policy = RenderPolicy.defaultBlackOnWhite();
+        policy.data.atomCols[0] = 0x404040;
+        policy.data.atomCols[1] = 0x808080;
+        policy.data.atomCols[6] = 0x000000;
+        policy.data.atomCols[7] = 0x0000FF;
+        policy.data.atomCols[8] = 0xFF0000;
+        policy.data.atomCols[9] = 0xFF8080;
+        policy.data.atomCols[15] = 0xFF8000;
+        policy.data.atomCols[16] = 0x808000;
+        policy.data.atomCols[17] = 0x00C000;
+        policy.data.atomCols[35] = 0xC04000;
+        return policy;
+    }
+    ;
+    static defaultColourOnBlack() {
+        var policy = RenderPolicy.defaultWhiteOnBlack();
+        policy.data.atomCols[0] = 0xA0A0A0;
+        policy.data.atomCols[1] = 0x808080;
+        policy.data.atomCols[6] = 0xFFFFFF;
+        policy.data.atomCols[7] = 0x4040FF;
+        policy.data.atomCols[8] = 0xFF4040;
+        policy.data.atomCols[9] = 0xFF8080;
+        policy.data.atomCols[15] = 0xFF8000;
+        policy.data.atomCols[16] = 0xFFFF00;
+        policy.data.atomCols[17] = 0x40FF40;
+        policy.data.atomCols[35] = 0xFF8040;
+        return policy;
+    }
+    ;
+    static defaultPrintedPublication() {
+        var policy = RenderPolicy.defaultBlackOnWhite();
+        policy.data.pointScale = 9.6;
+        policy.data.resolutionDPI = 600;
+        policy.data.fontSize = 0.80;
+        policy.data.bondSep = 0.27;
+        policy.data.lineSize = 0.0625;
+        return policy;
+    }
+    ;
 }
-RenderPolicy.defaultBlackOnWhite = function () {
-    var policy = new RenderPolicy();
-    return policy;
-};
-RenderPolicy.defaultWhiteOnBlack = function () {
-    var policy = new RenderPolicy();
-    policy.data.foreground = 0xFFFFFF;
-    policy.data.background = 0x000000;
-    for (var n = 0; n <= 111; n++)
-        policy.data.atomCols[n] = 0xFFFFFF;
-    return policy;
-};
-RenderPolicy.defaultColourOnWhite = function () {
-    var policy = RenderPolicy.defaultBlackOnWhite();
-    policy.data.atomCols[0] = 0x404040;
-    policy.data.atomCols[1] = 0x808080;
-    policy.data.atomCols[6] = 0x000000;
-    policy.data.atomCols[7] = 0x0000FF;
-    policy.data.atomCols[8] = 0xFF0000;
-    policy.data.atomCols[9] = 0xFF8080;
-    policy.data.atomCols[15] = 0xFF8000;
-    policy.data.atomCols[16] = 0x808000;
-    policy.data.atomCols[17] = 0x00C000;
-    policy.data.atomCols[35] = 0xC04000;
-    return policy;
-};
-RenderPolicy.defaultColourOnBlack = function () {
-    var policy = RenderPolicy.defaultWhiteOnBlack();
-    policy.data.atomCols[0] = 0xA0A0A0;
-    policy.data.atomCols[1] = 0x808080;
-    policy.data.atomCols[6] = 0xFFFFFF;
-    policy.data.atomCols[7] = 0x4040FF;
-    policy.data.atomCols[8] = 0xFF4040;
-    policy.data.atomCols[9] = 0xFF8080;
-    policy.data.atomCols[15] = 0xFF8000;
-    policy.data.atomCols[16] = 0xFFFF00;
-    policy.data.atomCols[17] = 0x40FF40;
-    policy.data.atomCols[35] = 0xFF8040;
-    return policy;
-};
-RenderPolicy.defaultPrintedPublication = function () {
-    var policy = RenderPolicy.defaultBlackOnWhite();
-    policy.data.pointScale = 9.6;
-    policy.data.resolutionDPI = 600;
-    policy.data.fontSize = 0.80;
-    policy.data.bondSep = 0.27;
-    policy.data.lineSize = 0.0625;
-    return policy;
-};
 class RenderEffects {
     constructor() {
         this.colAtom = {};
@@ -1747,8 +1779,8 @@ class MetaVector {
         if (thickness == null)
             thickness = 1;
         const bump = 0.5 * thickness;
-        this.updateBounds(cx - 0.5 * rw - bump, cy - 0.5 * rh - bump);
-        this.updateBounds(cx + 0.5 * rw + bump, cy + 0.5 * rh + bump);
+        this.updateBounds(cx - rw - bump, cy - rh - bump);
+        this.updateBounds(cx + rw + bump, cy + rh + bump);
         let typeidx = this.findOrCreateType([this.PRIM_OVAL, edgeCol, fillCol, thickness]);
         this.prims.push([this.PRIM_OVAL, typeidx, cx, cy, rw, rh]);
     }
@@ -4387,6 +4419,80 @@ class CoordUtil {
 CoordUtil.OVERLAP_THRESHOLD = 0.2;
 CoordUtil.OVERLAP_THRESHOLD_SQ = CoordUtil.OVERLAP_THRESHOLD * CoordUtil.OVERLAP_THRESHOLD;
 CoordUtil.DEFAULT_EQUIV_TOLERANCE = 0.2;
+var OpenMolType;
+(function (OpenMolType) {
+    OpenMolType[OpenMolType["None"] = 0] = "None";
+    OpenMolType[OpenMolType["AtomCount1000"] = 1] = "AtomCount1000";
+    OpenMolType[OpenMolType["BondCount1000"] = 2] = "BondCount1000";
+    OpenMolType[OpenMolType["InlineAbbreviations"] = 3] = "InlineAbbreviations";
+    OpenMolType[OpenMolType["ZeroOrderBonds"] = 4] = "ZeroOrderBonds";
+    OpenMolType[OpenMolType["HydrogenCounting"] = 5] = "HydrogenCounting";
+    OpenMolType[OpenMolType["MoleculeName"] = 6] = "MoleculeName";
+    OpenMolType[OpenMolType["QueryResonance"] = 7] = "QueryResonance";
+    OpenMolType[OpenMolType["QueryHCount"] = 8] = "QueryHCount";
+})(OpenMolType || (OpenMolType = {}));
+const OPENMOL_LEVEL_1_1 = [
+    OpenMolType.AtomCount1000,
+    OpenMolType.BondCount1000,
+];
+const OPENMOL_LEVEL_1_2 = [
+    OpenMolType.InlineAbbreviations,
+];
+const OPENMOL_LEVEL_1_3 = [
+    OpenMolType.ZeroOrderBonds,
+    OpenMolType.HydrogenCounting,
+];
+const OPENMOL_INVALID = [
+    OpenMolType.QueryResonance,
+    OpenMolType.QueryHCount,
+];
+class OpenMolSpec {
+    constructor() {
+        this.level = 1.0;
+        this.invalid = false;
+        this.notes = [];
+    }
+    add(type, atoms, bonds, source) {
+        this.addNote({ 'type': type, 'atoms': atoms, 'bonds': bonds, 'source': source });
+    }
+    addNote(note) {
+        this.notes.push(note);
+        note.level = 1.0;
+        if (OPENMOL_LEVEL_1_1.indexOf(note.type) >= 0)
+            note.level = 1.1;
+        else if (OPENMOL_LEVEL_1_2.indexOf(note.type) >= 0)
+            note.level = 1.2;
+        else if (OPENMOL_LEVEL_1_3.indexOf(note.type) >= 0)
+            note.level = 1.3;
+        this.level = Math.max(this.level, note.level);
+        this.invalid = this.invalid || OPENMOL_INVALID.indexOf(note.type) >= 0;
+    }
+    addJoin(type, atoms, bonds, source) {
+        for (let note of this.notes)
+            if (note.type == type) {
+                if (atoms && note.atoms)
+                    note.atoms = note.atoms.concat(atoms);
+                else if (atoms)
+                    note.atoms = atoms;
+                if (bonds && note.bonds)
+                    note.bonds = note.bonds.concat(bonds);
+                else if (bonds)
+                    note.bonds = bonds;
+                if (source && note.source)
+                    note.source = note.source.concat(source);
+                else if (source)
+                    note.source = source;
+                return;
+            }
+        this.add(type, atoms, bonds, source);
+    }
+    derive(mol) {
+        if (mol.numAtoms >= 1000)
+            this.add(OpenMolType.AtomCount1000);
+        if (mol.numBonds >= 1000)
+            this.add(OpenMolType.BondCount1000);
+    }
+}
 class MDLMOLReader {
     constructor(strData) {
         this.parseHeader = true;
@@ -4397,7 +4503,8 @@ class MDLMOLReader {
         this.keepAromatic = false;
         this.keepParity = false;
         this.mol = null;
-        this.molName = "";
+        this.molName = '';
+        this.openmol = new OpenMolSpec();
         this.atomHyd = null;
         this.resBonds = null;
         this.pos = 0;
@@ -4406,6 +4513,10 @@ class MDLMOLReader {
     parse() {
         if (this.parseHeader) {
             this.molName = this.lines[0];
+            if (this.molName) {
+                let src = { 'row': 0, 'col': 0, 'len': this.molName.length };
+                this.openmol.add(OpenMolType.MoleculeName, null, null, [src]);
+            }
             this.pos = 3;
         }
         this.parseCTAB();
@@ -4424,6 +4535,7 @@ class MDLMOLReader {
             let version = line.length >= 39 ? line.substring(34, 39) : '';
             if (this.allowV3000 && version == 'V3000') {
                 this.parseV3000();
+                this.openmol.derive(this.mol);
                 return;
             }
             if (version != 'V2000')
@@ -4460,6 +4572,7 @@ class MDLMOLReader {
             }
             this.mol.setAtomMapNum(a, mapnum);
             if (hyd > 0) {
+                this.openmol.addJoin(OpenMolType.QueryHCount, [a]);
                 if (this.atomHyd == null)
                     this.atomHyd = Vec.numberArray(Molecule.HEXPLICIT_UNKNOWN, numAtoms);
                 this.atomHyd[n] = hyd - 1;
@@ -4483,6 +4596,8 @@ class MDLMOLReader {
                 style = Molecule.BONDTYPE_DECLINED;
             let b = this.mol.addBond(bfr, bto, order, style);
             if (type == 4) {
+                let src = { 'row': this.pos - 1, 'col': 6, 'len': 3 };
+                this.openmol.addJoin(OpenMolType.QueryResonance, null, [b], [src]);
             }
         }
         const MBLK_CHG = 1, MBLK_RAD = 2, MBLK_ISO = 3, MBLK_RGP = 4, MBLK_HYD = 5, MBLK_ZCH = 6, MBLK_ZBO = 7;
@@ -4530,16 +4645,23 @@ class MDLMOLReader {
                         this.mol.setAtomIsotope(pos, val);
                     else if (type == MBLK_RGP)
                         this.mol.setAtomElement(pos, "R" + val);
-                    else if (type == MBLK_HYD)
+                    else if (type == MBLK_HYD) {
                         this.mol.setAtomHExplicit(pos, val);
+                        let src = { 'row': this.pos - 1, 'col': 9 + 8 * n, 'len': 8 };
+                        this.openmol.addJoin(OpenMolType.HydrogenCounting, [pos], null, [src]);
+                    }
                     else if (type == MBLK_ZCH)
                         this.mol.setAtomCharge(pos, val);
-                    else if (type == MBLK_ZBO)
+                    else if (type == MBLK_ZBO) {
                         this.mol.setBondOrder(pos, val);
+                        let src = { 'row': this.pos - 1, 'col': 9 + 8 * n, 'len': 8 };
+                        this.openmol.addJoin(OpenMolType.ZeroOrderBonds, null, [pos], [src]);
+                    }
                 }
             }
         }
         this.postFix();
+        this.openmol.derive(this.mol);
     }
     postFix() {
         const mol = this.mol;
@@ -5373,6 +5495,16 @@ class MDLSDFWriter {
     }
 }
 class MoleculeStream {
+    static readUnknown(strData) {
+        let mol = MoleculeStream.readNative(strData);
+        if (mol)
+            return mol;
+        try {
+            mol = MoleculeStream.readMDLMOL(strData);
+        }
+        catch (e) { }
+        return mol;
+    }
     static readNative(strData) {
         let mol = new Molecule();
         mol.keepTransient = true;
@@ -5749,53 +5881,6 @@ class Molecule {
         this.ring5 = null;
         this.ring6 = null;
         this.ring7 = null;
-        this.setAtomElement = function (idx, element) {
-            this.getAtom(idx).element = element;
-            this.trashTransient();
-        };
-        this.setAtomPos = function (idx, x, y, z) {
-            let a = this.getAtom(idx);
-            a.x = x;
-            a.y = y;
-            a.z = z == null ? 0 : z;
-            this.trashTransient();
-        };
-        this.setAtomX = function (idx, x) {
-            this.getAtom(idx).x = x;
-            this.trashTransient();
-        };
-        this.setAtomY = function (idx, y) {
-            this.getAtom(idx).y = y;
-            this.trashTransient();
-        };
-        this.setAtomCharge = function (idx, charge) {
-            this.getAtom(idx).charge = charge;
-            this.trashTransient();
-        };
-        this.setAtomUnpaired = function (idx, unpaired) {
-            this.getAtom(idx).unpaired = unpaired;
-            this.trashTransient();
-        };
-        this.setAtomIsotope = function (idx, isotope) {
-            this.getAtom(idx).isotope = isotope;
-            this.trashTransient();
-        };
-        this.setAtomHExplicit = function (idx, hExplicit) {
-            this.getAtom(idx).hExplicit = hExplicit;
-            this.trashTransient();
-        };
-        this.setAtomMapNum = function (idx, mapNum) {
-            this.getAtom(idx).mapNum = mapNum;
-            this.trashTransient();
-        };
-        this.setAtomExtra = function (idx, extra) {
-            this.getAtom(idx).extra = extra.slice(0);
-        };
-        this.setAtomTransient = function (idx, transi) {
-            this.getAtom(idx).transient = transi.slice(0);
-            if (transi.length > 0)
-                this.hasTransient = true;
-        };
     }
     clone() { return Molecule.fromString(this.toString()); }
     static fromString(strData) { return MoleculeStream.readNative(strData); }
@@ -5861,6 +5946,53 @@ class Molecule {
         this.trashTransient();
         this.trashGraph();
         return this.atoms.length;
+    }
+    setAtomElement(idx, element) {
+        this.getAtom(idx).element = element;
+        this.trashTransient();
+    }
+    setAtomPos(idx, x, y, z) {
+        let a = this.getAtom(idx);
+        a.x = x;
+        a.y = y;
+        a.z = z == null ? 0 : z;
+        this.trashTransient();
+    }
+    setAtomX(idx, x) {
+        this.getAtom(idx).x = x;
+        this.trashTransient();
+    }
+    setAtomY(idx, y) {
+        this.getAtom(idx).y = y;
+        this.trashTransient();
+    }
+    setAtomCharge(idx, charge) {
+        this.getAtom(idx).charge = charge;
+        this.trashTransient();
+    }
+    setAtomUnpaired(idx, unpaired) {
+        this.getAtom(idx).unpaired = unpaired;
+        this.trashTransient();
+    }
+    setAtomIsotope(idx, isotope) {
+        this.getAtom(idx).isotope = isotope;
+        this.trashTransient();
+    }
+    setAtomHExplicit(idx, hExplicit) {
+        this.getAtom(idx).hExplicit = hExplicit;
+        this.trashTransient();
+    }
+    setAtomMapNum(idx, mapNum) {
+        this.getAtom(idx).mapNum = mapNum;
+        this.trashTransient();
+    }
+    setAtomExtra(idx, extra) {
+        this.getAtom(idx).extra = extra.slice(0);
+    }
+    setAtomTransient(idx, transi) {
+        this.getAtom(idx).transient = transi.slice(0);
+        if (transi.length > 0)
+            this.hasTransient = true;
     }
     swapAtoms(a1, a2) {
         let a = this.atoms[a1 - 1];
@@ -6725,6 +6857,27 @@ class ArrangeMolecule {
             Vec.mulBy(bounds, downScale);
         }
         this.offsetEverything(x - bounds[0] + 0.5 * (w - bounds[2] + bounds[0]), y - bounds[1] + 0.5 * (h - bounds[3] + bounds[1]));
+    }
+    monochromate(col) {
+        for (let a of this.points)
+            a.col = col;
+        for (let b of this.lines)
+            b.col = col;
+    }
+    clone() {
+        let dup = new ArrangeMolecule(this.mol, this.measure, this.policy, this.effects);
+        dup.scale = this.scale;
+        dup.bondSepPix = this.bondSepPix;
+        dup.lineSizePix = this.lineSizePix;
+        dup.fontSizePix = this.fontSizePix;
+        dup.ymul = this.ymul;
+        for (let a of this.points)
+            dup.points.push(clone(a));
+        for (let b of this.lines)
+            dup.lines.push(clone(b));
+        for (let s of this.space)
+            dup.space.push(clone(s));
+        return dup;
     }
     placeAdjunct(atom, str, fsz, col, angdir) {
         let wad = this.measure.measureText(str, fsz);
@@ -8117,18 +8270,16 @@ class DrawMolecule {
     }
 }
 class RPC {
-    constructor(request, parameter, callback, master) {
+    constructor(request, parameter, callback) {
         this.request = request;
         this.parameter = parameter;
         this.callback = callback;
-        this.master = master;
     }
     invoke() {
         let data = this.parameter;
         if (data == null)
             data = {};
         let url = RPC.BASE_URL + "/REST/" + this.request;
-        const self = this;
         $.ajax({
             'url': url,
             'type': 'POST',
@@ -8136,7 +8287,7 @@ class RPC {
             'contentType': 'application/json;charset=utf-8',
             'dataType': 'json',
             headers: { 'Access-Control-Allow-Origin': '*' },
-            success: function (data, textStatus, jqXHR) {
+            success: (data, textStatus, jqXHR) => {
                 var result = null, error = null;
                 if (!data) {
                     error =
@@ -8161,16 +8312,16 @@ class RPC {
                     else
                         result = data.result;
                 }
-                self.callback.call(self.master, result, error);
+                this.callback(result, error);
             },
-            error: function (jqXHR, textStatus, errorThrow) {
+            error: (jqXHR, textStatus, errorThrow) => {
                 var error = {
                     'message': 'connection failure',
                     'code': RPC.ERRCODE_NONSPECIFIC,
                     type: 0,
                     'detail': `unable to obtain result from service: {$url}`
                 };
-                self.callback.call(self.master, {}, error);
+                this.callback({}, error);
             }
         });
     }
@@ -8190,41 +8341,41 @@ RPC.ERRCODE_INVALIDCOMMAND = 6;
 RPC.ERRCODE_ROWDATAUNAVAIL = 7;
 RPC.ERRCODE_MISSINGPARAM = 8;
 class Func {
-    static renderStructure(input, callback, master) {
-        new RPC('func.renderStructure', input, callback, master).invoke();
+    static renderStructure(input, callback) {
+        new RPC('func.renderStructure', input, callback).invoke();
     }
-    static arrangeMolecule(input, callback, master) {
-        new RPC('func.arrangeMolecule', input, callback, master).invoke();
+    static arrangeMolecule(input, callback) {
+        new RPC('func.arrangeMolecule', input, callback).invoke();
     }
-    static renderRowDetail(input, callback, master) {
-        new RPC('func.renderRowDetail', input, callback, master).invoke();
+    static renderRowDetail(input, callback) {
+        new RPC('func.renderRowDetail', input, callback).invoke();
     }
-    static renderYieldDetail(input, callback, master) {
-        new RPC('func.renderYieldDetail', input, callback, master).invoke();
+    static renderYieldDetail(input, callback) {
+        new RPC('func.renderYieldDetail', input, callback).invoke();
     }
-    static composeDocument(input, callback, master) {
-        new RPC('func.composeDocument', input, callback, master).invoke();
+    static composeDocument(input, callback) {
+        new RPC('func.composeDocument', input, callback).invoke();
     }
-    static getMoleculeProperties(input, callback, master) {
-        new RPC('func.getMoleculeProperties', input, callback, master).invoke();
+    static getMoleculeProperties(input, callback) {
+        new RPC('func.getMoleculeProperties', input, callback).invoke();
     }
-    static atomMapping(input, callback, master) {
-        new RPC('func.atomMapping', input, callback, master).invoke();
+    static atomMapping(input, callback) {
+        new RPC('func.atomMapping', input, callback).invoke();
     }
-    static prepareDownloadable(input, callback, master) {
-        new RPC('func.prepareDownloadable', input, callback, master).invoke();
+    static prepareDownloadable(input, callback) {
+        new RPC('func.prepareDownloadable', input, callback).invoke();
     }
-    static downloadFromSource(input, callback, master) {
-        new RPC('func.downloadFromSource', input, callback, master).invoke();
+    static downloadFromSource(input, callback) {
+        new RPC('func.downloadFromSource', input, callback).invoke();
     }
-    static getDefaultTemplateGroups(input, callback, master) {
-        new RPC('func.getDefaultTemplateGroups', input, callback, master).invoke();
+    static getDefaultTemplateGroups(input, callback) {
+        new RPC('func.getDefaultTemplateGroups', input, callback).invoke();
     }
-    static getDefaultTemplateStructs(input, callback, master) {
-        new RPC('func.getDefaultTemplateStructs', input, callback, master).invoke();
+    static getDefaultTemplateStructs(input, callback) {
+        new RPC('func.getDefaultTemplateStructs', input, callback).invoke();
     }
-    static getActionIcons(input, callback, master) {
-        new RPC('func.getActionIcons', input, callback, master).invoke();
+    static getActionIcons(input, callback) {
+        new RPC('func.getActionIcons', input, callback).invoke();
     }
 }
 class ViewStructure extends Widget {
@@ -8258,15 +8409,15 @@ class ViewStructure extends Widget {
     defineRenderPolicy(policy) {
         this.policy = policy;
     }
-    setup(callback, master) {
+    setup(callback) {
         if (this.molstr == null && this.datastr == null)
             throw 'molsync.ui.ViewStructure.setup called without specifying a molecule or datasheet';
         if (this.policy == null)
             this.policy = RenderPolicy.defaultColourOnWhite();
         if (this.molstr != null)
-            this.setupMolecule(callback, master);
+            this.setupMolecule(callback);
         else
-            this.setupData(callback, master);
+            this.setupData(callback);
     }
     render(parent) {
         if (!this.metavec)
@@ -8326,7 +8477,7 @@ class ViewStructure extends Widget {
         this.metavec.renderContext(ctx);
         ctx.restore();
     }
-    setupMolecule(callback, master) {
+    setupMolecule(callback) {
         let mol = Molecule.fromString(this.molstr);
         let effects = new RenderEffects();
         let measure = new OutlineMeasurement(0, 0, this.policy.data.pointScale);
@@ -8342,14 +8493,14 @@ class ViewStructure extends Widget {
         if (this.height == 0)
             this.height = this.naturalHeight + 2 * this.padding;
         if (callback)
-            callback.call(master);
+            callback();
     }
-    setupData(callback, master) {
+    setupData(callback) {
         let input = { 'tokenID': this.tokenID };
         input.policy = this.policy.data;
         input.dataXML = this.datastr;
         input.dataRow = this.datarow;
-        let fcn = function (result, error) {
+        Func.renderStructure(input, (result, error) => {
             if (!result) {
                 alert('Setup of ViewStructure failed: ' + error.message);
                 return;
@@ -8362,9 +8513,8 @@ class ViewStructure extends Widget {
             if (this.height == 0)
                 this.height = this.naturalHeight + 2 * this.padding;
             if (callback)
-                callback.call(master);
-        };
-        Func.renderStructure(input, fcn, this);
+                callback();
+        });
     }
 }
 class Dialog {
@@ -8372,6 +8522,10 @@ class Dialog {
         this.minPortionWidth = 80;
         this.maxPortionWidth = 80;
         this.title = 'Dialog';
+        this.callbackClose = null;
+    }
+    onClose(callback) {
+        this.callbackClose = callback;
     }
     open() {
         let bg = $('<div></div>').appendTo(document.body);
@@ -8414,8 +8568,7 @@ class Dialog {
         tdTitle.append('<b><big>' + escapeHTML(this.title) + '</big></b>');
         let tdButtons = $('<td align="right" valign="center"></td>').appendTo(tr);
         this.btnClose = $('<button class="button button-default">Close</button>').appendTo(tdButtons);
-        const self = this;
-        this.btnClose.click(function () { self.close(); });
+        this.btnClose.click(() => this.close());
         this.titleButtons = tdButtons;
         this.populate();
         this.repositionSize();
@@ -8425,6 +8578,8 @@ class Dialog {
     close() {
         this.panelBoundary.remove();
         this.obscureBackground.remove();
+        if (this.callbackClose)
+            this.callbackClose(this);
     }
     bump() {
         this.repositionSize();
@@ -8445,26 +8600,15 @@ class PickRecent extends Dialog {
         this.cookies = cookies;
         this.sides = sides;
         this.callbackPick1 = null;
-        this.masterPick1 = null;
         this.callbackPick2 = null;
-        this.masterPick2 = null;
         this.tableRows = [];
         this.views = [];
         this.title = "Recent Molecules";
         this.minPortionWidth = 20;
         this.maxPortionWidth = 95;
     }
-    onPick1(callback, master) {
-        this.callbackPick1 = callback;
-        this.masterPick1 = master;
-    }
-    onPick2(callback, master) {
-        this.callbackPick2 = callback;
-        this.masterPick2 = master;
-    }
     populate() {
         let table = $('<table></table>').appendTo(this.body());
-        const self = this;
         for (let n = 0; n < this.cookies.numMolecules(); n++) {
             const idx = n;
             let tr = $('<tr></tr>').appendTo(table);
@@ -8480,31 +8624,31 @@ class PickRecent extends Dialog {
             vs.backgroundCol1 = 0xF8F8F8;
             vs.backgroundCol2 = 0xE0E0E0;
             vs.padding = 4;
-            vs.setup(function () { vs.render(tdMol); this.bump(); }, this);
+            vs.setup(() => { vs.render(tdMol); this.bump(); });
             let tdPick = $(tdHTML).appendTo(tr);
             if (this.sides == 1) {
                 let btnPick = $('<button class="button button-primary">Pick</button>').appendTo(tdPick);
-                btnPick.click(function () { self.pickMolecule(idx, 1); });
+                btnPick.click(() => this.pickMolecule(idx, 1));
             }
             else {
                 let btnPick1 = $('<button class="button button-primary">Reactant</button>').appendTo(tdPick);
                 tdPick.append('&nbsp;');
                 let btnPick2 = $('<button class="button button-primary">Product</button>').appendTo(tdPick);
-                btnPick1.click(function () { self.pickMolecule(idx, 1); });
-                btnPick2.click(function () { self.pickMolecule(idx, 2); });
+                btnPick1.click(() => this.pickMolecule(idx, 1));
+                btnPick2.click(() => this.pickMolecule(idx, 2));
             }
             tdPick.append('&nbsp;');
             let btnDelete = $('<button class="button button-default">Delete</button>').appendTo(tdPick);
-            btnDelete.click(function () { self.deleteMolecule(idx); });
+            btnDelete.click(() => this.deleteMolecule(idx));
         }
     }
     pickMolecule(idx, which) {
         let mol = this.cookies.getMolecule(idx);
         this.cookies.promoteToTop(idx);
         if (which == 1 && this.callbackPick1)
-            this.callbackPick1.call(this.masterPick1, mol);
+            this.callbackPick1(mol);
         if (which == 2 && this.callbackPick2)
-            this.callbackPick2.call(this.masterPick2, mol);
+            this.callbackPick2(mol);
         this.close();
     }
     deleteMolecule(idx) {
@@ -8547,22 +8691,22 @@ class ButtonView extends Widget {
         this.x = 0;
         this.y = 0;
     }
-    static prepare(callback, master) {
+    static prepare(callback) {
         if (RPC.BASE_URL == null && RPC.RESOURCE_URL != null)
             ButtonView.ACTION_ICONS = {};
         if (ButtonView.ACTION_ICONS != null) {
-            callback.call(master);
+            callback();
             return;
         }
-        let fcn = function (result, error) {
+        let fcn = (result, error) => {
             if (!result.actions) {
                 alert('Fetching action icons failed: ' + error.message);
                 return;
             }
             ButtonView.ACTION_ICONS = result.actions;
-            callback.call(master);
+            callback();
         };
-        Func.getActionIcons({}, fcn, this);
+        Func.getActionIcons({}, fcn);
     }
     setParentSize(width, height) {
         this.parentWidth = width;
@@ -8586,14 +8730,13 @@ class ButtonView extends Widget {
         this.canvas.style.height = this.height + 'px';
         this.applyOffset();
         this.redraw();
-        const self = this;
-        this.content.click(function (event) { self.mouseClick(event); });
-        this.content.dblclick(function (event) { self.mouseDoubleClick(event); });
-        this.content.mousedown(function (event) { event.preventDefault(); self.mouseDown(event); });
-        this.content.mouseup(function (event) { self.mouseUp(event); });
-        this.content.mouseover(function (event) { self.mouseOver(event); });
-        this.content.mouseout(function (event) { self.mouseOut(event); });
-        this.content.mousemove(function (event) { self.mouseMove(event); });
+        this.content.click((event) => this.mouseClick(event));
+        this.content.dblclick((event) => this.mouseDoubleClick(event));
+        this.content.mousedown((event) => { event.preventDefault(); this.mouseDown(event); });
+        this.content.mouseup((event) => this.mouseUp(event));
+        this.content.mouseover((event) => this.mouseOver(event));
+        this.content.mouseout((event) => this.mouseOut(event));
+        this.content.mousemove((event) => this.mouseMove(event));
     }
     pushBank(bank) {
         bank.buttonView = this;
@@ -8878,7 +9021,6 @@ class ButtonView extends Widget {
     redraw() {
         if (!this.content || !this.canvas)
             return;
-        const self = this;
         let density = pixelDensity();
         this.canvas.width = this.width * density;
         this.canvas.height = this.height * density;
@@ -8952,12 +9094,12 @@ class ButtonView extends Widget {
                 const sz = this.prefabImgSize;
                 const bx = d.x + Math.floor(0.5 * (d.width - sz));
                 const by = d.y + Math.floor(0.5 * (d.height - sz));
-                let putSVG = function (svg) {
+                let putSVG = (svg) => {
                     let extra = 'style="position: absolute; left: ' + bx + 'px; top: ' + by + 'px;' +
                         ' width: ' + sz + 'px; height: ' + sz + 'px; pointer-events: none;"';
                     svg = svg.substring(0, 4) + ' ' + extra + svg.substring(4);
                     d.svgDOM = $(svg)[0];
-                    self.content.append(d.svgDOM);
+                    this.content.append(d.svgDOM);
                 };
                 let svg = ButtonView.ACTION_ICONS[b.imageFN];
                 if (svg)
@@ -8968,8 +9110,8 @@ class ButtonView extends Widget {
                         'url': url,
                         'type': 'GET',
                         'dataType': 'text',
-                        'success': function (svg) {
-                            svg = self.fixSVGFile(svg);
+                        'success': (svg) => {
+                            svg = this.fixSVGFile(svg);
                             ButtonView.ACTION_ICONS[b.imageFN] = svg;
                             putSVG(svg);
                         }
@@ -9084,8 +9226,7 @@ class ButtonView extends Widget {
     }
     ;
     delayedRedraw() {
-        const self = this;
-        window.setTimeout(function () { self.redraw(); }, 100);
+        window.setTimeout(() => this.redraw(), 100);
     }
     ;
     buttonFromID(id) {
@@ -11985,7 +12126,6 @@ class TemplateBank extends ButtonBank {
         this.templates = null;
     }
     init() {
-        const self = this;
         let policy = RenderPolicy.defaultBlackOnWhite();
         policy.data.pointScale = 10;
         policy.data.lineSize *= 1.5;
@@ -11994,7 +12134,7 @@ class TemplateBank extends ButtonBank {
         if (this.group == null) {
             if (RPC.BASE_URL != null) {
                 let input = { 'tokenID': this.owner.tokenID, 'policy': policy.data, 'size': [sz - 4, sz - 4] };
-                let fcn = function (result, error) {
+                let fcn = (result, error) => {
                     if (!result) {
                         alert('Setup of TemplateBank failed: ' + error.message);
                         return;
@@ -12002,11 +12142,11 @@ class TemplateBank extends ButtonBank {
                     this.subgroups = result;
                     this.buttonView.refreshBank();
                 };
-                Func.getDefaultTemplateGroups(input, fcn, this);
+                Func.getDefaultTemplateGroups(input, fcn);
             }
             else if (RPC.RESOURCE_URL != null) {
                 if (TemplateBank.RESOURCE_DATA == null)
-                    this.loadResourceData(function () { self.prepareSubGroups(); });
+                    this.loadResourceData(() => this.prepareSubGroups());
                 else
                     this.prepareSubGroups();
             }
@@ -12014,7 +12154,7 @@ class TemplateBank extends ButtonBank {
         else {
             if (RPC.BASE_URL != null) {
                 let input = { 'tokenID': this.owner.tokenID, 'policy': policy.data, 'size': [sz - 4, sz - 4], 'group': this.group };
-                let fcn = function (result, error) {
+                let fcn = (result, error) => {
                     if (!result) {
                         alert('Setup of TemplateBank failed: ' + error.message);
                         return;
@@ -12022,11 +12162,11 @@ class TemplateBank extends ButtonBank {
                     this.templates = result;
                     this.buttonView.refreshBank();
                 };
-                Func.getDefaultTemplateStructs(input, fcn, this);
+                Func.getDefaultTemplateStructs(input, fcn);
             }
             else if (RPC.RESOURCE_URL != null) {
                 if (TemplateBank.RESOURCE_DATA == null)
-                    this.loadResourceData(function () { self.prepareTemplates(); });
+                    this.loadResourceData(() => this.prepareTemplates());
                 else
                     this.prepareTemplates();
             }
@@ -12082,7 +12222,7 @@ class TemplateBank extends ButtonBank {
         ];
         TemplateBank.RESOURCE_LIST = roster.slice(0);
         TemplateBank.RESOURCE_DATA = [];
-        let grabNext = function () {
+        let grabNext = () => {
             if (roster.length == 0) {
                 onComplete();
                 return;
@@ -12092,7 +12232,7 @@ class TemplateBank extends ButtonBank {
                 'url': url,
                 'type': 'GET',
                 'dataType': 'text',
-                'success': function (dsstr) {
+                'success': (dsstr) => {
                     TemplateBank.RESOURCE_DATA.push(DataSheetStream.readXML(dsstr));
                     grabNext();
                 }
@@ -12254,9 +12394,8 @@ var DraggingTool;
 })(DraggingTool || (DraggingTool = {}));
 var globalMoleculeClipboard = null;
 class Sketcher extends Widget {
-    constructor(tokenID) {
+    constructor() {
         super();
-        this.tokenID = tokenID;
         this.mol = null;
         this.policy = null;
         this.width = 0;
@@ -12358,8 +12497,8 @@ class Sketcher extends Widget {
     }
     clearMolecule() { this.defineMolecule(new Molecule(), true, true); }
     getMolecule() { return this.mol.clone(); }
-    setup(callback, master) {
-        let fcnPrep = function () {
+    setup(callback) {
+        ButtonView.prepare(() => {
             this.beenSetup = true;
             if (this.mol == null)
                 this.mol = new Molecule();
@@ -12374,9 +12513,8 @@ class Sketcher extends Widget {
             this.metavec = new MetaVector();
             new DrawMolecule(this.layout, this.metavec).draw();
             if (callback)
-                callback.call(master);
-        };
-        ButtonView.prepare(fcnPrep, this);
+                callback();
+        });
     }
     render(parent) {
         if (!this.width || !this.height)
@@ -12387,6 +12525,7 @@ class Sketcher extends Widget {
         this.container.css('background-color', colourCanvas(this.background));
         this.container.css('border', '1px solid ' + colourCanvas(this.border));
         this.container.css('border-radius', '4px');
+        this.container.css('outline', 'none');
         this.container.attr('tabindex', '0');
         this.container.focus();
         let canvasStyle = 'position: absolute; left: 0; top: 0;';
@@ -12424,33 +12563,32 @@ class Sketcher extends Widget {
             this.templateView.pushBank(new TemplateBank(this, null));
             this.templateView.render(this.container);
         }
-        const self = this;
-        this.container.click(function (event) { self.mouseClick(event); });
-        this.container.dblclick(function (event) { self.mouseDoubleClick(event); });
-        this.container.mousedown(function (event) { event.preventDefault(); self.mouseDown(event); });
-        this.container.mouseup(function (event) { self.mouseUp(event); });
-        this.container.mouseover(function (event) { self.mouseOver(event); });
-        this.container.mouseout(function (event) { self.mouseOut(event); });
-        this.container.mousemove(function (event) { self.mouseMove(event); });
-        this.container.keypress(function (event) { self.keyPressed(event); });
-        this.container.keydown(function (event) { self.keyDown(event); });
-        this.container.keyup(function (event) { self.keyUp(event); });
-        this.container[0].addEventListener('dragover', function (event) {
+        this.container.click((event) => this.mouseClick(event));
+        this.container.dblclick((event) => this.mouseDoubleClick(event));
+        this.container.mousedown((event) => { event.preventDefault(); this.mouseDown(event); });
+        this.container.mouseup((event) => this.mouseUp(event));
+        this.container.mouseover((event) => this.mouseOver(event));
+        this.container.mouseout((event) => this.mouseOut(event));
+        this.container.mousemove((event) => this.mouseMove(event));
+        this.container.keypress((event) => this.keyPressed(event));
+        this.container.keydown((event) => this.keyDown(event));
+        this.container.keyup((event) => this.keyUp(event));
+        this.container[0].addEventListener('dragover', (event) => {
             event.stopPropagation();
             event.preventDefault();
             event.dataTransfer.dropEffect = 'copy';
         });
-        this.container[0].addEventListener('drop', function (event) {
+        this.container[0].addEventListener('drop', (event) => {
             event.stopPropagation();
             event.preventDefault();
-            self.dropInto(event.dataTransfer);
+            this.dropInto(event.dataTransfer);
         });
-        document.addEventListener('paste', function (e) {
+        document.addEventListener('paste', (e) => {
             let wnd = window;
             if (wnd.clipboardData && wnd.clipboardData.getData)
-                self.pasteText(wnd.clipboardData.getData('Text'));
+                this.pasteText(wnd.clipboardData.getData('Text'));
             else if (e.clipboardData && e.clipboardData.getData)
-                self.pasteText(e.clipboardData.getData('text/plain'));
+                this.pasteText(e.clipboardData.getData('text/plain'));
             e.preventDefault();
             return false;
         });
@@ -12481,10 +12619,9 @@ class Sketcher extends Widget {
         this.divMessage.css('left', szLeft + 'px');
         this.divMessage.css('width', (this.width - szLeft - szRight) + 'px');
         this.divMessage.css('height', (this.height - szBottom) + 'px');
-        const self = this;
-        window.setTimeout(function () {
-            if (watermark == self.fadeWatermark)
-                self.divMessage.text('');
+        window.setTimeout(() => {
+            if (watermark == this.fadeWatermark)
+                this.divMessage.text('');
         }, 5000);
     }
     clearMessage() {
@@ -12641,7 +12778,7 @@ class Sketcher extends Widget {
             return;
         }
         let dlg = new PickRecent(cookies, 1);
-        dlg.onPick1(function (mol) { this.pasteMolecule(mol); }, this);
+        dlg.callbackPick1 = (mol) => this.pasteMolecule(mol);
         dlg.open();
     }
     zoom(mag) {
@@ -12661,7 +12798,7 @@ class Sketcher extends Widget {
         this.delayedRedraw();
     }
     pasteText(str) {
-        let mol = Molecule.fromString(str);
+        let mol = MoleculeStream.readUnknown(str);
         if (mol != null)
             this.pasteMolecule(mol);
         else
@@ -12949,12 +13086,8 @@ class Sketcher extends Widget {
         if (this.canvasMolecule == null)
             return;
         this.filthy = true;
-        let self = this;
-        let redrawAction = function () {
-            if (self.filthy)
-                self.redraw();
-        };
-        window.setTimeout(redrawAction, 10);
+        window.setTimeout(() => { if (this.filthy)
+            this.redraw(); }, 10);
     }
     pickObject(x, y) {
         if (this.layout == null)
@@ -13748,14 +13881,15 @@ class Sketcher extends Widget {
     mouseWheel(event) {
     }
     dropInto(transfer) {
-        const self = this;
         let items = transfer.items, files = transfer.files;
+        const SUFFIXES = ['.el', '.mol'];
+        const MIMES = ['text/plain', 'chemical/x-sketchel', 'x-mdl-molfile'];
         for (let n = 0; n < items.length; n++) {
-            if (items[n].type.startsWith('text/plain')) {
-                items[n].getAsString(function (str) {
+            if (items[n].kind == 'string' && MIMES.indexOf(items[n].type) >= 0) {
+                items[n].getAsString((str) => {
                     let mol = Molecule.fromString(str);
                     if (mol != null) {
-                        self.defineMolecule(mol, true, true);
+                        this.defineMolecule(mol, true, true);
                     }
                     else
                         console.log('Dragged data is not a SketchEl molecule: ' + str);
@@ -13764,20 +13898,21 @@ class Sketcher extends Widget {
             }
         }
         for (let n = 0; n < files.length; n++) {
-            if (files[n].name.endsWith('.el')) {
-                let reader = new FileReader();
-                reader.onload = function (event) {
-                    let str = reader.result;
-                    let mol = Molecule.fromString(str);
-                    if (mol != null) {
-                        self.defineMolecule(mol, true, true);
-                    }
-                    else
-                        console.log('Dragged file is not a SketchEl molecule: ' + str);
-                };
-                reader.readAsText(files[n]);
-                return;
-            }
+            for (let sfx of SUFFIXES)
+                if (files[n].name.endsWith(sfx)) {
+                    let reader = new FileReader();
+                    reader.onload = (event) => {
+                        let str = reader.result;
+                        let mol = MoleculeStream.readUnknown(str);
+                        if (mol != null) {
+                            this.defineMolecule(mol, true, true);
+                        }
+                        else
+                            console.log('Dragged file is not a recognised molecule: ' + str);
+                    };
+                    reader.readAsText(files[n]);
+                    return;
+                }
         }
     }
     sketchEffects() {
@@ -13792,11 +13927,11 @@ Sketcher.UNDO_SIZE = 20;
 class MainPanel {
     constructor(root) {
         this.root = root;
-        const self = this;
+        $('body').css('overflow', 'hidden');
         root.css('width', '100%');
         root.css('height', document.documentElement.clientHeight + 'px');
-        $(window).resize(function () { self.onResize(); });
-        root.on('menuAction', function (event, cmd) { self.menuAction(cmd); });
+        $(window).resize(() => this.onResize());
+        root.on('menuAction', (event, cmd) => this.menuAction(cmd));
     }
     loadFile(filename) {
     }
@@ -13809,10 +13944,10 @@ class MainPanel {
 class DrawPanel extends MainPanel {
     constructor(root) {
         super(root);
-        this.sketcher = new Sketcher(null);
+        this.sketcher = new Sketcher();
         let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
         this.sketcher.setSize(w, h);
-        this.sketcher.setup(function () { this.sketcher.render(root); }, this);
+        this.sketcher.setup(() => this.sketcher.render(root));
     }
     setMolecule(mol) {
         this.sketcher.defineMolecule(mol);
@@ -13820,7 +13955,7 @@ class DrawPanel extends MainPanel {
     loadFile(filename) {
         const fs = require('fs');
         const self = this;
-        fs.readFile(filename, 'utf-8', function (err, data) {
+        fs.readFile(filename, 'utf-8', (err, data) => {
             if (err)
                 throw err;
             let mol = Molecule.fromString(data);
@@ -13845,6 +13980,30 @@ class DrawPanel extends MainPanel {
             openNewWindow('DrawPanel');
         else if (cmd == 'open')
             this.actionFileOpen();
+        else if (cmd == 'save')
+            this.actionFileSave(false);
+        else if (cmd == 'saveAs')
+            this.actionFileSave(true);
+        else if (cmd == 'undo')
+            this.sketcher.performUndo();
+        else if (cmd == 'redo')
+            this.sketcher.performRedo();
+        else if (cmd == 'cut')
+            this.actionCopy(true);
+        else if (cmd == 'copy')
+            this.actionCopy(false);
+        else if (cmd == 'paste')
+            this.actionPaste();
+        else if (cmd == 'delete')
+            new MoleculeActivity(this.sketcher, ActivityType.Delete, {});
+        else if (cmd == 'selectAll')
+            new MoleculeActivity(this.sketcher, ActivityType.SelectAll, {});
+        else if (cmd == 'zoomFull')
+            this.sketcher.autoScale();
+        else if (cmd == 'zoomIn')
+            this.sketcher.zoom(1.25);
+        else if (cmd == 'zoomOut')
+            this.sketcher.zoom(0.8);
         else
             console.log('MENU:' + cmd);
     }
@@ -13859,11 +14018,27 @@ class DrawPanel extends MainPanel {
                 { 'name': 'MDL Molfile', 'extensions': ['mol'] }
             ]
         };
-        dialog.showOpenDialog(params, function (filenames) {
+        dialog.showOpenDialog(params, (filenames) => {
+            let inPlace = this.sketcher.getMolecule().numAtoms == 0;
             if (filenames)
-                for (let fn of filenames)
-                    openNewWindow('DrawPanel', fn);
+                for (let fn of filenames) {
+                    if (inPlace) {
+                        this.loadFile(fn);
+                        inPlace = false;
+                    }
+                    else
+                        openNewWindow('DrawPanel', fn);
+                }
         });
+    }
+    actionFileSave(saveAs) {
+        alert('save:as=' + saveAs);
+    }
+    actionCopy(andCut) {
+        alert('copy');
+    }
+    actionPaste() {
+        alert('paste');
     }
 }
 let BASE_APP = '';
@@ -13911,6 +14086,8 @@ function runSketchEl(root) {
             '8-10=2,0\n' +
             '!End');
         let dw = new DrawPanel(root);
+        if (filename)
+            dw.loadFile(filename);
         dw.setMolecule(mol);
     }
     else {

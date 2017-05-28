@@ -26,7 +26,7 @@
 
 class DrawPanel extends MainPanel
 {
-	private sketcher = new Sketcher(null);
+	private sketcher = new Sketcher();
 	
 	// ------------ public methods ------------
 
@@ -36,7 +36,7 @@ class DrawPanel extends MainPanel
 
 		let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
 		this.sketcher.setSize(w, h);
-		this.sketcher.setup(function() {this.sketcher.render(root);}, this);
+		this.sketcher.setup(() => this.sketcher.render(root));
 	}
 
 	public setMolecule(mol:Molecule):void
@@ -48,7 +48,7 @@ class DrawPanel extends MainPanel
 	{
 		const fs = require('fs');
 		const self = this;
-		fs.readFile(filename, 'utf-8', function (err:any, data:string):void
+		fs.readFile(filename, 'utf-8', (err:any, data:string):void =>
 		{
 			if (err) throw err;
 			let mol = Molecule.fromString(data);
@@ -75,6 +75,18 @@ class DrawPanel extends MainPanel
 	{
 		if (cmd == 'new') openNewWindow('DrawPanel');
 		else if (cmd == 'open') this.actionFileOpen();
+		else if (cmd == 'save') this.actionFileSave(false);
+		else if (cmd == 'saveAs') this.actionFileSave(true);
+		else if (cmd == 'undo') this.sketcher.performUndo();
+		else if (cmd == 'redo') this.sketcher.performRedo();
+		else if (cmd == 'cut') this.actionCopy(true);
+		else if (cmd == 'copy') this.actionCopy(false);
+		else if (cmd == 'paste') this.actionPaste();
+		else if (cmd == 'delete') new MoleculeActivity(this.sketcher, ActivityType.Delete, {});
+		else if (cmd == 'selectAll') new MoleculeActivity(this.sketcher, ActivityType.SelectAll, {});
+		else if (cmd == 'zoomFull') this.sketcher.autoScale();
+		else if (cmd == 'zoomIn') this.sketcher.zoom(1.25);
+		else if (cmd == 'zoomOut') this.sketcher.zoom(0.8);
 		else console.log('MENU:'+cmd);
 	}
 
@@ -94,9 +106,33 @@ class DrawPanel extends MainPanel
 				{'name': 'MDL Molfile', 'extensions': ['mol']}
 			]
 		};
-		dialog.showOpenDialog(params, function(filenames:string[]):void
+		dialog.showOpenDialog(params, (filenames:string[]):void =>
 		{
-			if (filenames) for (let fn of filenames) openNewWindow('DrawPanel', fn);
+			let inPlace = this.sketcher.getMolecule().numAtoms == 0;
+			if (filenames) for (let fn of filenames) 
+			{
+				if (inPlace)
+				{
+					this.loadFile(fn);
+					inPlace = false;
+				}
+				else openNewWindow('DrawPanel', fn);
+			}
 		});
 	}
-} 
+
+	private actionFileSave(saveAs:boolean):void
+	{
+		alert('save:as='+saveAs); // !!
+	}
+
+	private actionCopy(andCut:boolean):void
+	{
+		alert('copy');
+	}
+
+	private actionPaste():void
+	{
+		alert('paste');
+	}
+}

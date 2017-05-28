@@ -22,13 +22,13 @@ class MainPanel
 {
 	constructor(public root:JQuery)
 	{
-		const self = this;
+		$('body').css('overflow', 'hidden');
 
 		root.css('width', '100%');
 		root.css('height', document.documentElement.clientHeight + 'px');
-		$(window).resize(function() {self.onResize();}); 
+		$(window).resize(() => this.onResize()); 
 
-		root.on('menuAction', function(event:any, cmd:string) {self.menuAction(cmd);});
+		root.on('menuAction', (event:any, cmd:string) => this.menuAction(cmd));
 	}
 
 	// stub: may be called early on to provide a source file upon which to work

@@ -41,10 +41,10 @@ function setupMenu()
 			'label': 'File',
 			'submenu': 
 			[
-				{'label': 'New Molecule', 'accelerator': 'CmdOrCtrl+N', 'click': function() {sendCommand('new');}},
-				{'label': 'Open...', 'accelerator': 'CmdOrCtrl+O', 'click': function() {sendCommand('open');}},
-				{'label': 'Save', 'accelerator': 'CmdOrCtrl+S', 'click': function() {sendCommand('save');}},
-				{'label': 'Save As...', 'accelerator': 'CmdOrCtrl+Shift+S', 'click': function() {sendCommand('saveAs');}},
+				{'label': 'New Molecule', 'accelerator': 'CmdOrCtrl+N', 'click': () => sendCommand('new')},
+				{'label': 'Open...', 'accelerator': 'CmdOrCtrl+O', 'click': () => sendCommand('open')},
+				{'label': 'Save', 'accelerator': 'CmdOrCtrl+S', 'click': () => sendCommand('save')},
+				{'label': 'Save As...', 'accelerator': 'CmdOrCtrl+Shift+S', 'click': () => sendCommand('saveAs')},
 				{'role': 'close'}
 			]
 		},
@@ -52,27 +52,26 @@ function setupMenu()
 			'label': 'Edit',
 			'submenu': 
 			[
-				{'role': 'undo'},
-				{'role': 'redo'},
+				{'label': 'Undo', 'accelerator': 'CmdOrCtrl+Z', 'click': () => sendCommand('undo')},
+				{'label': 'Redo', 'accelerator': 'CmdOrCtrl+Shift+Z', 'click': () => sendCommand('redo')},
 				{'type': 'separator'},
-				{'role': 'cut'},
-				{'role': 'copy'},
-				{'role': 'paste'},
-				{'role': 'pasteandmatchstyle'},
-				{'role': 'delete'},
-				{'role': 'selectall'}
+				{'label': 'Cut', 'accelerator': 'CmdOrCtrl+X', 'click': () => sendCommand('cut')},
+				{'label': 'Copy', 'accelerator': 'CmdOrCtrl+C', 'click': () => sendCommand('copy')},
+				{'label': 'Paste', 'accelerator': 'CmdOrCtrl+V', 'click': () => sendCommand('paste')},
+				{'label': 'Delete', 'accelerator': 'CmdOrCtrl+Delete', 'click': () => sendCommand('delete')},
+				{'label': 'Select All', 'accelerator': 'CmdOrCtrl+A', 'click': () => sendCommand('selectAll')},
 			]
 		},
 		{
 			'label': 'View',
 			'submenu': 
 			[
-				{'role': 'reload'},
-				{'role': 'toggledevtools'},
+				{'label': 'Reload', 'role': 'reload'},
+				{'label': 'Dev Tools', 'role': 'toggledevtools'},
 				{'type': 'separator'},
-				{'role': 'resetzoom'},
-				{'role': 'zoomin'},
-				{'role': 'zoomout'},
+				{'label': 'Normal Size', 'accelerator': 'CmdOrCtrl+0', 'click': () => sendCommand('zoomFull')},
+				{'label': 'Zoom In', 'accelerator': 'CmdOrCtrl+=', 'click': () => sendCommand('zoomIn')},
+				{'label': 'Zoom Out', 'accelerator': 'CmdOrCtrl+-', 'click': () => sendCommand('zoomOut')},
 				{'type': 'separator'},
 				{'role': 'togglefullscreen'}
 			]

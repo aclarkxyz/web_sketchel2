@@ -78,7 +78,7 @@ function runSketchEl(root:JQuery):void
 
 		// TODO: unpack command line parameters, diverge accordingly
 		let dw = new DrawPanel(root);
-		// !! parameter filename instead of default...
+		if (filename) dw.loadFile(filename);
 		dw.setMolecule(mol);
 	}
 	else
