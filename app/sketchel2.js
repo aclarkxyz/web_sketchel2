@@ -656,6 +656,7 @@ function escapeHTML(text) {
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
     return text.replace(/[&<>"']/g, (m) => map[m]);
 }
+function orBlank(str) { return str == null ? '' : str; }
 class Cookies {
     constructor() {
         this.molecules = [];
@@ -13954,6 +13955,7 @@ class DrawPanel extends MainPanel {
     constructor(root) {
         super(root);
         this.sketcher = new Sketcher();
+        this.filename = null;
         let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
         this.sketcher.setSize(w, h);
         this.sketcher.setup(() => this.sketcher.render(root));
@@ -13963,7 +13965,6 @@ class DrawPanel extends MainPanel {
     }
     loadFile(filename) {
         const fs = require('fs');
-        const self = this;
         fs.readFile(filename, 'utf-8', (err, data) => {
             if (err)
                 throw err;
@@ -13976,7 +13977,22 @@ class DrawPanel extends MainPanel {
                 alert('Molecule not readable:\n\n' + filename);
                 return;
             }
-            self.sketcher.defineMolecule(mol);
+            this.sketcher.defineMolecule(mol);
+            this.filename = filename;
+            this.updateTitle();
+        });
+    }
+    saveFile(filename) {
+        const fs = require('fs');
+        let mol = this.sketcher.getMolecule();
+        let content = '';
+        if (filename.endsWith('.mol'))
+            content = MoleculeStream.writeMDLMOL(mol);
+        else
+            content = MoleculeStream.writeNative(mol);
+        fs.writeFile(filename, content, (err) => {
+            if (err)
+                alert('Unable to save: ' + err);
         });
     }
     onResize() {
@@ -13990,9 +14006,9 @@ class DrawPanel extends MainPanel {
         else if (cmd == 'open')
             this.actionFileOpen();
         else if (cmd == 'save')
-            this.actionFileSave(false);
+            this.actionFileSave();
         else if (cmd == 'saveAs')
-            this.actionFileSave(true);
+            this.actionFileSaveAs();
         else if (cmd == 'undo')
             this.sketcher.performUndo();
         else if (cmd == 'redo')
@@ -14040,8 +14056,31 @@ class DrawPanel extends MainPanel {
                 }
         });
     }
-    actionFileSave(saveAs) {
-        alert('save:as=' + saveAs);
+    actionFileSave() {
+        if (!this.filename) {
+            this.actionFileSaveAs();
+            return;
+        }
+        let mol = this.sketcher.getMolecule();
+        if (mol.numAtoms == 0)
+            return;
+        this.saveFile(this.filename);
+    }
+    actionFileSaveAs() {
+        const electron = require('electron');
+        const dialog = electron.remote.dialog;
+        let params = {
+            'title': 'Save Molecule',
+            'filters': [
+                { 'name': 'SketchEl Molecule', 'extensions': ['el'] },
+                { 'name': 'MDL Molfile', 'extensions': ['mol'] }
+            ]
+        };
+        dialog.showSaveDialog((filename) => {
+            this.saveFile(filename);
+            this.filename = filename;
+            this.updateTitle();
+        });
     }
     actionCopy(andCut) {
         let input = this.sketcher.getState(), mol = input.mol;
@@ -14066,7 +14105,28 @@ class DrawPanel extends MainPanel {
         this.sketcher.showMessage('Molecule with ' + copyMol.numAtoms + ' atom' + (copyMol.numAtoms == 1 ? '' : 's') + ' copied to clipboard.');
     }
     actionPaste() {
-        alert('paste');
+        const { clipboard } = require('electron');
+        let content = clipboard.readText();
+        if (!content) {
+            alert('Clipboard has no text on it.');
+            return;
+        }
+        try {
+            let mol = MoleculeStream.readUnknown(content);
+            this.sketcher.pasteMolecule(mol);
+        }
+        catch (ex) {
+            alert('Clipboard does not contain a recognisable molecule.');
+            return;
+        }
+    }
+    updateTitle() {
+        if (this.filename == null) {
+            document.title = 'SketchEl';
+            return;
+        }
+        let slash = Math.max(this.filename.lastIndexOf('/'), this.filename.lastIndexOf('\\'));
+        document.title = 'SketchEl - ' + this.filename.substring(slash + 1);
     }
 }
 let BASE_APP = '';

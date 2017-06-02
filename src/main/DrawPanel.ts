@@ -17,6 +17,8 @@
 ///<reference path='../../../WebMolKit/src/decl/jquery.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 ///<reference path='../../../WebMolKit/src/sketcher/Sketcher.ts'/>
+///<reference path='../../../WebMolKit/src/data/Molecule.ts'/>
+///<reference path='../../../WebMolKit/src/data/MoleculeStream.ts'/>
 
 ///<reference path='./MainPanel.ts'/>
 
@@ -27,6 +29,7 @@
 class DrawPanel extends MainPanel
 {
 	private sketcher = new Sketcher();
+	private filename:string = null;
 	
 	// ------------ public methods ------------
 
@@ -47,7 +50,6 @@ class DrawPanel extends MainPanel
 	public loadFile(filename:string):void
 	{
 		const fs = require('fs');
-		const self = this;
 		fs.readFile(filename, 'utf-8', (err:any, data:string):void =>
 		{
 			if (err) throw err;
@@ -59,8 +61,28 @@ class DrawPanel extends MainPanel
 			}
 			// (other formats to be added later)
 			if (!mol) {alert('Molecule not readable:\n\n' + filename); return;}
-			self.sketcher.defineMolecule(mol);
+			this.sketcher.defineMolecule(mol);
+
+			this.filename = filename;
+			this.updateTitle();
 		});		
+	}
+
+	public saveFile(filename:string):void
+	{
+		const fs = require('fs');
+
+		let mol = this.sketcher.getMolecule();
+		let content = '';
+		if (filename.endsWith('.mol')) 
+			content = MoleculeStream.writeMDLMOL(mol);
+		else
+			content = MoleculeStream.writeNative(mol);
+
+		fs.writeFile(filename, content, (err:any):void =>
+		{
+			if (err) alert('Unable to save: ' + err);
+		});
 	}
 
 	protected onResize()
@@ -75,8 +97,8 @@ class DrawPanel extends MainPanel
 	{
 		if (cmd == 'new') openNewWindow('DrawPanel');
 		else if (cmd == 'open') this.actionFileOpen();
-		else if (cmd == 'save') this.actionFileSave(false);
-		else if (cmd == 'saveAs') this.actionFileSave(true);
+		else if (cmd == 'save') this.actionFileSave();
+		else if (cmd == 'saveAs') this.actionFileSaveAs();
 		else if (cmd == 'undo') this.sketcher.performUndo();
 		else if (cmd == 'redo') this.sketcher.performRedo();
 		else if (cmd == 'cut') this.actionCopy(true);
@@ -121,9 +143,36 @@ class DrawPanel extends MainPanel
 		});
 	}
 
-	private actionFileSave(saveAs:boolean):void
+	private actionFileSave():void
 	{
-		alert('save:as='+saveAs); // !!
+		if (!this.filename) {this.actionFileSaveAs(); return;}
+
+		let mol = this.sketcher.getMolecule();
+		if (mol.numAtoms == 0) return;
+
+		this.saveFile(this.filename);
+	}
+
+	private actionFileSaveAs():void
+	{
+		const electron = require('electron');
+		const dialog = electron.remote.dialog; 
+		let params:any =
+		{
+			'title': 'Save Molecule',
+			//defaultPath...
+			'filters':
+			[
+				{'name': 'SketchEl Molecule', 'extensions': ['el']},
+				{'name': 'MDL Molfile', 'extensions': ['mol']}
+			]
+		};
+		dialog.showSaveDialog((filename:string):void =>
+		{
+			this.saveFile(filename);
+			this.filename = filename;
+			this.updateTitle();
+		});
 	}
 
 	private actionCopy(andCut:boolean):void
@@ -151,6 +200,22 @@ class DrawPanel extends MainPanel
 
 	private actionPaste():void
 	{
-		alert('paste');
+		const {clipboard} = require('electron');
+		let content = clipboard.readText();
+		if (!content) {alert('Clipboard has no text on it.'); return;}
+		try
+		{
+			let mol = MoleculeStream.readUnknown(content);
+			this.sketcher.pasteMolecule(mol);
+		}
+		catch (ex) {alert('Clipboard does not contain a recognisable molecule.'); return;}
+	}
+
+	private updateTitle():void
+	{
+		if (this.filename == null) {document.title = 'SketchEl'; return;}
+
+		let slash = Math.max(this.filename.lastIndexOf('/'), this.filename.lastIndexOf('\\'));
+		document.title = 'SketchEl - ' + this.filename.substring(slash + 1);
 	}
 }
