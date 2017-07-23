@@ -5,21 +5,47 @@
 const electron = require('electron');
 const {app, BrowserWindow} = electron;
 
-var mainWindow = null;
-
 app.on('window-all-closed', function() 
 {
 	if (process.platform != 'darwin') app.quit();
 });
 
+// dig through command line parameters
+let argv = process.argv.slice(0);
+//let cwd = process.cwd();
+let files = [];
+
+while (argv.length > 0)
+{
+	let arg = argv.shift();
+	if (arg == 'app/main.js') break; // anything after this is fair game
+}
+for (let n = 0; n < argv.length; n++)
+{
+	if (argv[n].startsWith('-')) {}
+	else files.push(argv[n]);
+	// (... consider other options...)
+}
+if (files.length == 0) files.push(null);
+
 const BROWSER_PARAMS = {'width': 800, 'height': 700, 'icon': 'app/img/icon.png'};
 const INIT_URL = 'file://' + __dirname + '/index.html';
 
+let mainWindows = [];
 app.on('ready', function() 
 { 
-	mainWindow = new BrowserWindow(BROWSER_PARAMS);
-	mainWindow.loadURL(INIT_URL); 
-	mainWindow.on('closed', function() {mainWindow = null;});
+	for (let fn of files)
+	{
+		let wnd = new BrowserWindow(BROWSER_PARAMS);
+		let url = INIT_URL;
+		if (fn) url += '?fn=' + encodeURIComponent(fn);
+		wnd.loadURL(url); 
+		wnd.on('closed', () => 
+		{
+			wnd.removeAllListeners();
+			for (let n = 0; n < mainWindows.length; n++) if (mainWindows[n] === wnd) {mainWindows.splice(n, 1); break;}
+		});
+	}
 	setupMenu();
 });
 

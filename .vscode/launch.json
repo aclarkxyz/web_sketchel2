@@ -15,8 +15,9 @@
 			"console": "integratedTerminal",
 			"args": 
 			[
-                "play"
-			]
+                "play/test.el"
+			],
+			"protocol": "legacy"
 		},
 		{
 			"type": "node",

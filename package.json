@@ -2,7 +2,7 @@
   "name": "placeholder",
   "version": "0.0.0",
   "devDependencies": {
-    "electron": "^1.6.10",
+    "electron": "^1.6.11",
     "electron-packager": "^8.1.0"
   },
   "build": {

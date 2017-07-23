@@ -41,6 +41,15 @@ class Vec {
         arr[idx1] = arr[idx2];
         arr[idx2] = v;
     }
+    static concat(arr1, arr2) {
+        if (arr1 == null && arr2 == null)
+            return [];
+        if (arr1 == null)
+            return arr2.slice(0);
+        if (arr2 == null)
+            return arr1.slice();
+        return arr1.concat(arr2);
+    }
     static equals(arr1, arr2) {
         if (arr1 == null && arr2 == null)
             return true;
@@ -277,6 +286,36 @@ class Vec {
         arr = arr.slice(0);
         this.sort(arr);
         return arr;
+    }
+    static uniqueUnstable(arr) {
+        return Array.from(new Set(arr));
+    }
+    static uniqueStable(arr) {
+        let set = new Set(arr), ret = [];
+        for (let v in arr)
+            if (set.has(v)) {
+                ret.push(v);
+                set.delete(v);
+            }
+        return ret;
+    }
+    static maskUnique(arr) {
+        let set = new Set(arr), ret = this.booleanArray(false, arr.length);
+        for (let n = 0; n < arr.length; n++)
+            if (set.has(arr[n])) {
+                ret[n] = true;
+                set.delete(arr[n]);
+            }
+        return ret;
+    }
+    static idxUnique(arr) {
+        let set = new Set(arr), ret = [];
+        for (let n = 0; n < arr.length; n++)
+            if (set.has(arr[n])) {
+                ret.push(n);
+                set.delete(arr[n]);
+            }
+        return ret;
     }
 }
 class Permutation {
@@ -526,6 +565,7 @@ function sqr(v) {
     return v * v;
 }
 function invZ(v) { return v == 0 ? 0 : 1.0 / v; }
+function fltEqual(v1, v2) { return v1 == v2 || Math.abs(v1 - v2) <= 1E-7 * Math.max(v1, v2); }
 function realEqual(v1, v2) { return v1 == v2 || Math.abs(v1 - v2) <= 1E-14 * Math.max(v1, v2); }
 const TWOPI = 2 * Math.PI;
 const INV_TWOPI = 1.0 / TWOPI;
@@ -4828,6 +4868,7 @@ class MDLSDFReader {
     parseStream() {
         let ds = this.ds;
         ds.appendColumn('Molecule', DataSheet.COLTYPE_MOLECULE, 'Molecular structure');
+        let colName = -1;
         let entry = [];
         while (this.pos < this.lines.length) {
             let line = this.lines[this.pos++];
@@ -4847,18 +4888,24 @@ class MDLSDFReader {
                 if (line.startsWith('M	END'))
                     break;
             }
-            let mol = null;
+            let mol = null, name = null;
             try {
                 if (molstr.length > 0) {
                     let mdl = new MDLMOLReader(molstr);
                     mdl.parse();
                     mol = mdl.mol;
+                    name = mdl.molName;
                 }
             }
             catch (ex) {
             }
             if (mol != null)
                 ds.setMolecule(rn, 0, mol);
+            if (name) {
+                if (colName < 0)
+                    colName = ds.appendColumn('Name', DataSheet.COLTYPE_STRING, 'Molecule name');
+                ds.setString(rn, colName, name);
+            }
             if (rn == 0 && mol != null) {
                 let str1 = entry[0], str3 = entry[2];
                 if (str1.length >= 7 && str1.startsWith("$name=")) {
@@ -5317,6 +5364,24 @@ class DataSheet {
             if (this.data.colData[n].type == type)
                 return n;
         return -1;
+    }
+    toString(row, col) {
+        if (typeof col === 'string')
+            col = this.findColByName(col);
+        let obj = this.data.rowData[row][col];
+        return obj == null ? null : obj.toString();
+    }
+    toInt(row, col) {
+        if (!this.colIsPrimitive(col))
+            return null;
+        let obj = this.data.rowData[row][col];
+        return obj == null ? null : parseInt(obj);
+    }
+    toReal(row, col) {
+        if (!this.colIsPrimitive(col))
+            return null;
+        let obj = this.data.rowData[row][col];
+        return obj == null ? null : parseFloat(obj);
     }
 }
 DataSheet.COLTYPE_MOLECULE = 'molecule';
@@ -8529,7 +8594,8 @@ class Dialog {
         this.callbackClose = callback;
     }
     open() {
-        let bg = $('<div></div>').appendTo(document.body);
+        let body = $(document.documentElement);
+        let bg = $('<div></div>').appendTo(body);
         bg.css('width', '100%');
         bg.css('height', document.documentElement.clientHeight + 'px');
         bg.css('background-color', 'black');
@@ -8537,8 +8603,9 @@ class Dialog {
         bg.css('position', 'absolute');
         bg.css('left', 0);
         bg.css('top', 0);
+        bg.css('z-index', 999);
         this.obscureBackground = bg;
-        let pb = $('<div></div>').appendTo(document.body);
+        let pb = $('<div></div>').appendTo(body);
         pb.css('min-width', this.minPortionWidth + '%');
         if (this.maxPortionWidth != null)
             pb.css('max-width', this.maxPortionWidth + '%');
@@ -8549,6 +8616,7 @@ class Dialog {
         pb.css('left', (50 - 0.5 * this.minPortionWidth) + '%');
         pb.css('top', (document.body.scrollTop + 50) + 'px');
         pb.css('min-height', '50%');
+        pb.css('z-index', 1000);
         this.panelBoundary = pb;
         let tdiv = $('<div></div>').appendTo(pb);
         tdiv.css('width', '100%');
@@ -8559,15 +8627,19 @@ class Dialog {
         tdiv.css('margin', 0);
         tdiv.css('padding', 0);
         this.titleDiv = tdiv;
-        let bdiv = $('<div"></div>').appendTo(pb);
+        let bdiv = $('<div></div>').appendTo(pb);
         bdiv.css('width', '100%');
         this.bodyDiv = $('<div style="padding: 0.5em;"></div>').appendTo(bdiv);
         let ttlTable = $('<table></table>').appendTo(tdiv), tr = $('<tr></tr>').appendTo(ttlTable);
         ttlTable.attr('width', '100%');
-        ttlTable.css('padding', '0.5em');
         let tdTitle = $('<td valign="center"></td>').appendTo(tr);
-        tdTitle.append('<b><big>' + escapeHTML(this.title) + '</big></b>');
+        tdTitle.css('padding', '0.5em');
+        let ttl = $('<font></font>').appendTo(tdTitle);
+        ttl.css('font-size', '1.5em');
+        ttl.css('font-weight', '600');
+        ttl.text(this.title);
         let tdButtons = $('<td align="right" valign="center"></td>').appendTo(tr);
+        tdButtons.css('padding', '0.5em');
         this.btnClose = $('<button class="button button-default">Close</button>').appendTo(tdButtons);
         this.btnClose.click(() => this.close());
         this.titleButtons = tdButtons;
@@ -14137,6 +14209,20 @@ function runSketchEl(root) {
     BASE_APP = path.normalize('file:/' + __dirname);
     var url = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
     RPC.RESOURCE_URL = path.normalize(url + '/res');
+    let argv = electron.remote.process.argv.slice(0), original = argv.slice(0);
+    let cwd = process.cwd();
+    while (argv.length > 0) {
+        let arg = argv.shift();
+        if (arg == 'app/main.js')
+            break;
+    }
+    console.log('ARGS:' + JSON.stringify(argv));
+    if (argv.length == 0) {
+        if (original.length >= 2)
+            argv.push(original[1]);
+        else
+            argv.push(cwd);
+    }
     let params = window.location.search.substring(1).split('&');
     let panelClass = null;
     let filename = null;
@@ -14170,4 +14256,7732 @@ function openNewWindow(panelClass, filename) {
         url += '&fn=' + encodeURIComponent(filename);
     bw.loadURL(url);
 }
+class Aspect {
+    constructor(ds, allowModify) {
+        this.allowModify = true;
+        this.ds = ds ? ds : new DataSheet();
+        if (allowModify != null)
+            this.allowModify = allowModify;
+    }
+    isColumnReserved(colName) { return false; }
+    areColumnsReserved(colNames) {
+        let reserved = Vec.booleanArray(false, colNames.length);
+        for (let n = 0; n < colNames.length; n++)
+            reserved[n] = this.isColumnReserved(colNames[n]);
+        return reserved;
+    }
+    rowFirstBlock(row) { return true; }
+    rowBlockCount(row) { return 1; }
+    aspectUnion(other) { }
+    numTextRenderings(row) { return 0; }
+    produceTextRendering(row, idx) { return null; }
+    numGraphicRenderings(row) { return 0; }
+    produceGraphicRendering(row, idx, policy) { return [null, null]; }
+    numHeaderRenderings() { return 0; }
+    produceHeaderRendering(idx) { return null; }
+}
+Aspect.TEXT_PLAIN = 0;
+Aspect.TEXT_LINK = 1;
+Aspect.TEXT_HTML = 2;
+class SARTable extends Aspect {
+    constructor(ds, allowModify) {
+        super(ds, allowModify);
+        this.setup();
+    }
+    static isSARTable(ds) {
+        for (let n = 0; n < ds.numExtensions; n++)
+            if (ds.getExtType(n) == SARTable.CODE)
+                return true;
+        return false;
+    }
+    getFields() {
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == SARTable.CODE)
+                return this.parseMetaData(this.ds.getExtData(n));
+        return null;
+    }
+    setFields(fields) {
+        let content = this.formatMetaData(fields);
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == SARTable.CODE) {
+                this.ds.setExtData(n, content);
+                return;
+            }
+        this.ds.appendExtension(SARTable.NAME, SARTable.CODE, content);
+    }
+    getEntry(row) {
+        let fields = this.getFields();
+        let entry = {
+            'construct': this.ds.getMolecule(row, fields.construct),
+            'locked': !!this.ds.getBoolean(row, fields.locked),
+            'scaffold': this.ds.getMolecule(row, fields.scaffold),
+            'substNames': [],
+            'substituents': []
+        };
+        for (let subst of fields.substituents) {
+            entry.substNames.push(subst);
+            entry.substituents.push(this.ds.getMolecule(row, subst));
+        }
+        return entry;
+    }
+    setEntry(row, entry) {
+        let fields = this.getFields();
+        let colConstruct = this.ds.findColByName(fields.construct, DataSheet.COLTYPE_MOLECULE);
+        if (colConstruct >= 0)
+            this.ds.setMolecule(row, colConstruct, entry.construct);
+        let colLocked = this.ds.findColByName(fields.locked, DataSheet.COLTYPE_BOOLEAN);
+        if (colLocked >= 0)
+            this.ds.setBoolean(row, colLocked, entry.locked);
+        let colScaffold = this.ds.findColByName(fields.scaffold, DataSheet.COLTYPE_MOLECULE);
+        if (colScaffold >= 0)
+            this.ds.setMolecule(row, colScaffold, entry.scaffold);
+        for (let n = 0; n < fields.substituents.length; n++) {
+            let colSubst = this.ds.findColByName(fields.substituents[n], DataSheet.COLTYPE_MOLECULE);
+            if (colSubst >= 0)
+                this.ds.setMolecule(row, colSubst, entry.substituents[n]);
+        }
+    }
+    createSubstituents(tobeAdded) {
+        if (tobeAdded.length == 0)
+            return;
+        let fields = this.getFields();
+        let modified = false;
+        for (let name of tobeAdded)
+            if (fields.substituents.indexOf(name) < 0) {
+                fields.substituents.push(name);
+                this.ds.ensureColumn(name, DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_SUBSTITUENT);
+                modified = true;
+            }
+        if (modified)
+            this.setFields(fields);
+    }
+    static isAttachment(mol, atom) {
+        return mol.atomicNumber(atom) == 0 && !MolUtil.hasAbbrev(mol, atom) && mol.atomAdjCount(atom) == 1;
+    }
+    setup() {
+        this.parseAndCorrect();
+    }
+    parseAndCorrect() {
+        let fields = {
+            'construct': 'Molecule',
+            'locked': 'Molecule_locked',
+            'scaffold': 'Scaffold',
+            'substituents': [],
+            'metadata': []
+        };
+        let got = false;
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == SARTable.CODE) {
+                fields = this.parseMetaData(this.ds.getExtData(n));
+                got = true;
+                break;
+            }
+        this.ds.ensureColumn(fields.construct, DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_CONSTRUCT);
+        this.ds.ensureColumn(fields.locked, DataSheet.COLTYPE_BOOLEAN, SARTable.DESCR_LOCKED);
+        this.ds.ensureColumn(fields.scaffold, DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_SCAFFOLD);
+        for (let subst of fields.substituents)
+            this.ds.ensureColumn(subst, DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_SUBSTITUENT);
+        if (!got) {
+            let content = this.formatMetaData(fields);
+            this.ds.appendExtension(SARTable.NAME, SARTable.CODE, content);
+        }
+    }
+    parseMetaData(content) {
+        let fields = { 'construct': null, 'locked': null, 'scaffold': null, 'substituents': [], metadata: [] };
+        for (let line of content.split(/\r?\n/)) {
+            let pos = line.indexOf('=');
+            if (pos < 0)
+                continue;
+            let key = line.substring(0, pos), val = line.substring(pos + 1);
+            if (key == 'field') {
+                let bits = val.split(',');
+                if (bits.length >= 3) {
+                    let type = bits[0], name = MoleculeStream.sk_unescape(bits[1]);
+                    if (type == 'construct') {
+                        fields.construct = name;
+                        fields.locked = name + '_locked';
+                        continue;
+                    }
+                    else if (type == 'scaffold') {
+                        fields.scaffold = name;
+                        continue;
+                    }
+                    else if (type == 'substituent') {
+                        fields.substituents.push(name);
+                        continue;
+                    }
+                }
+            }
+            fields.metadata.push(line);
+        }
+        return fields;
+    }
+    formatMetaData(fields) {
+        let content = '';
+        content += 'field=construct,' + MoleculeStream.sk_escape(fields.construct) + ',\n';
+        content += 'field=scaffold,' + MoleculeStream.sk_escape(fields.scaffold) + ',\n';
+        for (let subst of fields.substituents)
+            content += 'field=substituent,' + MoleculeStream.sk_escape(subst) + ',\n';
+        for (let meta of fields.metadata)
+            content += meta + '\n';
+        return content;
+    }
+    plainHeading() { return SARTable.NAME; }
+    isColumnReserved(colName) {
+        return this.areColumnsReserved([colName])[0];
+    }
+    areColumnsReserved(colNames) {
+        let fields = this.getFields();
+        var used = new Set();
+        used.add(fields.construct);
+        used.add(fields.locked);
+        used.add(fields.scaffold);
+        for (let subst of fields.substituents)
+            used.add(subst);
+        let reserved = Vec.booleanArray(false, colNames.length);
+        for (let n = 0; n < colNames.length; n++)
+            reserved[n] = used.has(colNames[n]);
+        return reserved;
+    }
+    numGraphicRenderings(row) {
+        let fields = this.getFields();
+        return 2 + fields.substituents.length;
+    }
+    produceGraphicRendering(row, idx, policy) {
+        let fields = this.getFields(), ds = this.ds;
+        if (idx == SARTable.RENDER_CONSTRUCT) {
+            let mol = ds.getMolecule(row, fields.construct);
+            let metavec = new MetaVector();
+            if (MolUtil.notBlank(mol)) {
+                let effects = new RenderEffects();
+                for (let n = 1; n <= mol.numAtoms; n++)
+                    if (mol.atomMapNum(n) > 0)
+                        effects.colAtom[n] = 0x096E6F;
+                for (let n = 1; n <= mol.numBonds; n++) {
+                    let m1 = mol.atomMapNum(mol.bondFrom(n)), m2 = mol.atomMapNum(mol.bondTo(n));
+                    if (m1 > 0 && m2 > 0)
+                        effects.colBond[n] = 0x096E6F;
+                    else if (m1 > 0 || m2 > 0)
+                        effects.dottedBondCross[n] = 0x606060;
+                }
+                let measure = new OutlineMeasurement(0, 0, policy.data.pointScale);
+                let layout = new ArrangeMolecule(mol, measure, policy, effects);
+                layout.arrange();
+                new DrawMolecule(layout, metavec).draw();
+            }
+            else
+                metavec.drawText(0, 0, '?', 15, 0x000000);
+            metavec.normalise();
+            return [fields.construct, metavec];
+        }
+        else if (idx == SARTable.RENDER_SCAFFOLD) {
+            let mol = ds.getMolecule(row, fields.scaffold);
+            let metavec = new MetaVector();
+            if (MolUtil.notBlank(mol)) {
+                let effects = new RenderEffects();
+                for (let n = 1; n <= mol.numAtoms; n++)
+                    if (SARTable.isAttachment(mol, n)) {
+                        let isDefined = false;
+                        let el = mol.atomElement(n);
+                        outer: for (let colName of fields.substituents) {
+                            let subst = ds.getMolecule(row, colName);
+                            if (subst != null)
+                                for (let i = 1; i <= subst.numAtoms; i++)
+                                    if (subst.atomElement(i) == el || (subst.atomElement(i) == 'R' && el == colName)) {
+                                        isDefined = true;
+                                        break outer;
+                                    }
+                        }
+                        effects.colAtom[n] = isDefined ? 0x096E6F : 0xFF0000;
+                        effects.dottedRectOutline[n] = isDefined ? 0x808080 : 0xFF0000;
+                    }
+                let measure = new OutlineMeasurement(0, 0, policy.data.pointScale);
+                let layout = new ArrangeMolecule(mol, measure, policy, effects);
+                layout.arrange();
+                new DrawMolecule(layout, metavec).draw();
+            }
+            else
+                metavec.drawText(0, 0, '?', 15, 0x000000);
+            metavec.normalise();
+            return [fields.scaffold, metavec];
+        }
+        else if (idx >= SARTable.RENDER_SUBSTITUENT && idx < SARTable.RENDER_SUBSTITUENT + fields.substituents.length) {
+            let sidx = idx - SARTable.RENDER_SUBSTITUENT, sname = fields.substituents[sidx];
+            let mol = ds.getMolecule(row, sname);
+            let metavec = new MetaVector();
+            if (MolUtil.notBlank(mol)) {
+                let effects = new RenderEffects();
+                for (let n = 1; n <= mol.numAtoms; n++)
+                    if (SARTable.isAttachment(mol, n)) {
+                        effects.colAtom[n] = 0x096E6F;
+                        effects.dottedRectOutline[n] = 0x808080;
+                    }
+                let measure = new OutlineMeasurement(0, 0, policy.data.pointScale);
+                let layout = new ArrangeMolecule(mol, measure, policy, effects);
+                layout.arrange();
+                new DrawMolecule(layout, metavec).draw();
+            }
+            else {
+                let txt = '?';
+                let scaff = ds.getMolecule(row, fields.scaffold);
+                if (MolUtil.notBlank(scaff)) {
+                    txt = 'n/a';
+                    for (let n = 1; n <= scaff.numAtoms; n++)
+                        if (scaff.atomElement(n) == sname) {
+                            txt = '?';
+                            break;
+                        }
+                    if (txt == '?')
+                        for (let n = 0; n < fields.substituents.length; n++)
+                            if (n != sidx) {
+                                let subst = ds.getMolecule(row, fields.substituents[n]);
+                                if (MolUtil.notBlank(subst)) {
+                                    for (let i = 1; i <= subst.numAtoms; i++)
+                                        if (subst.atomElement(i) == sname) {
+                                            txt = 'n/a';
+                                            break;
+                                        }
+                                }
+                            }
+                }
+                metavec.drawText(0, 0, txt, 15, 0x000000);
+            }
+            metavec.normalise();
+            return [sname, metavec];
+        }
+        return [null, null];
+    }
+}
+SARTable.CODE = 'org.mmi.aspect.SARTable';
+SARTable.NAME = 'SAR Table';
+SARTable.DESCR_CONSTRUCT = 'Structure of constructed molecule';
+SARTable.DESCR_LOCKED = 'Whether constructed molecule should be rebuilt';
+SARTable.DESCR_SCAFFOLD = 'Decorated core scaffold of molecule';
+SARTable.DESCR_SUBSTITUENT = 'Substituent fragment to be attached to scaffold';
+SARTable.RENDER_CONSTRUCT = 0;
+SARTable.RENDER_SCAFFOLD = 1;
+SARTable.RENDER_SUBSTITUENT = 2;
+class ExperimentComponent {
+    constructor(mol, name) {
+        this.mol = null;
+        this.name = '';
+        this.stoich = '';
+        this.mass = null;
+        this.volume = null;
+        this.moles = null;
+        this.density = null;
+        this.conc = null;
+        this.yield = null;
+        this.primary = false;
+        this.waste = false;
+        this.equiv = null;
+        this.mol = mol;
+        if (name)
+            this.name = name;
+    }
+    clone() {
+        let dup = new ExperimentComponent(this.mol, this.name);
+        dup.stoich = this.stoich;
+        dup.mass = this.mass;
+        dup.volume = this.volume;
+        dup.moles = this.moles;
+        dup.density = this.density;
+        dup.conc = this.conc;
+        dup.yield = this.yield;
+        dup.primary = this.primary;
+        dup.waste = this.waste;
+        dup.equiv = this.equiv;
+        return dup;
+    }
+    equals(other) {
+        if (this.name != other.name)
+            return false;
+        if (this.stoich != other.stoich || this.mass != other.mass || this.volume != other.volume || this.moles != other.moles ||
+            this.density != other.density || this.conc != other.conc || this.yield != other.yield || this.primary != other.primary ||
+            this.waste != other.waste || this.equiv != other.equiv)
+            return false;
+        if (this.mol === other.mol)
+            return true;
+        if (this.mol == null || other.mol == null)
+            return false;
+        return this.mol.compareTo(other.mol) == 0;
+    }
+    isBlank() {
+        return MolUtil.isBlank(this.mol) && !this.name;
+    }
+}
+class ExperimentStep {
+    constructor() {
+        this.reactants = [];
+        this.reagents = [];
+        this.products = [];
+    }
+    contructor() { }
+    clone() {
+        let dup = new ExperimentStep();
+        for (let c of this.reactants)
+            dup.reactants.push(c.clone());
+        for (let c of this.reagents)
+            dup.reagents.push(c.clone());
+        for (let c of this.products)
+            dup.products.push(c.clone());
+        return dup;
+    }
+    equals(other) {
+        if (this.reactants.length != other.reactants.length)
+            return false;
+        if (this.reagents.length != other.reagents.length)
+            return false;
+        if (this.products.length != other.products.length)
+            return false;
+        for (let n = 0; n < this.reactants.length; n++)
+            if (!this.reactants[n].equals(other.reactants[n]))
+                return false;
+        for (let n = 0; n < this.reagents.length; n++)
+            if (!this.reagents[n].equals(other.reagents[n]))
+                return false;
+        for (let n = 0; n < this.products.length; n++)
+            if (!this.products[n].equals(other.products[n]))
+                return false;
+        return true;
+    }
+}
+class ExperimentEntry {
+    constructor() {
+        this.title = '';
+        this.createDate = null;
+        this.modifyDate = null;
+        this.doi = '';
+        this.steps = [];
+    }
+    clone() {
+        let dup = new ExperimentEntry();
+        dup.title = this.title;
+        dup.createDate = this.createDate;
+        dup.modifyDate = this.modifyDate;
+        dup.doi = this.doi;
+        for (let s of this.steps)
+            dup.steps.push(s.clone());
+        return dup;
+    }
+    deepClone() {
+        let dup = this.clone();
+        for (let step of dup.steps) {
+            for (let comp of step.reactants)
+                if (comp.mol != null)
+                    comp.mol = comp.mol.clone();
+            for (let comp of step.reagents)
+                if (comp.mol != null)
+                    comp.mol = comp.mol.clone();
+            for (let comp of step.products)
+                if (comp.mol != null)
+                    comp.mol = comp.mol.clone();
+        }
+        return dup;
+    }
+    equals(other) {
+        if (this.title != other.title)
+            return false;
+        let d1 = this.createDate == null ? 0 : this.createDate.getTime(), d2 = other.createDate == null ? 0 : other.createDate.getTime();
+        if (d1 != d2)
+            return false;
+        let d3 = this.modifyDate == null ? 0 : this.modifyDate.getTime(), d4 = other.modifyDate == null ? 0 : other.modifyDate.getTime();
+        if (d3 != d4)
+            return false;
+        if (this.doi != other.doi)
+            return false;
+        if (this.steps.length != other.steps.length)
+            return false;
+        for (let n = 0; n < this.steps.length; n++)
+            if (!this.steps[n].equals(other.steps[n]))
+                return false;
+        return true;
+    }
+    getComponent(step, type, idx) {
+        if (type == Experiment.REACTANT)
+            return this.steps[step].reactants[idx];
+        if (type == Experiment.REAGENT)
+            return this.steps[step].reagents[idx];
+        if (type == Experiment.PRODUCT)
+            return this.steps[step].products[idx];
+        return new ExperimentComponent();
+    }
+}
+class Experiment extends Aspect {
+    constructor(ds, allowModify) {
+        super(ds, allowModify);
+        if ($.isEmptyObject(Experiment.COLUMN_DESCRIPTIONS)) {
+            let v = Experiment.COLUMN_DESCRIPTIONS;
+            v[Experiment.COLNAME_EXPERIMENT_TITLE] = 'Title description for the experiment';
+            v[Experiment.COLNAME_EXPERIMENT_CREATEDATE] = 'Date the experiment was created (seconds since 1970)';
+            v[Experiment.COLNAME_EXPERIMENT_MODIFYDATE] = 'Date the experiment was last modified (seconds since 1970)';
+            v[Experiment.COLNAME_EXPERIMENT_DOI] = 'Digital object identifiers (DOI) for the experiment (whitespace separated)';
+            v[Experiment.COLNAME_REACTANT_MOL] = 'Molecular structure of reactant';
+            v[Experiment.COLNAME_REACTANT_NAME] = 'Name of reactant';
+            v[Experiment.COLNAME_REACTANT_STOICH] = 'Stoichiometry of reactant';
+            v[Experiment.COLNAME_REACTANT_MASS] = 'Mass quantity of reactant (g)';
+            v[Experiment.COLNAME_REACTANT_VOLUME] = 'Volume quantity of reactant (mL)';
+            v[Experiment.COLNAME_REACTANT_MOLES] = 'Molar quantity of reactant (mol)';
+            v[Experiment.COLNAME_REACTANT_DENSITY] = 'Density of reactant (g/mL)';
+            v[Experiment.COLNAME_REACTANT_CONC] = 'Concentration of reactant (mol/L)';
+            v[Experiment.COLNAME_REACTANT_PRIMARY] = 'Whether the reactant is used for yield calculation';
+            v[Experiment.COLNAME_REAGENT_MOL] = 'Molecular structure of reagent';
+            v[Experiment.COLNAME_REAGENT_NAME] = 'Name of reagent';
+            v[Experiment.COLNAME_REAGENT_EQUIV] = 'Molar equivalents of reagent';
+            v[Experiment.COLNAME_REAGENT_MASS] = 'Mass quantity of reagent (g)';
+            v[Experiment.COLNAME_REAGENT_VOLUME] = 'Volume quantity of reagent (mL)';
+            v[Experiment.COLNAME_REAGENT_MOLES] = 'Molar quantity of reagent (mol)';
+            v[Experiment.COLNAME_REAGENT_DENSITY] = 'Density of reagent (g/mL)';
+            v[Experiment.COLNAME_REAGENT_CONC] = 'Concentration of reagent (mol/L)';
+            v[Experiment.COLNAME_PRODUCT_MOL] = 'Molecular structure of product';
+            v[Experiment.COLNAME_PRODUCT_NAME] = 'Name of product';
+            v[Experiment.COLNAME_PRODUCT_STOICH] = 'Stoichiometry of product';
+            v[Experiment.COLNAME_PRODUCT_MASS] = 'Mass quantity of reactant (g)';
+            v[Experiment.COLNAME_PRODUCT_VOLUME] = 'Volume quantity of reactant (mL)';
+            v[Experiment.COLNAME_PRODUCT_MOLES] = 'Molar quantity of reactant (mol)';
+            v[Experiment.COLNAME_PRODUCT_DENSITY] = 'Density of reactant (g/mL)';
+            v[Experiment.COLNAME_PRODUCT_CONC] = 'Concentration of reactant (mol/L)';
+            v[Experiment.COLNAME_PRODUCT_YIELD] = 'Yield of product (%)';
+            v[Experiment.COLNAME_PRODUCT_WASTE] = 'Whether the product is an unwanted byproduct';
+        }
+        this.setup();
+    }
+    static isExperiment(ds) {
+        for (let n = 0; n < ds.numExtensions; n++)
+            if (ds.getExtType(n) == Experiment.CODE)
+                return true;
+        return false;
+    }
+    isFirstStep(row) {
+        if (this.ds.notNull(row, Experiment.COLNAME_EXPERIMENT_CREATEDATE))
+            return true;
+        let mol = this.ds.getMolecule(row, Experiment.COLNAME_REACTANT_MOL + '1');
+        if (MolUtil.notBlank(mol))
+            return true;
+        let name = this.ds.getString(row, Experiment.COLNAME_REACTANT_NAME + '1');
+        if (name)
+            return true;
+        return false;
+    }
+    numberOfSteps(row) {
+        if (row >= this.ds.numRows)
+            return 0;
+        let steps = 1;
+        while (row + steps < this.ds.numRows) {
+            if (this.isFirstStep(row + steps))
+                break;
+            steps++;
+        }
+        return steps;
+    }
+    getEntry(row) {
+        let entry = new ExperimentEntry();
+        let title = this.ds.getString(row, Experiment.COLNAME_EXPERIMENT_TITLE);
+        if (title)
+            entry.title = title;
+        let createDate = this.ds.getReal(row, Experiment.COLNAME_EXPERIMENT_CREATEDATE);
+        if (createDate)
+            entry.createDate = new Date(createDate * 1000);
+        let modifyDate = this.ds.getReal(row, Experiment.COLNAME_EXPERIMENT_MODIFYDATE);
+        if (modifyDate)
+            entry.modifyDate = new Date(modifyDate * 1000);
+        let doi = this.ds.getString(row, Experiment.COLNAME_EXPERIMENT_DOI);
+        if (doi)
+            entry.doi = doi;
+        let [nreactants, nproducts, nreagents] = this.countComponents();
+        for (let pos = row; pos < this.ds.numRows; pos++) {
+            if (pos > row && this.isFirstStep(pos))
+                break;
+            let step = new ExperimentStep();
+            if (pos == row)
+                for (let n = 1; n <= nreactants; n++) {
+                    let comp = this.fetchReactant(pos, n);
+                    if (comp != null)
+                        step.reactants.push(comp);
+                    else
+                        break;
+                }
+            for (let n = 1; n <= nproducts; n++) {
+                let comp = this.fetchProduct(pos, n);
+                if (comp != null)
+                    step.products.push(comp);
+                else
+                    break;
+            }
+            for (let n = 1; n <= nreagents; n++) {
+                let comp = this.fetchReagent(pos, n);
+                if (comp != null)
+                    step.reagents.push(comp);
+                else
+                    break;
+            }
+            entry.steps.push(step);
+        }
+        return entry;
+    }
+    setEntry(row, entry) {
+        this.putEntry(row, entry, true);
+    }
+    addEntry(entry) {
+        this.putEntry(this.ds.numRows, entry, false);
+    }
+    insertEntry(row, entry) {
+        this.putEntry(row, entry, false);
+    }
+    deleteEntry(row) {
+        let nsteps = this.numberOfSteps(row);
+        for (let n = row + nsteps - 1; n >= row; n--)
+            this.ds.deleteRow(n);
+    }
+    setup() {
+        this.parseAndCorrect();
+    }
+    parseAndCorrect() {
+        let ds = this.ds;
+        let idxRxn = -1, idxYld = -1, idxExp = -1;
+        let extRxn = '', extYld = '', extExp = '';
+        for (let n = 0; n < ds.numExtensions; n++) {
+            if (ds.getExtType(n) == Experiment.CODE_RXN) {
+                idxRxn = n;
+                extRxn = ds.getExtData(n);
+            }
+            else if (ds.getExtType(n) == Experiment.CODE_YLD) {
+                idxYld = n;
+                extYld = ds.getExtData(n);
+            }
+            else if (ds.getExtType(n) == Experiment.CODE) {
+                idxExp = n;
+                extExp = ds.getExtData(n);
+            }
+        }
+        let [nreactants, nproducts, nreagents] = this.parseReactionMetaData(extRxn);
+        let meta = `nreactants=${nreactants}\nnproducts=${nproducts}\nnreagents=${nreagents}\n`;
+        if (idxRxn >= 0)
+            ds.setExtData(idxRxn, meta);
+        else
+            ds.appendExtension(Experiment.NAME_RXN, Experiment.CODE_RXN, meta);
+        if (idxYld >= 0)
+            ds.setExtData(idxYld, '');
+        else
+            ds.appendExtension(Experiment.NAME_YLD, Experiment.CODE_YLD, '');
+        if (idxExp >= 0)
+            ds.setExtData(idxExp, '');
+        else
+            ds.appendExtension(Experiment.NAME, Experiment.CODE, '');
+        this.forceColumn(Experiment.COLNAME_EXPERIMENT_TITLE, DataSheet.COLTYPE_STRING);
+        this.forceColumn(Experiment.COLNAME_EXPERIMENT_CREATEDATE, DataSheet.COLTYPE_REAL);
+        this.forceColumn(Experiment.COLNAME_EXPERIMENT_MODIFYDATE, DataSheet.COLTYPE_REAL);
+        this.forceColumn(Experiment.COLNAME_EXPERIMENT_DOI, DataSheet.COLTYPE_STRING);
+        for (let n = 1; n <= nreactants; n++)
+            this.forceReactantColumns(n);
+        for (let n = 1; n <= nreagents; n++)
+            this.forceReagentColumns(n);
+        for (let n = 1; n <= nproducts; n++)
+            this.forceProductColumns(n);
+    }
+    forceColumn(colName, type, suffix) {
+        let useName = colName + (suffix == null ? '' : suffix);
+        this.ds.ensureColumn(useName, type, Experiment.COLUMN_DESCRIPTIONS[colName]);
+    }
+    forceReactantColumns(suffix) {
+        this.forceColumn(Experiment.COLNAME_REACTANT_MOL, DataSheet.COLTYPE_MOLECULE, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_NAME, DataSheet.COLTYPE_STRING, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_STOICH, DataSheet.COLTYPE_STRING, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_MASS, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_VOLUME, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_MOLES, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_DENSITY, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_CONC, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REACTANT_PRIMARY, DataSheet.COLTYPE_BOOLEAN, suffix);
+    }
+    forceReagentColumns(suffix) {
+        this.forceColumn(Experiment.COLNAME_REAGENT_MOL, DataSheet.COLTYPE_MOLECULE, suffix);
+        this.forceColumn(Experiment.COLNAME_REAGENT_NAME, DataSheet.COLTYPE_STRING, suffix);
+        this.forceColumn(Experiment.COLNAME_REAGENT_EQUIV, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REAGENT_MASS, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REAGENT_VOLUME, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REAGENT_MOLES, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REAGENT_DENSITY, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_REAGENT_CONC, DataSheet.COLTYPE_REAL, suffix);
+    }
+    forceProductColumns(suffix) {
+        this.forceColumn(Experiment.COLNAME_PRODUCT_MOL, DataSheet.COLTYPE_MOLECULE, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_NAME, DataSheet.COLTYPE_STRING, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_STOICH, DataSheet.COLTYPE_STRING, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_MASS, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_VOLUME, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_MOLES, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_DENSITY, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_CONC, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_YIELD, DataSheet.COLTYPE_REAL, suffix);
+        this.forceColumn(Experiment.COLNAME_PRODUCT_WASTE, DataSheet.COLTYPE_BOOLEAN, suffix);
+    }
+    parseReactionMetaData(content) {
+        let nreactants = 1, nproducts = 1, nreagents = 0;
+        for (let line of content.split(/\r?\n/)) {
+            if (line.startsWith('nreactants='))
+                nreactants = Math.max(nreactants, Math.min(100, parseInt(line.substring(11))));
+            else if (line.startsWith('nproducts='))
+                nproducts = Math.max(nproducts, Math.min(100, parseInt(line.substring(10))));
+            else if (line.startsWith('nreagents='))
+                nreagents = Math.max(nreagents, Math.min(100, parseInt(line.substring(10))));
+        }
+        return [nreactants, nproducts, nreagents];
+    }
+    countComponents() {
+        let nreactants = 0, nproducts = 0, nreagents = 0;
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == Experiment.CODE_RXN) {
+                [nreactants, nproducts, nreagents] = this.parseReactionMetaData(this.ds.getExtData(n));
+                break;
+            }
+        return [nreactants, nproducts, nreagents];
+    }
+    fetchReactant(row, idx) {
+        let mol = this.ds.getMolecule(row, `${Experiment.COLNAME_REACTANT_MOL}${idx}`);
+        let name = this.ds.getString(row, `${Experiment.COLNAME_REACTANT_NAME}${idx}`);
+        if (MolUtil.isBlank(mol) && !name)
+            return null;
+        let comp = new ExperimentComponent(mol, name);
+        let stoich = this.ds.getString(row, `${Experiment.COLNAME_REACTANT_STOICH}${idx}`);
+        if (stoich)
+            comp.stoich = stoich;
+        comp.mass = this.ds.getReal(row, `${Experiment.COLNAME_REACTANT_MASS}${idx}`);
+        comp.volume = this.ds.getReal(row, `${Experiment.COLNAME_REACTANT_VOLUME}${idx}`);
+        comp.moles = this.ds.getReal(row, `${Experiment.COLNAME_REACTANT_MOLES}${idx}`);
+        comp.density = this.ds.getReal(row, `${Experiment.COLNAME_REACTANT_DENSITY}${idx}`);
+        comp.conc = this.ds.getReal(row, `${Experiment.COLNAME_REACTANT_CONC}${idx}`);
+        let primary = this.ds.getBoolean(row, `${Experiment.COLNAME_REACTANT_PRIMARY}${idx}`);
+        if (primary != null)
+            comp.primary = primary;
+        return comp;
+    }
+    fetchProduct(row, idx) {
+        let mol = this.ds.getMolecule(row, `${Experiment.COLNAME_PRODUCT_MOL}${idx}`);
+        let name = this.ds.getString(row, `${Experiment.COLNAME_PRODUCT_NAME}${idx}`);
+        if (MolUtil.isBlank(mol) && !name)
+            return null;
+        let comp = new ExperimentComponent(mol, name);
+        let stoich = this.ds.getString(row, `${Experiment.COLNAME_PRODUCT_STOICH}${idx}`);
+        if (stoich)
+            comp.stoich = stoich;
+        comp.mass = this.ds.getReal(row, `${Experiment.COLNAME_PRODUCT_MASS}${idx}`);
+        comp.volume = this.ds.getReal(row, `${Experiment.COLNAME_PRODUCT_VOLUME}${idx}`);
+        comp.moles = this.ds.getReal(row, `${Experiment.COLNAME_PRODUCT_MOLES}${idx}`);
+        comp.density = this.ds.getReal(row, `${Experiment.COLNAME_PRODUCT_DENSITY}${idx}`);
+        comp.conc = this.ds.getReal(row, `${Experiment.COLNAME_PRODUCT_CONC}${idx}`);
+        let waste = this.ds.getBoolean(row, `${Experiment.COLNAME_PRODUCT_WASTE}${idx}`);
+        if (waste != null)
+            comp.waste = waste;
+        return comp;
+    }
+    fetchReagent(row, idx) {
+        let mol = this.ds.getMolecule(row, `${Experiment.COLNAME_REAGENT_MOL}${idx}`);
+        let name = this.ds.getString(row, `${Experiment.COLNAME_REAGENT_NAME}${idx}`);
+        if (MolUtil.isBlank(mol) && !name)
+            return null;
+        let comp = new ExperimentComponent(mol, name);
+        comp.mass = this.ds.getReal(row, `${Experiment.COLNAME_REAGENT_MASS}${idx}`);
+        comp.volume = this.ds.getReal(row, `${Experiment.COLNAME_REAGENT_VOLUME}${idx}`);
+        comp.moles = this.ds.getReal(row, `${Experiment.COLNAME_REAGENT_MOLES}${idx}`);
+        comp.density = this.ds.getReal(row, `${Experiment.COLNAME_REAGENT_DENSITY}${idx}`);
+        comp.conc = this.ds.getReal(row, `${Experiment.COLNAME_REAGENT_CONC}${idx}`);
+        comp.equiv = this.ds.getReal(row, `${Experiment.COLNAME_REAGENT_EQUIV}${idx}`);
+        return comp;
+    }
+    putEntry(row, entry, replace) {
+        let [preactants, pproducts, preagents] = this.countComponents();
+        var [nreactants, nproducts, nreagents] = [preactants, pproducts, preagents];
+        for (let step of entry.steps) {
+            nreactants = Math.max(nreactants, step.reactants.length);
+            nproducts = Math.max(nproducts, step.products.length);
+            nreagents = Math.max(nreagents, step.reagents.length);
+        }
+        if (nreactants != preactants || nproducts != pproducts || nreagents != preagents) {
+            let meta = `nreactants=${nreactants}\nnproducts=${nproducts}\nnreagents=${nreagents}`;
+            let got = false;
+            for (let n = 0; n < this.ds.numExtensions; n++)
+                if (this.ds.getExtType(n) == Experiment.CODE_RXN) {
+                    this.ds.setExtData(n, meta);
+                    got = true;
+                    break;
+                }
+            if (!got)
+                this.ds.appendExtension(Experiment.NAME_RXN, Experiment.CODE_RXN, meta);
+        }
+        for (let n = 1; n <= nreactants; n++)
+            this.forceReactantColumns(n);
+        for (let n = 1; n <= nreagents; n++)
+            this.forceReagentColumns(n);
+        for (let n = 1; n <= nproducts; n++)
+            this.forceProductColumns(n);
+        let oldSteps = replace ? this.numberOfSteps(row) : 0, newSteps = entry.steps.length;
+        if (oldSteps > newSteps) {
+            for (let n = newSteps; n < oldSteps; n++)
+                this.ds.deleteRow(row + newSteps - 1);
+        }
+        else if (newSteps > oldSteps) {
+            for (let n = oldSteps; n < newSteps; n++)
+                this.ds.insertRow(row + oldSteps);
+        }
+        this.ds.setString(row, Experiment.COLNAME_EXPERIMENT_TITLE, entry.title);
+        this.ds.setReal(row, Experiment.COLNAME_EXPERIMENT_CREATEDATE, entry.createDate == null ? null : entry.createDate.getTime() * 1E-3);
+        this.ds.setReal(row, Experiment.COLNAME_EXPERIMENT_MODIFYDATE, entry.modifyDate == null ? null : entry.modifyDate.getTime() * 1E-3);
+        this.ds.setString(row, Experiment.COLNAME_EXPERIMENT_DOI, entry.doi);
+        for (let s = 0; s < entry.steps.length; s++) {
+            let r = row + s;
+            if (s == 0)
+                for (let n = 0; n < entry.steps[s].reactants.length; n++) {
+                    let comp = entry.steps[s].reactants[n], i = n + 1;
+                    this.ds.setMolecule(r, `${Experiment.COLNAME_REACTANT_MOL}${i}`, comp.mol);
+                    this.ds.setString(r, `${Experiment.COLNAME_REACTANT_NAME}${i}`, comp.name);
+                    this.ds.setString(r, `${Experiment.COLNAME_REACTANT_STOICH}${i}`, comp.stoich);
+                    this.ds.setReal(r, `${Experiment.COLNAME_REACTANT_MASS}${i}`, comp.mass);
+                    this.ds.setReal(r, `${Experiment.COLNAME_REACTANT_VOLUME}${i}`, comp.volume);
+                    this.ds.setReal(r, `${Experiment.COLNAME_REACTANT_MOLES}${i}`, comp.moles);
+                    this.ds.setReal(r, `${Experiment.COLNAME_REACTANT_DENSITY}${i}`, comp.density);
+                    this.ds.setReal(r, `${Experiment.COLNAME_REACTANT_CONC}${i}`, comp.conc);
+                    this.ds.setBoolean(r, `${Experiment.COLNAME_REACTANT_PRIMARY}${i}`, comp.primary);
+                }
+            for (let n = 0; n < entry.steps[s].reagents.length; n++) {
+                let comp = entry.steps[s].reagents[n], i = n + 1;
+                this.ds.setMolecule(r, `${Experiment.COLNAME_REAGENT_MOL}${i}`, comp.mol);
+                this.ds.setString(r, `${Experiment.COLNAME_REAGENT_NAME}${i}`, comp.name);
+                this.ds.setReal(r, `${Experiment.COLNAME_REAGENT_EQUIV}${i}`, comp.equiv);
+                this.ds.setReal(r, `${Experiment.COLNAME_REAGENT_MASS}${i}`, comp.mass);
+                this.ds.setReal(r, `${Experiment.COLNAME_REAGENT_VOLUME}${i}`, comp.volume);
+                this.ds.setReal(r, `${Experiment.COLNAME_REAGENT_MOLES}${i}`, comp.moles);
+                this.ds.setReal(r, `${Experiment.COLNAME_REAGENT_DENSITY}${i}`, comp.density);
+                this.ds.setReal(r, `${Experiment.COLNAME_REAGENT_CONC}${i}`, comp.conc);
+            }
+            for (let n = 0; n < entry.steps[s].products.length; n++) {
+                let comp = entry.steps[s].products[n], i = n + 1;
+                this.ds.setMolecule(r, `${Experiment.COLNAME_PRODUCT_MOL}${i}`, comp.mol);
+                this.ds.setString(r, `${Experiment.COLNAME_PRODUCT_NAME}${i}`, comp.name);
+                this.ds.setString(r, `${Experiment.COLNAME_PRODUCT_STOICH}${i}`, comp.stoich);
+                this.ds.setReal(r, `${Experiment.COLNAME_PRODUCT_MASS}${i}`, comp.mass);
+                this.ds.setReal(r, `${Experiment.COLNAME_PRODUCT_VOLUME}${i}`, comp.volume);
+                this.ds.setReal(r, `${Experiment.COLNAME_PRODUCT_MOLES}${i}`, comp.moles);
+                this.ds.setReal(r, `${Experiment.COLNAME_PRODUCT_DENSITY}${i}`, comp.density);
+                this.ds.setReal(r, `${Experiment.COLNAME_PRODUCT_CONC}${i}`, comp.conc);
+                this.ds.setBoolean(r, `${Experiment.COLNAME_PRODUCT_WASTE}${i}`, comp.waste);
+            }
+        }
+        for (let s = 0; s < entry.steps.length; s++) {
+            let r = row + s;
+            let start = s > 0 ? 0 : entry.steps[s].reactants.length;
+            for (let n = start; n < nreactants; n++) {
+                let i = n + 1;
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_MOL}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_NAME}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_STOICH}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_MASS}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_VOLUME}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_MOLES}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_DENSITY}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_CONC}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REACTANT_PRIMARY}${i}`);
+            }
+            for (let n = entry.steps[s].reagents.length; n < nreagents; n++) {
+                let i = n + 1;
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_MOL}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_NAME}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_EQUIV}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_MASS}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_VOLUME}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_MOLES}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_DENSITY}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_REAGENT_CONC}${i}`);
+            }
+            for (let n = entry.steps[s].products.length; n < nproducts; n++) {
+                let i = n + 1;
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_MOL}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_NAME}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_STOICH}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_MASS}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_VOLUME}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_MOLES}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_DENSITY}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_CONC}${i}`);
+                this.ds.setToNull(r, `${Experiment.COLNAME_PRODUCT_WASTE}${i}`);
+            }
+        }
+    }
+    plainHeading() { return Experiment.NAME; }
+    rowFirstBlock(row) { return this.isFirstStep(row); }
+    rowBlockCount(row) { return this.numberOfSteps(row); }
+    isColumnReserved(colName) {
+        return this.areColumnsReserved([colName])[0];
+    }
+    areColumnsReserved(colNames) {
+        let LITERALS = [
+            Experiment.COLNAME_EXPERIMENT_TITLE,
+            Experiment.COLNAME_EXPERIMENT_CREATEDATE,
+            Experiment.COLNAME_EXPERIMENT_MODIFYDATE,
+            Experiment.COLNAME_EXPERIMENT_DOI
+        ];
+        let PREFIXES = [
+            Experiment.COLNAME_REACTANT_MOL,
+            Experiment.COLNAME_REACTANT_NAME,
+            Experiment.COLNAME_REACTANT_STOICH,
+            Experiment.COLNAME_REACTANT_MASS,
+            Experiment.COLNAME_REACTANT_VOLUME,
+            Experiment.COLNAME_REACTANT_MOLES,
+            Experiment.COLNAME_REACTANT_DENSITY,
+            Experiment.COLNAME_REACTANT_CONC,
+            Experiment.COLNAME_REACTANT_PRIMARY,
+            Experiment.COLNAME_REAGENT_MOL,
+            Experiment.COLNAME_REAGENT_NAME,
+            Experiment.COLNAME_REAGENT_EQUIV,
+            Experiment.COLNAME_REAGENT_MASS,
+            Experiment.COLNAME_REAGENT_VOLUME,
+            Experiment.COLNAME_REAGENT_MOLES,
+            Experiment.COLNAME_REAGENT_DENSITY,
+            Experiment.COLNAME_REAGENT_CONC,
+            Experiment.COLNAME_PRODUCT_MOL,
+            Experiment.COLNAME_PRODUCT_NAME,
+            Experiment.COLNAME_PRODUCT_STOICH,
+            Experiment.COLNAME_PRODUCT_MASS,
+            Experiment.COLNAME_PRODUCT_VOLUME,
+            Experiment.COLNAME_PRODUCT_MOLES,
+            Experiment.COLNAME_PRODUCT_DENSITY,
+            Experiment.COLNAME_PRODUCT_CONC,
+            Experiment.COLNAME_PRODUCT_YIELD,
+            Experiment.COLNAME_PRODUCT_WASTE
+        ];
+        let resv = Vec.booleanArray(false, colNames.length);
+        for (let n = 0; n < colNames.length; n++) {
+            let name = colNames[n];
+            if (LITERALS.indexOf(name) >= 0) {
+                resv[n] = true;
+                continue;
+            }
+            for (let pfx of PREFIXES)
+                if (name.startsWith(pfx)) {
+                    resv[n] = true;
+                    break;
+                }
+        }
+        return resv;
+    }
+}
+Experiment.CODE = 'org.mmi.aspect.Experiment';
+Experiment.CODE_RXN = 'org.mmi.aspect.Reaction';
+Experiment.CODE_YLD = 'org.mmi.aspect.Yield';
+Experiment.NAME = 'Experiment';
+Experiment.NAME_RXN = 'Reaction';
+Experiment.NAME_YLD = 'Yield';
+Experiment.REACTANT = 1;
+Experiment.REAGENT = 2;
+Experiment.PRODUCT = 3;
+Experiment.COLNAME_EXPERIMENT_TITLE = 'ExperimentTitle';
+Experiment.COLNAME_EXPERIMENT_CREATEDATE = 'ExperimentCreateDate';
+Experiment.COLNAME_EXPERIMENT_MODIFYDATE = 'ExperimentModifyDate';
+Experiment.COLNAME_EXPERIMENT_DOI = 'ExperimentDOI';
+Experiment.COLNAME_REACTANT_MOL = 'ReactantMol';
+Experiment.COLNAME_REACTANT_NAME = 'ReactantName';
+Experiment.COLNAME_REACTANT_STOICH = 'ReactantStoich';
+Experiment.COLNAME_REACTANT_MASS = 'ReactantMass';
+Experiment.COLNAME_REACTANT_VOLUME = 'ReactantVolume';
+Experiment.COLNAME_REACTANT_MOLES = 'ReactantMoles';
+Experiment.COLNAME_REACTANT_DENSITY = 'ReactantDensity';
+Experiment.COLNAME_REACTANT_CONC = 'ReactantConc';
+Experiment.COLNAME_REACTANT_PRIMARY = 'ReactantPrimary';
+Experiment.COLNAME_REAGENT_MOL = 'ReagentMol';
+Experiment.COLNAME_REAGENT_NAME = 'ReagentName';
+Experiment.COLNAME_REAGENT_EQUIV = 'ReagentEquiv';
+Experiment.COLNAME_REAGENT_MASS = 'ReagentMass';
+Experiment.COLNAME_REAGENT_VOLUME = 'ReagentVolume';
+Experiment.COLNAME_REAGENT_MOLES = 'ReagentMoles';
+Experiment.COLNAME_REAGENT_DENSITY = 'ReagentDensity';
+Experiment.COLNAME_REAGENT_CONC = 'ReagentConc';
+Experiment.COLNAME_PRODUCT_MOL = 'ProductMol';
+Experiment.COLNAME_PRODUCT_NAME = 'ProductName';
+Experiment.COLNAME_PRODUCT_STOICH = 'ProductStoich';
+Experiment.COLNAME_PRODUCT_MASS = 'ProductMass';
+Experiment.COLNAME_PRODUCT_VOLUME = 'ProductVolume';
+Experiment.COLNAME_PRODUCT_MOLES = 'ProductMoles';
+Experiment.COLNAME_PRODUCT_DENSITY = 'ProductDensity';
+Experiment.COLNAME_PRODUCT_CONC = 'ProductConc';
+Experiment.COLNAME_PRODUCT_YIELD = 'ProductYield';
+Experiment.COLNAME_PRODUCT_WASTE = 'ProductWaste';
+Experiment.COLUMN_DESCRIPTIONS = {};
+class AssayProvenanceHeader {
+    constructor() {
+        this.prefixes = {};
+        this.targetName = '';
+        this.targetURI = '';
+        this.organismName = '';
+        this.organismURI = '';
+        this.targetTypeName = '';
+        this.targetTypeURI = '';
+        this.cellName = '';
+        this.cellURI = '';
+        this.assayTypeName = '';
+        this.assayTypeURI = '';
+        this.assayDescription = '';
+        this.sourceName = '';
+        this.sourceURI = '';
+        this.sourceVersion = '';
+        this.documentName = '';
+        this.documentURI = '';
+        this.measureTypeName = '';
+        this.measureTypeURI = '';
+        this.unitNames = [];
+        this.unitURIs = [];
+    }
+}
+class AssayProvenance extends Aspect {
+    constructor(ds, allowModify) {
+        super(ds, allowModify);
+        this.setup();
+    }
+    static isAssayProvenance(ds) {
+        for (let n = 0; n < ds.numExtensions; n++)
+            if (ds.getExtType(n) == AssayProvenance.CODE)
+                return true;
+        return false;
+    }
+    getHeader() {
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == AssayProvenance.CODE)
+                return this.parseMetaData(this.ds.getExtData(n));
+        return null;
+    }
+    setHeader(header) {
+        let content = this.formatMetaData(header);
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == AssayProvenance.CODE) {
+                this.ds.setExtData(n, content);
+                return;
+            }
+        this.ds.appendExtension(AssayProvenance.NAME, AssayProvenance.CODE, content);
+    }
+    getMolecule(row) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_MOLECULE);
+        return col < 0 ? null : this.ds.getMolecule(row, col);
+    }
+    getName(row) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_NAME);
+        return col < 0 ? null : this.ds.getString(row, col);
+    }
+    getValue(row) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_VALUE);
+        return col < 0 ? null : this.ds.isNull(row, col) ? Number.NaN : this.ds.getReal(row, col);
+    }
+    getError(row) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_ERROR);
+        return col < 0 ? null : this.ds.isNull(row, col) ? Number.NaN : this.ds.getReal(row, col);
+    }
+    getUnits(row) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_UNITS);
+        return col < 0 ? null : this.ds.getString(row, col);
+    }
+    getRelation(row) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_RELATION);
+        return col < 0 ? null : this.ds.getString(row, col);
+    }
+    getSourceURI(row) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_SOURCEURI);
+        return col < 0 ? null : this.ds.getString(row, col);
+    }
+    setMolecule(row, v) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_MOLECULE);
+        if (col >= 0)
+            this.ds.setMolecule(row, col, v);
+    }
+    setName(row, v) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_NAME);
+        if (col >= 0)
+            this.ds.setString(row, col, v);
+    }
+    setValue(row, v) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_VALUE);
+        if (col < 0) { }
+        else if (Number.isNaN(v))
+            this.ds.setToNull(row, col);
+        else
+            this.ds.setReal(row, col, v);
+    }
+    setError(row, v) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_ERROR);
+        if (col < 0) { }
+        else if (Number.isNaN(v))
+            this.ds.setToNull(row, col);
+        else
+            this.ds.setReal(row, col, v);
+    }
+    setUnits(row, v) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_UNITS);
+        if (col >= 0)
+            this.ds.setString(row, col, v);
+    }
+    setRelation(row, v) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_RELATION);
+        if (col >= 0)
+            this.ds.setString(row, col, v);
+    }
+    setSourceURI(row, v) {
+        let col = this.ds.findColByName(AssayProvenance.COLNAME_SOURCEURI);
+        if (col >= 0)
+            this.ds.setString(row, col, v);
+    }
+    setup() {
+        this.parseAndCorrect();
+    }
+    parseAndCorrect() {
+        let header = new AssayProvenanceHeader();
+        let got = false;
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == AssayProvenance.CODE) {
+                header = this.parseMetaData(this.ds.getExtData(n));
+                got = true;
+                break;
+            }
+        this.ds.ensureColumn(AssayProvenance.COLNAME_MOLECULE, DataSheet.COLTYPE_MOLECULE, 'Molecular structure of compound being measured');
+        this.ds.ensureColumn(AssayProvenance.COLNAME_NAME, DataSheet.COLTYPE_STRING, 'Name of compound');
+        this.ds.ensureColumn(AssayProvenance.COLNAME_VALUE, DataSheet.COLTYPE_REAL, 'Measured value');
+        this.ds.ensureColumn(AssayProvenance.COLNAME_ERROR, DataSheet.COLTYPE_REAL, 'Experimental error of measurement');
+        this.ds.ensureColumn(AssayProvenance.COLNAME_UNITS, DataSheet.COLTYPE_STRING, 'Units of measurement');
+        this.ds.ensureColumn(AssayProvenance.COLNAME_RELATION, DataSheet.COLTYPE_STRING, 'Relation: exact, greater or less');
+        this.ds.ensureColumn(AssayProvenance.COLNAME_SOURCEURI, DataSheet.COLTYPE_STRING, 'Source identifier for activity measurement');
+        if (!got) {
+            let content = this.formatMetaData(header);
+            this.ds.appendExtension(AssayProvenance.NAME, AssayProvenance.CODE, content);
+        }
+    }
+    parseMetaData(content) {
+        let header = new AssayProvenanceHeader();
+        for (let line of content.split(/\r?\n/)) {
+            let eq = line.indexOf('=');
+            if (eq < 0)
+                continue;
+            if (line.startsWith('pfx:'))
+                header.prefixes[MoleculeStream.sk_unescape(line.substring(4, eq))] = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('targetName='))
+                header.targetName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('targetURI='))
+                header.targetURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('organismName='))
+                header.organismName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('organismURI='))
+                header.organismURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('targetTypeName='))
+                header.targetTypeName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('targetTypeURI='))
+                header.targetTypeURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('cellName='))
+                header.cellName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('cellURI='))
+                header.cellURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('assayTypeName='))
+                header.assayTypeName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('assayTypeURI='))
+                header.assayTypeURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('assayDescription='))
+                header.assayDescription = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('sourceName='))
+                header.sourceName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('sourceURI='))
+                header.sourceURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('sourceVersion='))
+                header.sourceVersion = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('documentName='))
+                header.documentName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('documentURI='))
+                header.documentURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('measureTypeName='))
+                header.measureTypeName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('measureTypeURI='))
+                header.measureTypeURI = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('unit:')) {
+                header.unitNames.push(MoleculeStream.sk_unescape(line.substring(5, eq)));
+                header.unitURIs.push(MoleculeStream.sk_unescape(line.substring(eq + 1)));
+            }
+        }
+        return header;
+    }
+    formatMetaData(header) {
+        let content = '';
+        for (let pfx in header.prefixes)
+            content += 'pfx:' + MoleculeStream.sk_escape(pfx) + '=' + MoleculeStream.sk_escape(header.prefixes[pfx]) + '\n';
+        content += 'targetName=' + MoleculeStream.sk_escape(header.targetName) + '\n';
+        content += 'targetURI=' + MoleculeStream.sk_escape(header.targetURI) + '\n';
+        content += 'organismName=' + MoleculeStream.sk_escape(header.organismName) + '\n';
+        content += 'organismURI=' + MoleculeStream.sk_escape(header.organismURI) + '\n';
+        content += 'targetTypeName=' + MoleculeStream.sk_escape(header.targetTypeName) + '\n';
+        content += 'targetTypeURI=' + MoleculeStream.sk_escape(header.targetTypeURI) + '\n';
+        content += 'cellName=' + MoleculeStream.sk_escape(header.cellName) + '\n';
+        content += 'cellURI=' + MoleculeStream.sk_escape(header.cellURI) + '\n';
+        content += 'assayTypeName=' + MoleculeStream.sk_escape(header.assayTypeName) + '\n';
+        content += 'assayTypeURI=' + MoleculeStream.sk_escape(header.assayTypeURI) + '\n';
+        content += 'assayDescription=' + MoleculeStream.sk_escape(header.assayDescription) + '\n';
+        content += 'sourceName=' + MoleculeStream.sk_escape(header.sourceName) + '\n';
+        content += 'sourceURI=' + MoleculeStream.sk_escape(header.sourceURI) + '\n';
+        content += 'sourceVersion=' + MoleculeStream.sk_escape(header.sourceVersion) + '\n';
+        content += 'documentName=' + MoleculeStream.sk_escape(header.documentName) + '\n';
+        content += 'documentURI=' + MoleculeStream.sk_escape(header.documentURI) + '\n';
+        content += 'measureTypeName=' + MoleculeStream.sk_escape(header.measureTypeName) + '\n';
+        content += 'measureTypeURI=' + MoleculeStream.sk_escape(header.measureTypeURI) + '\n';
+        for (let n = 0, num = Math.min(header.unitNames.length, header.unitURIs.length); n < num; n++)
+            content += 'unit:' + MoleculeStream.sk_escape(header.unitNames[n]) + '=' + MoleculeStream.sk_escape(header.unitURIs[n]) + '\n';
+        return content;
+    }
+    plainHeading() { return AssayProvenance.NAME; }
+    isColumnReserved(colName) {
+        return colName == AssayProvenance.COLNAME_VALUE || colName == AssayProvenance.COLNAME_ERROR ||
+            colName == AssayProvenance.COLNAME_UNITS || colName == AssayProvenance.COLNAME_RELATION ||
+            colName == AssayProvenance.COLNAME_SOURCEURI;
+    }
+    numTextRenderings(row) { return 2; }
+    produceTextRendering(row, idx) {
+        let header = this.getHeader();
+        if (idx == 0) {
+            let tr = {
+                'name': 'Activity',
+                'descr': 'Activity measurement details for this record',
+                'text': '',
+                'type': Aspect.TEXT_PLAIN
+            };
+            let val = this.getValue(row), error = this.getError(row);
+            let units = this.getUnits(row), rel = this.getRelation(row);
+            tr.text = '';
+            if (!Number.isNaN(val)) {
+                if (rel)
+                    tr.text += rel + ' ';
+                tr.text += val;
+                if (!Number.isNaN(error))
+                    tr.text += ' \u2213 ' + error;
+                if (units)
+                    tr.text += ' ' + units;
+            }
+            return tr;
+        }
+        else if (idx == 1) {
+            let tr = {
+                'name': 'Source',
+                'descr': 'Origin of the structure and activity measurement',
+                'text': '',
+                'type': Aspect.TEXT_LINK
+            };
+            let url = this.getSourceURI(row);
+            for (let pfx in header.prefixes)
+                if (url.startsWith(pfx + ':')) {
+                    url = header.prefixes[pfx] + url.substring(pfx.length + 1);
+                    break;
+                }
+            tr.text = url;
+            return tr;
+        }
+        return null;
+    }
+}
+AssayProvenance.CODE = 'org.mmi.aspect.AssayProvenance';
+AssayProvenance.NAME = 'Assay Provenance';
+AssayProvenance.COLNAME_MOLECULE = 'Molecule';
+AssayProvenance.COLNAME_NAME = 'Name';
+AssayProvenance.COLNAME_VALUE = 'Value';
+AssayProvenance.COLNAME_ERROR = 'Error';
+AssayProvenance.COLNAME_UNITS = 'Units';
+AssayProvenance.COLNAME_RELATION = 'Relation';
+AssayProvenance.COLNAME_SOURCEURI = 'SourceURI';
+AssayProvenance.URI_UNIT_M = 'http://purl.obolibrary.org/obo/UO_0000062';
+AssayProvenance.URI_UNIT_mM = 'http://purl.obolibrary.org/obo/UO_0000063';
+AssayProvenance.URI_UNIT_uM = 'http://purl.obolibrary.org/obo/UO_0000064';
+AssayProvenance.URI_UNIT_nM = 'http://purl.obolibrary.org/obo/UO_0000065';
+AssayProvenance.URI_UNIT_pM = 'http://purl.obolibrary.org/obo/UO_0000066';
+AssayProvenance.URI_UNIT_logM = 'http://www.bioassayontology.org/bao#BAO_0000101';
+AssayProvenance.URI_UNIT_perM = 'http://www.bioassayontology.org/bao#BAO_0000102';
+class BayesianSourceModel {
+    constructor() {
+        this.colNameMolecule = '';
+        this.colNameValue = '';
+        this.thresholdValue = 0.5;
+        this.thresholdRelation = '>=';
+        this.folding = 0;
+        this.noteField = '';
+        this.noteTitle = '';
+        this.noteOrigin = '';
+        this.noteComment = '';
+    }
+}
+class BayesianSource extends Aspect {
+    constructor(ds, allowModify) {
+        super(ds, allowModify);
+        this.setup();
+    }
+    static isBayesianSource(ds) {
+        for (let n = 0; n < ds.numExtensions; n++)
+            if (ds.getExtType(n) == BayesianSource.CODE)
+                return true;
+        return false;
+    }
+    getModels() {
+        let content = '';
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == BayesianSource.CODE) {
+                content = this.ds.getExtData(n);
+                break;
+            }
+        let models = [];
+        let m = null;
+        for (let line of content.split('\n')) {
+            if (line == 'model:') {
+                if (m != null)
+                    models.push(m);
+                m = {};
+                continue;
+            }
+            if (m == null)
+                continue;
+            let eq = line.indexOf('=');
+            if (eq < 0)
+                continue;
+            if (line.startsWith('colNameMolecule='))
+                m.colNameMolecule = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('colNameValue='))
+                m.colNameValue = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('thresholdValue='))
+                m.thresholdValue = parseFloat(line.substring(eq + 1));
+            else if (line.startsWith('thresholdRelation='))
+                m.thresholdRelation = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('folding='))
+                m.folding = parseInt(line.substring(eq + 1));
+            else if (line.startsWith('noteField='))
+                m.noteField = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('noteTitle='))
+                m.noteTitle = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('noteOrigin='))
+                m.noteOrigin = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('noteComment='))
+                m.noteComment = MoleculeStream.sk_unescape(line.substring(eq + 1));
+        }
+        if (m != null)
+            models.push(m);
+        return models;
+    }
+    setModels(models) {
+        let lines = [];
+        for (let m of models) {
+            lines.push('model:');
+            lines.push('colNameMolecule=' + MoleculeStream.sk_escape(m.colNameMolecule));
+            lines.push('colNameValue=' + MoleculeStream.sk_escape(m.colNameValue));
+            lines.push('thresholdValue=' + m.thresholdValue);
+            lines.push('thresholdRelation=' + MoleculeStream.sk_escape(m.thresholdRelation));
+            lines.push('folding=%d' + m.folding);
+            lines.push('noteField=' + MoleculeStream.sk_escape(m.noteField));
+            lines.push('noteTitle=' + MoleculeStream.sk_escape(m.noteTitle));
+            lines.push('noteOrigin=' + MoleculeStream.sk_escape(m.noteOrigin));
+            lines.push('noteComment=' + MoleculeStream.sk_escape(m.noteComment));
+        }
+        let content = lines.join('\n');
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == BayesianSource.CODE) {
+                this.ds.setExtData(n, content.toString());
+                return;
+            }
+        this.ds.appendExtension('BayesianSource', BayesianSource.CODE, content.toString());
+    }
+    setup() {
+        if (this.allowModify) {
+            let models = this.getModels();
+            this.setModels(models);
+        }
+    }
+    plainHeading() { return BayesianSource.NAME; }
+}
+BayesianSource.CODE = 'org.mmi.aspect.BayesianSource';
+BayesianSource.NAME = 'Bayesian Source';
+class BayesianPredictionModel {
+}
+class BayesianPredictionOutcome {
+}
+class BayesianPrediction extends Aspect {
+    constructor(ds, allowModify) {
+        super(ds, allowModify);
+        this.setup();
+    }
+    static isBayesianPrediction(ds) {
+        for (let n = 0; n < ds.numExtensions; n++)
+            if (ds.getExtType(n) == BayesianPrediction.CODE)
+                return true;
+        return false;
+    }
+    getModels() {
+        let content = '';
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == BayesianPrediction.CODE) {
+                content = this.ds.getExtData(n);
+                break;
+            }
+        let models = [];
+        let m = null;
+        for (let line of content.split('\n')) {
+            if (line == 'model:') {
+                if (m != null)
+                    models.push(m);
+                m = {};
+                continue;
+            }
+            if (m == null)
+                continue;
+            let eq = line.indexOf('=');
+            if (eq < 0)
+                continue;
+            if (line.startsWith('colMolecule='))
+                m.colMolecule = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('colRaw='))
+                m.colRaw = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('colScaled='))
+                m.colScaled = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('colArcTan='))
+                m.colArcTan = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('colDomain='))
+                m.colDomain = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('colAtoms='))
+                m.colAtoms = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('name='))
+                m.name = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('description='))
+                m.description = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('targetName='))
+                m.targetName = MoleculeStream.sk_unescape(line.substring(eq + 1));
+            else if (line.startsWith('isOffTarget='))
+                m.isOffTarget = line.substring(eq + 1) == 'true';
+        }
+        if (m != null)
+            models.push(m);
+        return models;
+    }
+    setModels(models) {
+        let lines = [];
+        for (let m of models) {
+            lines.push('model:');
+            lines.push('colMolecule=' + MoleculeStream.sk_escape(m.colMolecule));
+            lines.push('colRaw=' + MoleculeStream.sk_escape(m.colRaw));
+            lines.push('colScaled=' + MoleculeStream.sk_escape(m.colScaled));
+            lines.push('colArcTan=' + MoleculeStream.sk_escape(m.colArcTan));
+            lines.push('colDomain=' + MoleculeStream.sk_escape(m.colDomain));
+            lines.push('colAtoms=' + MoleculeStream.sk_escape(m.colAtoms));
+            lines.push('name=' + MoleculeStream.sk_escape(m.name));
+            lines.push('description=' + MoleculeStream.sk_escape(m.description));
+            lines.push('targetName=' + MoleculeStream.sk_escape(m.targetName));
+            lines.push('isOffTarget=' + m.isOffTarget);
+        }
+        let content = lines.join('\n');
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            if (this.ds.getExtType(n) == BayesianSource.CODE) {
+                this.ds.setExtData(n, content.toString());
+                return;
+            }
+        this.ds.appendExtension('BayesianPrediction', BayesianPrediction.CODE, content.toString());
+    }
+    getOutcome(row, model) {
+        let outcome = new BayesianPredictionOutcome();
+        outcome.raw = this.ds.getReal(row, model.colRaw);
+        outcome.scaled = this.ds.getReal(row, model.colScaled);
+        outcome.arctan = this.ds.getReal(row, model.colArcTan);
+        outcome.domain = this.ds.getReal(row, model.colDomain);
+        let strAtoms = this.ds.getString(row, model.colAtoms);
+        if (strAtoms) {
+            outcome.atoms = [];
+            for (let b of strAtoms.split(','))
+                outcome.atoms.push(parseFloat(b));
+        }
+        return outcome;
+    }
+    setOutcome(row, model, outcome) {
+        let col = this.ds.findColByName(model.colRaw, DataSheet.COLTYPE_REAL);
+        if (col >= 0)
+            this.ds.setReal(row, col, outcome.raw);
+        col = this.ds.findColByName(model.colScaled, DataSheet.COLTYPE_REAL);
+        if (col >= 0)
+            this.ds.setReal(row, col, outcome.scaled);
+        col = this.ds.findColByName(model.colArcTan, DataSheet.COLTYPE_REAL);
+        if (col >= 0)
+            this.ds.setReal(row, col, outcome.arctan);
+        col = this.ds.findColByName(model.colDomain, DataSheet.COLTYPE_REAL);
+        if (col >= 0)
+            this.ds.setReal(row, col, outcome.domain);
+        col = this.ds.findColByName(model.colAtoms, DataSheet.COLTYPE_STRING);
+        if (col >= 0)
+            this.ds.setString(row, col, outcome.atoms ? outcome.atoms.toString() : null);
+    }
+    setup() {
+        if (this.allowModify) {
+            let models = this.getModels();
+            this.setModels(models);
+        }
+    }
+    plainHeading() { return BayesianSource.NAME; }
+}
+BayesianPrediction.CODE = 'org.mmi.aspect.BayesianPrediction';
+BayesianPrediction.NAME = 'Bayesian Prediction';
+let SUPPORTED_ASPECTS = {};
+class AspectList {
+    constructor(ds) {
+        this.ds = ds;
+        if ($.isEmptyObject(SUPPORTED_ASPECTS)) {
+            SUPPORTED_ASPECTS[SARTable.CODE] = SARTable.NAME;
+            SUPPORTED_ASPECTS[Experiment.CODE] = Experiment.NAME;
+            SUPPORTED_ASPECTS[AssayProvenance.CODE] = AssayProvenance.NAME;
+            SUPPORTED_ASPECTS[BayesianSource.CODE] = BayesianSource.NAME;
+            SUPPORTED_ASPECTS[BayesianPrediction.CODE] = BayesianPrediction.NAME;
+        }
+    }
+    list() {
+        let present = [], absent = [];
+        let codes = new Set();
+        for (let n = 0; n < this.ds.numExtensions; n++)
+            codes.add(this.ds.getExtType(n));
+        for (let code in SUPPORTED_ASPECTS)
+            if (codes.has(code))
+                present.push(code);
+            else
+                absent.push(code);
+        return [present, absent];
+    }
+    instantiate(code) {
+        if (code == SARTable.CODE)
+            return new SARTable(this.ds);
+        if (code == Experiment.CODE)
+            return new Experiment(this.ds);
+        if (code == AssayProvenance.CODE)
+            return new AssayProvenance(this.ds);
+        if (code == BayesianSource.CODE)
+            return new BayesianSource(this.ds);
+        return null;
+    }
+    enumerate() {
+        let aspects = [];
+        for (let n = 0; n < this.ds.numExtensions; n++) {
+            let code = this.ds.getExtType(n);
+            if (SUPPORTED_ASPECTS[code])
+                aspects.push(this.instantiate(code));
+        }
+        return aspects;
+    }
+}
+class Stereochemistry {
+    constructor(meta) {
+        this.meta = meta;
+        this.mol = meta.mol;
+        this.priority = Vec.numberArray(0, this.mol.numAtoms);
+        this.chiralTetra = Vec.numberArray(Stereochemistry.STEREO_NONE, this.mol.numAtoms);
+        this.cistransBond = Vec.numberArray(Stereochemistry.STEREO_NONE, this.mol.numBonds);
+        this.cistransPlanar = Vec.numberArray(Stereochemistry.STEREO_NONE, this.mol.numAtoms);
+        this.chiralOcta = Vec.numberArray(Stereochemistry.STEREO_NONE, this.mol.numAtoms);
+    }
+    calculate() {
+        this.isH = Vec.booleanArray(false, this.mol.numAtoms);
+        for (let n = this.mol.numAtoms; n >= 1; n--)
+            this.isH[n - 1] = this.mol.atomElement(n) == 'H';
+        this.buildPriority();
+        this.buildTetraChirality();
+        this.buildBondCisTrans();
+        this.buildPlanarCisTrans();
+        this.buildOctaChirality();
+    }
+    atomPriority(atom) { return this.priority[atom - 1]; }
+    atomTetraChirality(atom) { return this.chiralTetra[atom - 1]; }
+    bondSideStereo(bond) { return this.cistransBond[bond - 1]; }
+    atomPlanarStereo(atom) { return this.cistransPlanar[atom - 1]; }
+    atomOctaChirality(atom) { return this.chiralOcta[atom - 1]; }
+    getPriorities() { return this.priority.slice(0); }
+    getAtomTetraChiral() { return this.chiralTetra.slice(0); }
+    getBondSideStereo() { return this.cistransBond.slice(0); }
+    static create(meta) {
+        let stereo = new Stereochemistry(meta);
+        stereo.calculate();
+        return stereo;
+    }
+    static rubricTetrahedral(mol, atom) {
+        if (mol.atomAdjCount(atom) < 3 || mol.atomAdjCount(atom) + mol.atomHydrogens(atom) != 4)
+            return null;
+        let adjBonds = mol.atomAdjBonds(atom);
+        let hasWedge = false;
+        for (let n = 0; n < adjBonds.length; n++) {
+            let bt = mol.bondType(adjBonds[n]);
+            if (bt == Molecule.BONDTYPE_UNKNOWN)
+                return null;
+            if (mol.bondFrom(adjBonds[n]) != atom)
+                continue;
+            if (bt == Molecule.BONDTYPE_INCLINED || bt == Molecule.BONDTYPE_DECLINED)
+                hasWedge = true;
+        }
+        if (!hasWedge && !mol.is3D())
+            return null;
+        let adj = mol.atomAdjList(atom);
+        let x = [0, 0, 0, 0];
+        let y = [0, 0, 0, 0];
+        let z = [0, 0, 0, 0];
+        let numShort = 0, numWedges = 0;
+        for (let n = 0; n < adjBonds.length; n++) {
+            const bfr = mol.bondFrom(adjBonds[n]), bt = mol.bondType(adjBonds[n]);
+            x[n] = mol.atomX(adj[n]) - mol.atomX(atom);
+            y[n] = mol.atomY(adj[n]) - mol.atomY(atom);
+            if (mol.is3D()) {
+                z[n] = mol.atomZ(adj[n]) - mol.atomZ(atom);
+            }
+            else if (bfr == atom) {
+                if (bt == Molecule.BONDTYPE_INCLINED) {
+                    z[n] = 1;
+                    numWedges++;
+                }
+                else if (bt == Molecule.BONDTYPE_DECLINED) {
+                    z[n] = -1;
+                    numWedges++;
+                }
+            }
+            let dsq = norm_xyz(x[n], y[n], z[n]);
+            if (dsq < 0.01 * 0.01) {
+                numShort++;
+                if (numShort > 1)
+                    return null;
+            }
+        }
+        if (adjBonds.length == 3) {
+            adj.push(0);
+            if (!mol.is3D() && numWedges == 1) {
+                let th0 = Math.atan2(y[0], x[0]), th1 = Math.atan2(y[1], x[1]), th2 = Math.atan2(y[2], x[2]);
+                let i1 = 1, i2 = 2;
+                if (angleDiffPos(th1, th0) > angleDiffPos(th2, th0)) {
+                    i2 = 1;
+                    i1 = 2;
+                }
+                x[0] = 1.5;
+                y[0] = 0;
+                x[1] = -0.75;
+                y[i1] = 1.3;
+                x[2] = -0.75;
+                y[i2] = -1.3;
+            }
+            else {
+                x[3] = -(x[0] + x[1] + x[2]);
+                y[3] = -(y[0] + y[1] + y[2]);
+                z[3] = -(z[0] + z[1] + z[2]);
+                let dsq = norm_xyz(x[3], y[3], z[3]);
+                if (dsq < 0.01 * 0.01)
+                    return null;
+                let inv = 1.0 / Math.sqrt(dsq);
+                x[3] *= inv;
+                y[3] *= inv;
+                z[3] *= inv;
+            }
+        }
+        let one = 0, two = 0;
+        for (let i = 1; i <= 6; i++) {
+            let a = 0, b = 0;
+            if (i == 1) {
+                a = 1;
+                b = 2;
+            }
+            else if (i == 2) {
+                a = 2;
+                b = 3;
+            }
+            else if (i == 3) {
+                a = 3;
+                b = 1;
+            }
+            else if (i == 4) {
+                a = 2;
+                b = 1;
+            }
+            else if (i == 5) {
+                a = 3;
+                b = 2;
+            }
+            else if (i == 6) {
+                a = 1;
+                b = 3;
+            }
+            let xx = y[a] * z[b] - y[b] * z[a] - x[0];
+            let yy = z[a] * x[b] - z[b] * x[a] - y[0];
+            let zz = x[a] * y[b] - x[b] * y[a] - z[0];
+            if (i <= 3)
+                one += xx * xx + yy * yy + zz * zz;
+            else
+                two += xx * xx + yy * yy + zz * zz;
+        }
+        if (two > one)
+            Vec.swap(adj, 2, 3);
+        return adj;
+    }
+    static rubricSquarePlanar(mol, atom) {
+        if (mol.atomAdjCount(atom) != 4)
+            return null;
+        let adj = mol.atomAdjList(atom);
+        let v0 = MolUtil.atomVec3(mol, atom);
+        let v1 = MolUtil.atomVec3(mol, adj[0]);
+        Vec.subFromArray(v1, v0);
+        let v2 = MolUtil.atomVec3(mol, adj[1]);
+        Vec.subFromArray(v2, v0);
+        let v3 = MolUtil.atomVec3(mol, adj[2]);
+        Vec.subFromArray(v3, v0);
+        let v4 = MolUtil.atomVec3(mol, adj[3]);
+        Vec.subFromArray(v4, v0);
+        let d2 = GeomUtil.dist2(v1, v2), d3 = GeomUtil.dist2(v1, v3), d4 = GeomUtil.dist2(v1, v4);
+        if (d2 > d3 && d2 >= d4) {
+            Vec.swap(adj, 1, 2);
+            let tmp = v2;
+            v2 = v3;
+            v3 = tmp;
+        }
+        else if (d4 > d3) {
+            Vec.swap(adj, 3, 2);
+            let tmp = v4;
+            v4 = v3;
+            v3 = tmp;
+        }
+        const MIN_ANGLE = 45 * DEGRAD, MAX_ANGLE = 135 * DEGRAD;
+        let th12 = GeomUtil.acuteAngle(v1, v2);
+        if (th12 < MIN_ANGLE || th12 > MAX_ANGLE)
+            return null;
+        let th23 = GeomUtil.acuteAngle(v2, v3);
+        if (th23 < MIN_ANGLE || th23 > MAX_ANGLE)
+            return null;
+        let th34 = GeomUtil.acuteAngle(v3, v4);
+        if (th34 < MIN_ANGLE || th34 > MAX_ANGLE)
+            return null;
+        let th41 = GeomUtil.acuteAngle(v4, v1);
+        if (th41 < MIN_ANGLE || th41 > MAX_ANGLE)
+            return null;
+        return adj;
+    }
+    static rubricOctahedral(mol, atom) {
+        const nadj = mol.atomAdjCount(atom);
+        if (nadj != 5 && nadj != 6)
+            return null;
+        let adj = mol.atomAdjList(atom), bonds = mol.atomAdjBonds(atom);
+        if (nadj == 5) {
+            adj.push(0);
+            bonds.push(0);
+        }
+        if (!mol.is3D()) {
+            let numWedges = 0;
+            for (let b of bonds)
+                if (b > 0) {
+                    const bt = mol.bondType(b);
+                    if (bt == Molecule.BONDTYPE_INCLINED || bt == Molecule.BONDTYPE_DECLINED)
+                        numWedges++;
+                }
+            if ((nadj == 5 && numWedges < 1) || (nadj == 6 && numWedges < 2))
+                return null;
+        }
+        const THRESH = 0.1, THRESHSQ = THRESH * THRESH;
+        let v0 = MolUtil.atomVec3(mol, atom);
+        let v = [[], [], [], [], [], []];
+        for (let n = 0; n < nadj; n++) {
+            v[n] = MolUtil.atomVec3(mol, adj[n]);
+            Vec.subFromArray(v[n], v0);
+            let mag = GeomUtil.magnitude(v[n]);
+            if (mag < THRESH)
+                return null;
+            Vec.mulBy(v[n], 1 / mag);
+            let bt = mol.bondType(bonds[n]);
+            if (bt == Molecule.BONDTYPE_INCLINED) {
+                if (mol.bondFrom(bonds[n]) == atom)
+                    v[n][2] += 1;
+                else
+                    v[n][2] -= 1;
+            }
+            else if (bt == Molecule.BONDTYPE_DECLINED) {
+                if (mol.bondFrom(bonds[n]) == atom)
+                    v[n][2] -= 1;
+                else
+                    v[n][2] += 1;
+            }
+        }
+        if (nadj == 5) {
+            v[5] = [0, 0, 0];
+            for (let n = 0; n < 5; n++)
+                Vec.subFromArray(v[5], v[n]);
+            let mag = GeomUtil.magnitude(v[5]);
+            if (mag < THRESH)
+                return null;
+            Vec.mulBy(v[5], 1 / mag);
+        }
+        let slots = [-1, -1, -1, -1, 0, 1];
+        let bestOpposite = GeomUtil.acuteAngle(v[0], v[1]);
+        for (let i = 0; i < 5; i++)
+            for (let j = (i == 0 ? 2 : i + 1); j < 6; j++) {
+                let theta = GeomUtil.acuteAngle(v[i], v[j]);
+                if (theta > bestOpposite) {
+                    slots[4] = i;
+                    slots[5] = j;
+                    bestOpposite = theta;
+                }
+            }
+        let axial = Vec.sub(v[slots[5]], v[slots[4]]);
+        let bestOrthogonal = Number.POSITIVE_INFINITY;
+        for (let n = 0; n < 6; n++)
+            if (n != slots[4] && n != slots[5]) {
+                let delta = Math.abs((90 * DEGRAD) - GeomUtil.acuteAngle(v[n], axial));
+                if (delta < bestOrthogonal) {
+                    slots[0] = n;
+                    bestOrthogonal = delta;
+                }
+            }
+        for (let s = 1; s <= 2; s++) {
+            let cross = GeomUtil.crossProduct(axial, v[slots[s - 1]]);
+            let bestOrient = Number.POSITIVE_INFINITY;
+            for (let n = 0; n < 6; n++) {
+                if (n == slots[4] || n == slots[5] || n == slots[0] || n == slots[1])
+                    continue;
+                let delta = GeomUtil.acuteAngle(v[n], cross);
+                if (delta < bestOrient) {
+                    slots[s] = n;
+                    bestOrient = delta;
+                }
+            }
+        }
+        for (let n = 0; n < 6; n++)
+            if (slots.indexOf(n) < 0) {
+                slots[3] = n;
+                break;
+            }
+        let rubric = [0, 0, 0, 0, 0, 0];
+        for (let n = 0; n < 6; n++)
+            rubric[n] = slots[n] < 0 ? 0 : adj[slots[n]];
+        return rubric;
+    }
+    static rubricBondSides(mol, bond) {
+        const bfr = mol.bondFrom(bond), bto = mol.bondTo(bond);
+        const nfr = mol.atomAdjCount(bfr), nto = mol.atomAdjCount(bto);
+        if (nfr < 2 || nfr > 3 || nto < 2 || nto > 3)
+            return null;
+        let adj1 = mol.atomAdjList(bfr), adj2 = mol.atomAdjList(bto);
+        let f1 = 0, f2 = 0, t1 = 0, t2 = 0;
+        for (let i = 0; i < adj1.length; i++) {
+            if (adj1[i] != bto) {
+                if (f1 == 0)
+                    f1 = adj1[i];
+                else
+                    f2 = adj1[i];
+            }
+        }
+        for (let i = 0; i < adj2.length; i++) {
+            if (adj2[i] != bfr) {
+                if (t1 == 0)
+                    t1 = adj2[i];
+                else
+                    t2 = adj2[i];
+            }
+        }
+        if (f1 > 0 && f2 > 0 && mol.atomElement(f1) == 'H') {
+            let f = f1;
+            f1 = f2;
+            f2 = f;
+        }
+        if (t1 > 0 && t2 > 0 && mol.atomElement(t1) == 'H') {
+            let t = t1;
+            t1 = t2;
+            t2 = t;
+        }
+        let vfr = MolUtil.atomVec3(mol, bfr), vto = MolUtil.atomVec3(mol, bto);
+        let vbond = Vec.sub(vto, vfr);
+        let vf1 = Vec.sub(MolUtil.atomVec3(mol, f1), vfr), vt1 = Vec.sub(MolUtil.atomVec3(mol, t1), vto);
+        const THRESHSQ = 0.1 * 0.1;
+        let xf1 = GeomUtil.crossProduct(vf1, vbond);
+        if (GeomUtil.magnitude2(xf1) < THRESHSQ)
+            return null;
+        let xt1 = GeomUtil.crossProduct(vt1, vbond);
+        if (GeomUtil.magnitude2(xt1) < THRESHSQ)
+            return null;
+        let xf1N = Vec.neg(xf1);
+        let keepF1T1 = GeomUtil.dist2(xf1, xt1) < GeomUtil.dist2(xf1N, xt1);
+        let keepF2T1 = keepF1T1, keepF1T2 = keepF1T1, keepF2T2 = keepF1T1;
+        let vf2 = null, vt2 = null, xf2 = null, xt2 = null, xf2N = null;
+        if (f2 > 0) {
+            vf2 = Vec.sub(MolUtil.atomVec3(mol, f2), vfr);
+            if (GeomUtil.magnitude2(vf2) < THRESHSQ) {
+                if (mol.atomElement(f2) != 'H')
+                    return null;
+            }
+            else {
+                xf2 = GeomUtil.crossProduct(vf2, vbond);
+                if (GeomUtil.magnitude2(xf2) < THRESHSQ)
+                    return null;
+                xf2N = Vec.neg(xf2);
+                keepF2T1 = GeomUtil.dist2(xf2, xt1) > GeomUtil.dist2(xf2N, xt1);
+            }
+        }
+        if (t2 > 0) {
+            vt2 = Vec.sub(MolUtil.atomVec3(mol, t2), vto);
+            if (GeomUtil.magnitude2(vt2) < THRESHSQ) {
+                if (mol.atomElement(t2) != 'H')
+                    return null;
+            }
+            else {
+                xt2 = GeomUtil.crossProduct(vt2, vbond);
+                if (GeomUtil.magnitude2(xt2) < THRESHSQ)
+                    return null;
+                keepF1T2 = GeomUtil.dist2(xf1, xt2) > GeomUtil.dist2(xf1N, xt2);
+            }
+        }
+        if (xf2 != null && xt2 != null) {
+            keepF2T2 = GeomUtil.dist2(xf2, xt2) < GeomUtil.dist2(xf2N, xt2);
+        }
+        if (keepF1T1 && keepF2T1 && keepF1T2 && keepF2T2)
+            return [f1, f2, t1, t2];
+        if (!keepF1T1 && !keepF2T1 && !keepF1T2 && !keepF2T2)
+            return [f1, f2, t2, t1];
+        return null;
+    }
+    buildTetraChirality() {
+        const mol = this.mol, na = mol.numAtoms, nb = mol.numBonds;
+        let haswedge = Vec.booleanArray(false, na);
+        for (let n = 1; n <= nb; n++) {
+            if (mol.bondType(n) == Molecule.BONDTYPE_INCLINED || mol.bondType(n) == Molecule.BONDTYPE_DECLINED)
+                haswedge[mol.bondFrom(n) - 1] = true;
+        }
+        skip_atom: for (let n = 1; n <= na; n++) {
+            this.chiralTetra[n - 1] = Stereochemistry.STEREO_NONE;
+            let adj = mol.atomAdjList(n);
+            if (!(adj.length == 4 || (adj.length == 3 && mol.atomHydrogens(n) == 1)))
+                continue;
+            if (adj.length == 3 && (this.isH[adj[0] - 1] || this.isH[adj[1] - 1] || this.isH[adj[2] - 1]))
+                continue;
+            for (let i = 0; i < adj.length - 1; i++) {
+                for (let j = i + 1; j < adj.length; j++) {
+                    if (this.priority[adj[i] - 1] == this.priority[adj[j] - 1])
+                        continue skip_atom;
+                }
+            }
+            if (!haswedge[n - 1] && !mol.is3D()) {
+                this.chiralTetra[n - 1] = Stereochemistry.STEREO_UNKNOWN;
+                continue;
+            }
+            let rubric = Stereochemistry.rubricTetrahedral(mol, n);
+            if (rubric == null)
+                continue;
+            let pri = [
+                rubric[0] == 0 ? 0 : this.priority[rubric[0] - 1],
+                rubric[1] == 0 ? 0 : this.priority[rubric[1] - 1],
+                rubric[2] == 0 ? 0 : this.priority[rubric[2] - 1],
+                rubric[3] == 0 ? 0 : this.priority[rubric[3] - 1]
+            ];
+            pri = Vec.idxSort(pri);
+            let parity = Permutation.parityIdentity(pri);
+            this.chiralTetra[n - 1] = (parity & 1) == 0 ? Stereochemistry.STEREO_POS : Stereochemistry.STEREO_NEG;
+        }
+    }
+    buildBondCisTrans() {
+        const mol = this.mol, na = mol.numAtoms, nb = mol.numBonds;
+        let sf = [0, 0], st = [0, 0];
+        let ringMask = Vec.booleanArray(false, nb);
+        for (let rsz = 3; rsz <= 7; rsz++) {
+            for (let r of mol.findRingsOfSize(rsz)) {
+                for (let n = 0; n < r.length; n++) {
+                    let b = mol.findBond(r[n], r[n < r.length - 1 ? n + 1 : 0]);
+                    ringMask[b - 1] = true;
+                }
+            }
+        }
+        skip_bond: for (let n = 1; n <= nb; n++) {
+            this.cistransBond[n - 1] = Stereochemistry.STEREO_NONE;
+            if (mol.bondOrder(n) != 2 || this.meta.isBondAromatic(n) || ringMask[n - 1])
+                continue;
+            let bfr = mol.bondFrom(n), bto = mol.bondTo(n);
+            let adj1 = mol.atomAdjList(bfr), adj2 = mol.atomAdjList(bto);
+            if (adj1.length <= 1 || adj2.length <= 1 || adj1.length > 3 || adj2.length > 3)
+                continue;
+            if (adj1.length == 2 && (this.isH[adj1[0] - 1] || this.isH[adj1[1] - 1]))
+                continue;
+            if (adj2.length == 2 && (this.isH[adj2[0] - 1] || this.isH[adj2[1] - 1]))
+                continue;
+            for (let i = 0; i < adj1.length - 1; i++)
+                if (adj1[i] != bfr)
+                    for (let j = i + 1; j < adj1.length; j++)
+                        if (adj1[j] != bfr)
+                            if (this.priority[adj1[i] - 1] == this.priority[adj1[j] - 1])
+                                continue skip_bond;
+            for (let i = 0; i < adj2.length - 1; i++)
+                if (adj2[i] != bto)
+                    for (let j = i + 1; j < adj2.length; j++)
+                        if (adj2[j] != bto)
+                            if (this.priority[adj2[i] - 1] == this.priority[adj2[j] - 1])
+                                continue skip_bond;
+            if (mol.bondType(n) == Molecule.BONDTYPE_UNKNOWN) {
+                this.cistransBond[n - 1] = Stereochemistry.STEREO_UNKNOWN;
+                continue;
+            }
+            let rubric = Stereochemistry.rubricBondSides(mol, n);
+            if (rubric == null)
+                continue;
+            let pf1 = rubric[0] == 0 ? 0 : this.priority[rubric[0] - 1];
+            let pf2 = rubric[1] == 0 ? 0 : this.priority[rubric[1] - 1];
+            let pt1 = rubric[2] == 0 ? 0 : this.priority[rubric[2] - 1];
+            let pt2 = rubric[3] == 0 ? 0 : this.priority[rubric[3] - 1];
+            this.cistransBond[n - 1] = ((pf1 < pf2) == (pt1 < pt2)) ? Stereochemistry.STEREO_POS : Stereochemistry.STEREO_NEG;
+        }
+    }
+    buildPlanarCisTrans() {
+        const mol = this.mol, na = mol.numAtoms, nb = mol.numBonds;
+        skip_atom: for (let n = 1; n <= na; n++) {
+            this.cistransPlanar[n - 1] = Stereochemistry.STEREO_NONE;
+            if (mol.atomAdjCount(n) != 4)
+                continue;
+            if (Chemistry.ELEMENT_BLOCKS[mol.atomicNumber(n)] < 3)
+                continue;
+            let adj = mol.atomAdjList(n);
+            for (let i = 0; i < adj.length; i++) {
+                let count = 0;
+                for (let j = 0; j < adj.length; j++) {
+                    if (this.priority[adj[i] - 1] == this.priority[adj[j] - 1])
+                        count++;
+                }
+                if (count >= 3)
+                    continue skip_atom;
+            }
+            let rubric = Stereochemistry.rubricSquarePlanar(mol, n);
+            if (rubric == null)
+                continue;
+            let pri = [
+                rubric[0] == 0 ? 0 : this.priority[rubric[0] - 1],
+                rubric[1] == 0 ? 0 : this.priority[rubric[1] - 1],
+                rubric[2] == 0 ? 0 : this.priority[rubric[2] - 1],
+                rubric[3] == 0 ? 0 : this.priority[rubric[3] - 1]
+            ];
+            let parity = Permutation.parityOrder(pri);
+            this.cistransPlanar[n - 1] = (parity & 1) == 0 ? Stereochemistry.STEREO_POS : Stereochemistry.STEREO_NEG;
+        }
+    }
+    buildOctaChirality() {
+    }
+    buildPriority() {
+        const mol = this.mol, na = mol.numAtoms, nb = mol.numBonds;
+        let cipgr = [];
+        for (let n = 0; n < na; n++)
+            cipgr.push(Vec.numberArray(-1, mol.atomHydrogens(n + 1)));
+        for (let n = 1; n <= nb; n++) {
+            let bf = mol.bondFrom(n) - 1, bt = mol.bondTo(n) - 1, bo = mol.bondOrder(n);
+            if (this.meta.isBondAromatic(n))
+                bo = 2;
+            if (bf != bt)
+                for (let i = 0; i < bo; i++) {
+                    cipgr[bf].push(bt);
+                    cipgr[bt].push(bf);
+                }
+        }
+        this.priority = Vec.numberArray(0, na);
+        let anyActualH = false;
+        for (let n = 0; n < na; n++) {
+            this.priority[n] = mol.atomicNumber(n + 1);
+            if (this.priority[n] == 1)
+                anyActualH = true;
+        }
+        let prigr = [];
+        for (let n = 0; n < na; n++)
+            prigr.push([]);
+        while (true) {
+            for (let n = 0; n < na; n++) {
+                let cip = cipgr[n], pri = [];
+                for (let i = 0; i < cip.length; i++)
+                    pri.push(cip[i] < 0 ? 1 : this.priority[cip[i]]);
+                Vec.sort(pri);
+                prigr[n] = pri;
+            }
+            let groups = this.sortAndGroup(this.priority);
+            let nextpri = anyActualH ? 0 : 1;
+            let repartitioned = false;
+            for (let n = 0; n < groups.length; n++) {
+                let g = groups[n];
+                for (let p = 0; p < g.length - 1;) {
+                    const i1 = g[p], i2 = g[p + 1];
+                    let cmp = 0, sz = Math.max(prigr[i1].length, prigr[i2].length);
+                    for (let i = 0; i < sz; i++) {
+                        let v1 = i < prigr[i1].length ? prigr[i1][i] : 0, v2 = i < prigr[i2].length ? prigr[i2][i] : 0;
+                        if (v1 < v2) {
+                            cmp = -1;
+                            break;
+                        }
+                        if (v1 > v2) {
+                            cmp = 1;
+                            break;
+                        }
+                    }
+                    if (cmp > 0) {
+                        g[p] = i2;
+                        g[p + 1] = i1;
+                        if (p > 0)
+                            p--;
+                    }
+                    else
+                        p++;
+                }
+                for (let i = 0; i < g.length; i++) {
+                    if (i == 0)
+                        nextpri++;
+                    else if (prigr[g[i]].length != prigr[g[i - 1]].length) {
+                        nextpri++;
+                        repartitioned = true;
+                    }
+                    else {
+                        for (let j = 0; j < prigr[g[i]].length; j++)
+                            if (prigr[g[i]][j] != prigr[g[i - 1]][j]) {
+                                nextpri++;
+                                repartitioned = true;
+                                break;
+                            }
+                    }
+                    this.priority[g[i]] = nextpri;
+                }
+            }
+            if (!repartitioned)
+                break;
+        }
+    }
+    sortAndGroup(val) {
+        let uset = new Set();
+        for (let v of val)
+            uset.add(v);
+        let unique = Array.from(uset);
+        Vec.sort(unique);
+        let ret = [];
+        for (let n = 0; n < unique.length; n++)
+            ret.push([]);
+        for (let n = 0; n < val.length; n++) {
+            let grp = unique.indexOf(val[n]);
+            ret[grp].push(n);
+        }
+        return ret;
+    }
+}
+Stereochemistry.STEREO_NONE = 0;
+Stereochemistry.STEREO_POS = 1;
+Stereochemistry.STEREO_NEG = 2;
+Stereochemistry.STEREO_UNKNOWN = 3;
+Stereochemistry.STEREO_BROKEN = 4;
+Stereochemistry.RUBRIC_EQUIV_TETRA = [
+    [0, 1, 2, 3], [0, 2, 3, 1], [0, 3, 1, 2], [1, 0, 3, 2], [1, 2, 0, 3], [1, 3, 2, 0],
+    [2, 0, 1, 3], [2, 1, 3, 0], [2, 3, 0, 1], [3, 0, 2, 1], [3, 1, 0, 2], [3, 2, 1, 0]
+];
+Stereochemistry.RUBRIC_EQUIV_SIDES = [
+    [0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]
+];
+Stereochemistry.RUBRIC_EQUIV_SQUARE = [
+    [0, 1, 2, 3], [0, 3, 2, 1], [1, 2, 3, 0], [1, 0, 3, 2],
+    [2, 1, 0, 3], [2, 3, 0, 1], [3, 2, 1, 0], [3, 0, 1, 2]
+];
+Stereochemistry.RUBRIC_EQUIV_OCTA = [
+    [0, 1, 2, 3, 4, 5], [0, 3, 2, 1, 5, 4], [0, 4, 2, 5, 3, 1], [0, 5, 2, 4, 1, 3],
+    [1, 0, 3, 2, 5, 4], [1, 2, 3, 0, 4, 5], [1, 4, 3, 5, 0, 2], [1, 5, 3, 4, 2, 0],
+    [2, 1, 0, 3, 5, 4], [2, 3, 0, 1, 4, 5], [2, 4, 0, 5, 1, 3], [2, 5, 0, 4, 3, 1],
+    [3, 0, 1, 2, 4, 5], [3, 2, 1, 0, 5, 4], [3, 4, 1, 5, 2, 0], [3, 5, 1, 4, 0, 2],
+    [4, 0, 5, 2, 1, 3], [4, 1, 5, 3, 2, 0], [4, 2, 5, 0, 3, 1], [4, 3, 5, 1, 0, 2],
+    [5, 0, 4, 2, 3, 1], [5, 1, 4, 3, 0, 2], [5, 2, 4, 0, 1, 3], [5, 3, 4, 1, 2, 0]
+];
+class MetaMolecule {
+    constructor(mol) {
+        this.mol = mol;
+        this.atomArom = null;
+        this.bondArom = null;
+        this.rubricTetra = null;
+        this.rubricSquare = null;
+        this.rubricOcta = null;
+        this.rubricSides = null;
+        this.hash = null;
+        this.heavyHash = null;
+        this.uniqueElements = null;
+        this.piAtom = null;
+    }
+    calculateStrictAromaticity() {
+        let mol = this.mol;
+        this.atomArom = Vec.booleanArray(false, mol.numAtoms);
+        this.bondArom = Vec.booleanArray(false, mol.numBonds);
+        let rings = mol.findRingsOfSize(6);
+        const nr = rings.length;
+        if (nr == 0)
+            return;
+        this.ensurePiAtoms();
+        let mask = Vec.booleanArray(false, nr);
+        for (let n = 0; n < nr; n++) {
+            for (let i = 0; i < rings[n].length; i++) {
+                let a = rings[n][i];
+                if (!this.piAtom[a - 1]) {
+                    mask[n] = true;
+                    break;
+                }
+                let b = mol.findBond(a, rings[n][i == rings[n].length - 1 ? 0 : i + 1]);
+                let bo = mol.bondOrder(b);
+                if (bo != 1 && bo != 2) {
+                    mask[n] = true;
+                    break;
+                }
+            }
+        }
+        while (true) {
+            let anyChange = false;
+            for (let n = 0; n < nr; n++)
+                if (!mask[n]) {
+                    let phase1 = true, phase2 = true;
+                    for (let i = 0; i < rings[n].length; i++) {
+                        let b = mol.findBond(rings[n][i], rings[n][i == rings[n].length - 1 ? 0 : i + 1]);
+                        if (this.bondArom[b - 1])
+                            continue;
+                        let bo = mol.bondOrder(b);
+                        phase1 = phase1 && bo == (2 - (i & 1));
+                        phase2 = phase2 && bo == (1 + (i & 1));
+                    }
+                    if (!phase1 && !phase2)
+                        continue;
+                    for (let i = 0; i < rings[n].length; i++) {
+                        let b = mol.findBond(rings[n][i], rings[n][i == rings[n].length - 1 ? 0 : i + 1]);
+                        this.bondArom[b - 1] = true;
+                    }
+                    mask[n] = true;
+                    anyChange = true;
+                }
+            if (!anyChange)
+                break;
+        }
+        for (let n = 0; n < this.bondArom.length; n++)
+            if (this.bondArom[n]) {
+                this.atomArom[mol.bondFrom(n + 1) - 1] = true;
+                this.atomArom[mol.bondTo(n + 1) - 1] = true;
+            }
+    }
+    calculateStereoRubric() {
+        const mol = this.mol, na = mol.numAtoms, nb = mol.numBonds;
+        this.rubricTetra = new Array(na);
+        this.rubricSquare = new Array(na);
+        this.rubricOcta = new Array(na);
+        this.rubricSides = new Array(nb);
+        for (let n = 1; n <= na; n++) {
+            let blk = Chemistry.ELEMENT_BLOCKS[mol.atomicNumber(n)];
+            let adjc = mol.atomAdjCount(n), hc = mol.atomHydrogens(n);
+            if (blk == 2 && ((adjc == 3 && hc == 1) || (adjc == 4 && hc == 0))) {
+                this.rubricTetra[n - 1] = Stereochemistry.rubricTetrahedral(mol, n);
+            }
+            if (blk >= 3 && adjc == 4 && hc == 0) {
+                this.rubricSquare[n - 1] = Stereochemistry.rubricSquarePlanar(mol, n);
+            }
+            if (blk >= 3 && (adjc == 5 || adjc == 6) && hc == 0) {
+                this.rubricOcta[n - 1] = Stereochemistry.rubricOctahedral(mol, n);
+            }
+        }
+        for (let n = 1; n <= mol.numBonds; n++) {
+            if (mol.bondOrder(n) != 2 || this.isBondAromatic(n))
+                continue;
+            let bfr = mol.bondFrom(n), bto = mol.bondTo(n);
+            let blk1 = Chemistry.ELEMENT_BLOCKS[mol.atomicNumber(bfr)];
+            let blk2 = Chemistry.ELEMENT_BLOCKS[mol.atomicNumber(bto)];
+            let adjc1 = mol.atomAdjCount(bfr), hc1 = mol.atomHydrogens(bfr);
+            let adjc2 = mol.atomAdjCount(bto), hc2 = mol.atomHydrogens(bto);
+            if (blk1 == 2 && blk2 == 2 && (adjc1 + hc1 == 3 && hc1 <= 1) && (adjc2 + hc2 == 3 && hc2 <= 1)) {
+                this.rubricSides[n - 1] = Stereochemistry.rubricBondSides(mol, n);
+            }
+        }
+    }
+    isAtomAromatic(atom) {
+        return this.atomArom == null ? false : this.atomArom[atom - 1];
+    }
+    isBondAromatic(bond) {
+        return this.bondArom == null ? false : this.bondArom[bond - 1];
+    }
+    bondOrderArom(bond) {
+        return this.bondArom != null && this.bondArom[bond - 1] ? -1 : this.mol.bondOrder(bond);
+    }
+    getAtomAromaticity() {
+        return this.atomArom == null ? null : this.atomArom.slice(0);
+    }
+    getBondAromaticity() {
+        return this.bondArom == null ? null : this.bondArom.slice(0);
+    }
+    getUniqueElements() {
+        if (this.uniqueElements == null) {
+            this.uniqueElements = [];
+            for (let n = 1; n <= this.mol.numAtoms; n++) {
+                let el = this.mol.atomElement(n);
+                if (this.uniqueElements.indexOf(el) < 0)
+                    this.uniqueElements.push(el);
+            }
+        }
+        return this.uniqueElements;
+    }
+    static createRubric(mol) {
+        if (mol == null)
+            return null;
+        let meta = new MetaMolecule(mol);
+        meta.calculateStereoRubric();
+        return meta;
+    }
+    static createStrict(mol) {
+        if (mol == null)
+            return null;
+        let meta = new MetaMolecule(mol);
+        meta.calculateStrictAromaticity();
+        return meta;
+    }
+    static createStrictRubric(mol) {
+        if (mol == null)
+            return null;
+        let meta = new MetaMolecule(mol);
+        meta.calculateStrictAromaticity();
+        meta.calculateStereoRubric();
+        return meta;
+    }
+    ensurePiAtoms() {
+        if (this.piAtom != null)
+            return;
+        this.piAtom = Vec.booleanArray(false, this.mol.numAtoms);
+        for (let n = 1; n <= this.mol.numBonds; n++)
+            if (this.mol.bondOrder(n) == 2) {
+                {
+                    this.piAtom[this.mol.bondFrom(n) - 1] = true;
+                    this.piAtom[this.mol.bondTo(n) - 1] = true;
+                }
+            }
+    }
+}
+let crc_table = [];
+function make_crc_table() {
+    if (crc_table.length > 0)
+        return;
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let i = 0; i < 8; i++)
+            if ((c & 1) != 0)
+                c = 0xEDB88320 ^ (c >>> 1);
+            else
+                c = (c >>> 1);
+        crc_table.push(c);
+    }
+}
+const BOOT_CRC = 0xFFFFFFFF;
+function start_crc() { return BOOT_CRC; }
+function feed_crc(crc, byte) {
+    let idx = (crc ^ byte) & 0xFF;
+    return crc_table[idx] ^ (crc >>> 8);
+}
+function end_crc(crc) { return crc ^ BOOT_CRC; }
+class CircularFingerprints {
+    constructor(meta, kind) {
+        this.meta = meta;
+        this.kind = kind;
+        this.hookApplyNewFP = null;
+        this.hookConsiderNewFP = null;
+        this.identity = [];
+        this.resolvedChiral = [];
+        this.atomGroup = [];
+        this.fplist = [];
+        this.amask = [];
+        this.atomAdj = [];
+        this.bondAdj = [];
+        make_crc_table();
+    }
+    calculate() {
+        let mol = this.meta.mol, na = mol.numAtoms;
+        this.identity = Vec.numberArray(0, na);
+        this.resolvedChiral = Vec.booleanArray(false, na);
+        for (let n = 0; n < na; n++)
+            this.atomGroup.push([]);
+        this.amask = Vec.booleanArray(false, na);
+        for (let n = 0; n < na; n++) {
+            this.amask[n] = mol.atomicNumber(n + 1) >= 2 && !MolUtil.hasAbbrev(mol, n + 1);
+            this.atomAdj.push([]);
+            this.bondAdj.push([]);
+        }
+        for (let n = 0; n < na; n++) {
+            if (!this.amask[n])
+                continue;
+            this.atomAdj[n] = mol.atomAdjList(n + 1);
+            this.bondAdj[n] = mol.atomAdjBonds(n + 1);
+            for (let i = this.atomAdj[n].length - 1; i >= 0; i--)
+                if (!this.amask[this.atomAdj[n][i] - 1]) {
+                    this.atomAdj[n].splice(i, 1);
+                    this.bondAdj[n].splice(i, 1);
+                }
+        }
+        for (let n = 0; n < na; n++)
+            if (this.amask[n]) {
+                this.identity[n] = this.initialIdentityECFP(n + 1);
+                this.atomGroup[n] = [n + 1];
+                this.applyNewFP({ 'hashCode': this.identity[n], 'iteration': 0, 'atoms': this.atomGroup[n] });
+            }
+        let niter = this.kind;
+        for (let iter = 1; iter <= niter; iter++) {
+            let newident = Vec.numberArray(0, na);
+            for (let n = 0; n < na; n++)
+                if (this.amask[n])
+                    newident[n] = this.circularIterate(iter, n + 1);
+            this.identity = newident;
+            for (let n = 0; n < na; n++)
+                if (this.amask[n]) {
+                    this.atomGroup[n] = this.growAtoms(this.atomGroup[n]);
+                    this.considerNewFP({ 'hashCode': this.identity[n], 'iteration': iter, 'atoms': this.atomGroup[n] });
+                }
+        }
+    }
+    static create(meta, kind) {
+        if (meta instanceof Molecule)
+            meta = MetaMolecule.createStrictRubric(meta);
+        let circ = new CircularFingerprints(meta, kind);
+        circ.calculate();
+        return circ;
+    }
+    getMolecule() { return this.meta.mol; }
+    get numFP() { return this.fplist.length; }
+    getFP(idx) { return this.fplist[idx]; }
+    getFingerprints() { return this.fplist.slice(0); }
+    getUniqueHashes() {
+        let hashes = new Set();
+        for (let fp of this.fplist)
+            hashes.add(fp.hashCode);
+        return Vec.sorted(Array.from(hashes));
+    }
+    getFoldedHashes(maxBits) {
+        let andBits = maxBits - 1;
+        let hashes = new Set();
+        for (let fp of this.fplist)
+            hashes.add(fp.hashCode & andBits);
+        return Vec.sorted(Array.from(hashes));
+    }
+    static tanimoto(hash1, hash2) {
+        let shared = 0, total = 0;
+        let sz1 = hash1.length, sz2 = hash2.length;
+        if (sz1 == 0 && sz2 == 0)
+            return 0;
+        let i1 = 0, i2 = 0;
+        while (i1 < sz1 || i2 < sz2) {
+            if (i1 == sz1) {
+                total += sz2 - i2;
+                break;
+            }
+            if (i2 == sz2) {
+                total += sz1 - i1;
+                break;
+            }
+            let v1 = hash1[i1], v2 = hash2[i2];
+            if (v1 == v2) {
+                shared += 1;
+                i1 += 1;
+                i2 += 1;
+            }
+            else if (v1 < v2)
+                i1 += 1;
+            else
+                i2 += 1;
+            total += 1;
+        }
+        return shared / total;
+    }
+    initialIdentityECFP(atom) {
+        const mol = this.meta.mol;
+        let adj = mol.atomAdjList(atom);
+        let nheavy = 0, nhydr = mol.atomHydrogens(atom);
+        for (let a of adj)
+            if (mol.atomElement(a) == 'H')
+                nhydr++;
+            else
+                nheavy++;
+        let atno = mol.atomicNumber(atom);
+        let degree = Math.max(0, Chemistry.ELEMENT_BONDING[atno] - nhydr);
+        let chg = mol.atomCharge(atom);
+        let inring = mol.atomRingBlock(atom) > 0 ? 1 : 0;
+        let crc = start_crc();
+        crc = feed_crc(crc, (nheavy << 4) | degree);
+        crc = feed_crc(crc, atno);
+        crc = feed_crc(crc, chg + 0x80);
+        crc = feed_crc(crc, (nhydr << 4) | inring);
+        return end_crc(crc);
+    }
+    circularIterate(iter, atom) {
+        let adj = this.atomAdj[atom - 1], adjb = this.bondAdj[atom - 1];
+        var seq = Vec.numberArray(0, 2 + 2 * adj.length);
+        seq[0] = iter;
+        seq[1] = this.identity[atom - 1];
+        for (let n = 0; n < adj.length; n++) {
+            seq[2 * n + 2] = this.meta.isBondAromatic(adjb[n]) ? 0xF : this.meta.mol.bondOrder(adjb[n]);
+            seq[2 * n + 3] = this.identity[adj[n] - 1];
+        }
+        let p = 0;
+        while (p < adj.length - 1) {
+            let i = 2 + 2 * p;
+            if (seq[i] > seq[i + 2] || (seq[i] == seq[i + 2] && seq[i + 1] > seq[i + 3])) {
+                Vec.swap(seq, i, i + 2);
+                Vec.swap(seq, i + 1, i + 3);
+                if (p > 0)
+                    p--;
+            }
+            else
+                p++;
+        }
+        var crc = start_crc();
+        for (let n = 0; n < seq.length; n += 2) {
+            crc = feed_crc(crc, seq[n]);
+            let v = seq[n + 1];
+            crc = feed_crc(crc, v >> 24);
+            crc = feed_crc(crc, (v >> 16) & 0xFF);
+            crc = feed_crc(crc, (v >> 8) & 0xFF);
+            crc = feed_crc(crc, v & 0xFF);
+        }
+        if (!this.resolvedChiral[atom - 1] && Vec.arrayLength(this.meta.rubricTetra) > 0 && this.meta.rubricTetra[atom - 1] != null) {
+            let ru = this.meta.rubricTetra[atom - 1];
+            let par = [
+                ru[0] == 0 ? 0 : this.identity[ru[0] - 1],
+                ru[1] == 0 ? 0 : this.identity[ru[1] - 1],
+                ru[2] == 0 ? 0 : this.identity[ru[2] - 1],
+                ru[3] == 0 ? 0 : this.identity[ru[3] - 1]
+            ];
+            if (par[0] != par[1] && par[0] != par[2] && par[0] != par[3] && par[1] != par[2] && par[1] != par[3] && par[2] != par[3]) {
+                crc = feed_crc(crc, Permutation.parityOrder(par) + 1);
+                this.resolvedChiral[atom - 1] = true;
+            }
+        }
+        return end_crc(crc);
+    }
+    growAtoms(atoms) {
+        let mask = Vec.booleanArray(false, this.meta.mol.numAtoms);
+        for (let n = 0; n < atoms.length; n++) {
+            mask[atoms[n] - 1] = true;
+            for (let a of this.atomAdj[atoms[n] - 1])
+                mask[a - 1] = true;
+        }
+        return Vec.add(Vec.maskIdx(mask), 1);
+    }
+    applyNewFP(newFP) {
+        if (this.hookApplyNewFP)
+            this.hookApplyNewFP(newFP);
+        this.fplist.push(newFP);
+    }
+    considerNewFP(newFP) {
+        if (this.hookConsiderNewFP)
+            this.hookConsiderNewFP(newFP);
+        let hit = -1;
+        let fp = null;
+        for (let n = 0; n < this.fplist.length; n++) {
+            let lookFP = this.fplist[n];
+            if (Vec.equals(lookFP.atoms, newFP.atoms)) {
+                fp = lookFP;
+                hit = n;
+                break;
+            }
+        }
+        if (hit < 0) {
+            this.fplist.push(newFP);
+            return;
+        }
+        if (fp.iteration < newFP.iteration || fp.hashCode < newFP.hashCode)
+            return;
+        this.fplist[hit] = newFP;
+    }
+}
+CircularFingerprints.CLASS_ECFP0 = 0;
+CircularFingerprints.CLASS_ECFP2 = 1;
+CircularFingerprints.CLASS_ECFP4 = 2;
+CircularFingerprints.CLASS_ECFP6 = 3;
+class BayesianModel {
+    constructor(classType, folding) {
+        this.classType = classType;
+        this.folding = folding;
+        this.numActive = 0;
+        this.inHash = {};
+        this.training = [];
+        this.activity = [];
+        this.contribs = {};
+        this.lowThresh = 0;
+        this.highThresh = 0;
+        this.range = 0;
+        this.invRange = 0;
+        this.estimates = null;
+        this.rocX = null;
+        this.rocY = null;
+        this.rocType = null;
+        this.rocAUC = Number.NaN;
+        this.trainingSize = 0;
+        this.trainingActives = 0;
+        this.truthTP = 0;
+        this.truthFP = 0;
+        this.truthTN = 0;
+        this.truthFN = 0;
+        this.precision = Number.NaN;
+        this.recall = Number.NaN;
+        this.specificity = Number.NaN;
+        this.statF1 = Number.NaN;
+        this.statKappa = Number.NaN;
+        this.statMCC = Number.NaN;
+        this.noteTitle = null;
+        this.noteOrigin = null;
+        this.noteField = null;
+        this.noteComments = null;
+        if (this.folding == null)
+            this.folding = 0;
+    }
+    addMolecule(mol, active, hashes) {
+        if (MolUtil.isBlank(mol) && hashes == null)
+            throw 'Molecule cannot be blank or null.';
+        if (hashes == null) {
+            let meta = MetaMolecule.createStrictRubric(mol);
+            let circ = new CircularFingerprints(meta, this.classType);
+            circ.calculate();
+            hashes = this.folding == 0 ? circ.getUniqueHashes() : circ.getFoldedHashes(this.folding);
+        }
+        if (active)
+            this.numActive++;
+        this.training.push(hashes);
+        this.activity.push(active);
+        for (let h of hashes) {
+            let stash = this.inHash[h];
+            if (stash == null)
+                stash = [0, 0];
+            if (active)
+                stash[0]++;
+            stash[1]++;
+            this.inHash[h] = stash;
+        }
+    }
+    build() {
+        this.trainingSize = this.training.length;
+        this.trainingActives = this.numActive;
+        this.contribs = [];
+        const sz = this.training.length;
+        const invSz = 1.0 / sz;
+        const P_AT = this.numActive * invSz;
+        for (let hashStr in this.inHash) {
+            let hash = parseInt(hashStr);
+            const AT = this.inHash[hash];
+            const A = AT[0], T = AT[1];
+            const Pcorr = (A + 1) / (T * P_AT + 1);
+            const P = Math.log(Pcorr);
+            this.contribs[hash] = P;
+        }
+        this.lowThresh = Number.POSITIVE_INFINITY;
+        this.highThresh = Number.NEGATIVE_INFINITY;
+        for (let fp of this.training) {
+            let val = 0;
+            for (let hash of fp)
+                val += this.contribs[hash];
+            this.lowThresh = Math.min(this.lowThresh, val);
+            this.highThresh = Math.max(this.highThresh, val);
+        }
+        this.range = this.highThresh - this.lowThresh;
+        this.invRange = this.range > 0 ? 1 / this.range : 0;
+    }
+    predictMolecule(mol) {
+        if (MolUtil.isBlank(mol))
+            throw 'Molecule cannot be blank or null.';
+        let meta = MetaMolecule.createStrictRubric(mol);
+        let circ = new CircularFingerprints(meta, this.classType);
+        circ.calculate();
+        let hashes = this.folding == 0 ? circ.getUniqueHashes() : circ.getFoldedHashes(this.folding);
+        return this.predictFP(hashes);
+    }
+    predictFP(hashes) {
+        let val = 0;
+        for (let h of hashes) {
+            let c = this.contribs[h];
+            if (c != null)
+                val += c;
+        }
+        return val;
+    }
+    scalePredictor(pred) {
+        if (this.range == 0)
+            return pred >= this.highThresh ? 1 : 0;
+        return (pred - this.lowThresh) * this.invRange;
+    }
+    calculateOverlap(mol) {
+        if (MolUtil.isBlank(mol))
+            throw 'Molecule cannot be blank or null.';
+        let meta = MetaMolecule.createStrictRubric(mol);
+        let circ = new CircularFingerprints(meta, this.classType);
+        circ.calculate();
+        let hashes = this.folding == 0 ? circ.getUniqueHashes() : circ.getFoldedHashes(this.folding);
+        return this.calculateOverlapFP(hashes);
+    }
+    calculateOverlapFP(hashes) {
+        if (hashes.length == 0)
+            return 0;
+        let count = 0.0;
+        for (let h of hashes)
+            if (this.contribs[h] != null)
+                count++;
+        return hashes.length == 1 ? count : count / hashes.length;
+    }
+    calculateAtomPredictors(mol) {
+        const na = mol.numAtoms;
+        let atomic = Vec.numberArray(0, na);
+        let predHashes = new Set();
+        let cover = this.determineCoverage(mol, predHashes);
+        for (let h in cover) {
+            let c = this.contribs[h];
+            if (c == null)
+                continue;
+            let mask = cover[h];
+            let msz = Vec.maskCount(mask);
+            let invSz = 1.0 / msz;
+            for (let n = 0; n < na; n++)
+                if (mask[n])
+                    atomic[n] += c * invSz;
+        }
+        let pred = 0;
+        for (let h of predHashes) {
+            let c = this.contribs[h];
+            if (c != null)
+                pred += c;
+        }
+        const SCALE_STDDEV_TO = 0.25;
+        const invN = 1.0 / na;
+        Vec.addTo(atomic, -Vec.sum(atomic) * invN);
+        let stdDev = 0;
+        for (let a of atomic)
+            stdDev += a * a;
+        stdDev = Math.sqrt(stdDev * invN);
+        if (stdDev > 1E-3)
+            Vec.mulBy(atomic, SCALE_STDDEV_TO / stdDev);
+        let scaled = (this.scalePredictor(pred) - 0.5) * 2;
+        if (scaled < -1)
+            scaled = -1;
+        else if (scaled > 1)
+            scaled = 1;
+        Vec.addTo(atomic, scaled);
+        return atomic;
+    }
+    validateLeaveOneOut() {
+        const sz = this.training.length;
+        this.estimates = [];
+        for (let n = 0; n < sz; n++)
+            this.estimates.push(this.singleLeaveOneOut(n));
+        this.calculateROC();
+        this.calculateTruth();
+        this.rocType = "leave-one-out";
+    }
+    validateFiveFold() {
+        this.rocType = "five-fold";
+        this.validateNfold(5);
+    }
+    validateThreeFold() {
+        this.rocType = "three-fold";
+        this.validateNfold(3);
+    }
+    clearTraining() {
+        this.training = [];
+        this.activity = [];
+    }
+    serialise() {
+        let lines = [];
+        let fpname = this.classType == CircularFingerprints.CLASS_ECFP0 ? 'ECFP0' : this.classType == CircularFingerprints.CLASS_ECFP2 ? 'ECFP2'
+            : this.classType == CircularFingerprints.CLASS_ECFP4 ? 'ECFP4' : this.classType == CircularFingerprints.CLASS_ECFP6 ? 'ECFP6'
+                : '?';
+        lines.push('Bayesian!(' + fpname + ',' + this.folding + ',' + this.lowThresh + ',' + this.highThresh + ')');
+        let sorted = [];
+        for (let hash in this.contribs)
+            sorted.push(parseInt(hash));
+        Vec.sort(sorted);
+        for (let hash of sorted) {
+            const c = this.contribs[hash];
+            lines.push(hash + '=' + c);
+        }
+        lines.push('training:size=' + this.trainingSize);
+        lines.push('training:actives=' + this.trainingActives);
+        if (!Number.isNaN(this.rocAUC))
+            lines.push('roc:auc=' + this.rocAUC);
+        if (this.rocType != null)
+            lines.push('roc:type=' + this.rocType);
+        if (this.rocX != null && this.rocY != null) {
+            let x = 'roc:x=';
+            for (let n = 0; n < this.rocX.length; n++)
+                x += (n == 0 ? '' : ',') + this.rocX[n];
+            lines.push(x);
+            let y = 'roc:y=';
+            for (let n = 0; n < this.rocY.length; n++)
+                y += (n == 0 ? '' : ',') + this.rocY[n];
+            lines.push(y);
+        }
+        if (this.truthTP > 0 || this.truthFP > 0 || this.truthTN > 0 || this.truthFP > 0) {
+            lines.push('truth:TP=' + this.truthTP);
+            lines.push('truth:FP=' + this.truthFP);
+            lines.push('truth:TN=' + this.truthTN);
+            lines.push('truth:FN=' + this.truthFN);
+            lines.push('truth:precision=' + this.precision);
+            lines.push('truth:recall=' + this.recall);
+            lines.push('truth:specificity=' + this.specificity);
+            lines.push('truth:F1=' + this.statF1);
+            lines.push('truth:kappa=' + this.statKappa);
+            lines.push('truth:MCC=' + this.statMCC);
+        }
+        if (this.noteTitle)
+            lines.push('note:title=' + this.noteTitle);
+        if (this.noteOrigin)
+            lines.push('note:origin=' + this.noteOrigin);
+        if (this.noteField)
+            lines.push('note:field=' + this.noteField);
+        if (this.noteComments)
+            for (let comment of this.noteComments)
+                lines.push('note:comment=' + comment);
+        lines.push('!End');
+        return lines.join('\n');
+    }
+    static deserialise(str) {
+        let lines = str.split('\n');
+        function readLine() { return lines.length == 0 ? null : lines.shift().trim(); }
+        let line = readLine();
+        if (line == null || !line.startsWith('Bayesian!(') || !line.endsWith(')'))
+            throw 'Not a serialised Bayesian model.';
+        let bits = line.substring(10, line.length - 1).split(',');
+        if (bits.length < 4)
+            throw 'Invalid header content';
+        let classType = bits[0] == 'ECFP0' ? CircularFingerprints.CLASS_ECFP0 : bits[0] == 'ECFP2' ? CircularFingerprints.CLASS_ECFP2
+            : bits[0] == 'ECFP4' ? CircularFingerprints.CLASS_ECFP4 : bits[0] == 'ECFP6' ? CircularFingerprints.CLASS_ECFP6
+                : 0;
+        if (classType == 0)
+            throw 'Unknown fingerprint type: ' + bits[0];
+        let folding = parseInt(bits[1]);
+        if (folding > 0)
+            for (let f = folding; f > 0; f = f >> 1) {
+                if ((f & 1) == 1 && f != 1) {
+                    folding = -1;
+                    break;
+                }
+            }
+        if (folding < 0)
+            throw 'Fingerprint folding ' + bits[1] + ' invalid: must be 0 or power of 2.';
+        let model = new BayesianModel(classType, folding);
+        model.lowThresh = parseInt(bits[2]);
+        model.highThresh = parseInt(bits[3]);
+        model.range = model.highThresh - model.lowThresh;
+        model.invRange = model.range > 0 ? 1 / model.range : 0;
+        const PTN_HASHLINE = new RegExp('^(-?\\d+)=([\\d\\.Ee-]+)');
+        while (true) {
+            line = readLine();
+            if (line == null)
+                throw 'Missing correct terminator line.';
+            if (line == '!End')
+                break;
+            let match = PTN_HASHLINE.exec(line);
+            if (match != null) {
+                let hash = parseInt(match[1]);
+                let c = parseFloat(match[2]);
+                model.contribs[hash] = c;
+            }
+            else if (line.startsWith('training:size='))
+                model.trainingSize = parseInt(line.substring(14));
+            else if (line.startsWith('training:actives='))
+                model.trainingActives = parseInt(line.substring(17));
+            else if (line.startsWith('roc:auc='))
+                model.rocAUC = parseFloat(line.substring(8));
+            else if (line.startsWith('roc:type='))
+                model.rocType = line.substring(9);
+            else if (line.startsWith('roc:x=')) {
+                model.rocX = [];
+                for (let str of line.substring(6).split(','))
+                    model.rocX.push(parseFloat(str));
+            }
+            else if (line.startsWith('roc:y=')) {
+                model.rocY = [];
+                for (let str of line.substring(6).split(','))
+                    model.rocY.push(parseFloat(str));
+            }
+            else if (line.startsWith('truth:TP='))
+                model.truthTP = parseInt(line.substring(9), 0);
+            else if (line.startsWith('truth:FP='))
+                model.truthFP = parseInt(line.substring(9), 0);
+            else if (line.startsWith('truth:TN='))
+                model.truthTN = parseInt(line.substring(9), 0);
+            else if (line.startsWith('truth:FN='))
+                model.truthFN = parseInt(line.substring(9), 0);
+            else if (line.startsWith('truth:precision='))
+                model.precision = parseFloat(line.substring(16));
+            else if (line.startsWith('truth:recall='))
+                model.recall = parseFloat(line.substring(13));
+            else if (line.startsWith('truth:specificity='))
+                model.specificity = parseFloat(line.substring(18));
+            else if (line.startsWith('truth:F1='))
+                model.statF1 = parseFloat(line.substring(9));
+            else if (line.startsWith('truth:kappa='))
+                model.statKappa = parseFloat(line.substring(12));
+            else if (line.startsWith('truth:MCC='))
+                model.statMCC = parseFloat(line.substring(10));
+            else if (line.startsWith('note:title='))
+                model.noteTitle = line.substring(11);
+            else if (line.startsWith('note:origin='))
+                model.noteOrigin = line.substring(12);
+            else if (line.startsWith('note:field='))
+                model.noteField = line.substring(11);
+            else if (line.startsWith('note:comment=')) {
+                if (model.noteComments == null)
+                    model.noteComments = [];
+                model.noteComments.push(line.substring(13));
+            }
+        }
+        return model;
+    }
+    singleLeaveOneOut(idx) {
+        let exclActive = this.activity[idx];
+        let exclSet = new Set();
+        for (let fp of this.training[idx])
+            exclSet.add(fp);
+        const sz = this.training.length, szN = sz - 1;
+        const invSzN = 1.0 / szN;
+        const activeN = exclActive ? this.numActive - 1 : this.numActive;
+        const P_AT = activeN * invSzN;
+        let val = 0;
+        for (let hashStr in this.inHash) {
+            const hash = parseInt(hashStr);
+            if (!exclSet.has(hash))
+                continue;
+            const AT = this.inHash[hash];
+            const A = AT[0] - (exclActive ? 1 : 0), T = AT[1] - 1;
+            const Pcorr = (A + 1) / (T * P_AT + 1);
+            const P = Math.log(Pcorr);
+            val += P;
+        }
+        return val;
+    }
+    validateNfold(nsegs) {
+        const sz = this.training.length;
+        let order = Vec.numberArray(0, sz);
+        let p = 0;
+        for (let n = 0; n < sz; n++)
+            if (this.activity[n])
+                order[p++] = n;
+        for (let n = 0; n < sz; n++)
+            if (!this.activity[n])
+                order[p++] = n;
+        let segContribs = [];
+        for (let n = 0; n < nsegs; n++)
+            segContribs.push(this.buildPartial(order, n, nsegs));
+        this.estimates = Vec.numberArray(0, sz);
+        for (let n = 0; n < sz; n++)
+            this.estimates[order[n]] = this.estimatePartial(order, n, segContribs[n % nsegs]);
+        this.calculateROC();
+        this.calculateTruth();
+    }
+    buildPartial(order, seg, div) {
+        const sz = this.training.length;
+        let na = 0, nt = 0;
+        let ih = {};
+        for (let n = 0; n < sz; n++) {
+            if (n % div != seg) {
+                const active = this.activity[order[n]];
+                if (active)
+                    na++;
+                nt++;
+                for (let h of this.training[order[n]]) {
+                    let stash = ih[h];
+                    if (stash == null)
+                        stash = [0, 0];
+                    if (active)
+                        stash[0]++;
+                    stash[1]++;
+                    ih[h] = stash;
+                }
+            }
+        }
+        let segContribs = {};
+        const invSz = 1.0 / nt;
+        const P_AT = na * invSz;
+        for (let hashStr in ih) {
+            let hash = parseInt(hashStr);
+            const AT = ih[hash];
+            const A = AT[0], T = AT[1];
+            const Pcorr = (A + 1) / (T * P_AT + 1);
+            const P = Math.log(Pcorr);
+            segContribs[hash] = P;
+        }
+        return segContribs;
+    }
+    estimatePartial(order, idx, segContrib) {
+        let val = 0;
+        for (let h of this.training[order[idx]]) {
+            let c = segContrib[h];
+            if (c != null)
+                val += c;
+        }
+        return val;
+    }
+    calculateROC() {
+        const sz = this.training.length;
+        let idx = Vec.idxSort(this.estimates);
+        let thresholds = [];
+        thresholds.push(this.lowThresh - 0.01 * this.range);
+        for (let n = 0; n < sz - 1; n++) {
+            const th1 = this.estimates[idx[n]], th2 = this.estimates[idx[n + 1]];
+            if (th1 == th2)
+                continue;
+            thresholds.push(0.5 * (th1 + th2));
+        }
+        thresholds.push(this.highThresh + 0.01 * this.range);
+        this.rocX = [];
+        this.rocY = [];
+        let rocT = [];
+        let posTrue = 0, posFalse = 0, ipos = 0;
+        let invPos = 1.0 / this.numActive, invNeg = 1.0 / (sz - this.numActive);
+        for (let n = 0; n < thresholds.length; n++) {
+            const th = thresholds[n];
+            for (; ipos < sz; ipos++) {
+                if (th < this.estimates[idx[ipos]])
+                    break;
+                if (this.activity[idx[ipos]])
+                    posTrue++;
+                else
+                    posFalse++;
+            }
+            const x = posFalse * invNeg;
+            const y = posTrue * invPos;
+            const rsz = rocT.length;
+            if (rsz > 0 && x == this.rocX[rsz - 1] && y == this.rocY[rsz - 1])
+                continue;
+            this.rocX[rsz] = 1 - x;
+            this.rocY[rsz] = 1 - y;
+            rocT[rsz] = th;
+        }
+        this.rocX = Vec.reverse(this.rocX);
+        this.rocY = Vec.reverse(this.rocY);
+        rocT = Vec.reverse(rocT);
+        this.calibrateThresholds(this.rocX, this.rocY, rocT);
+        this.rocAUC = 0;
+        for (let n = 0; n < rocT.length - 1; n++) {
+            const w = this.rocX[n + 1] - this.rocX[n], h = 0.5 * (this.rocY[n] + this.rocY[n + 1]);
+            this.rocAUC += w * h;
+        }
+        const DIST = 0.002, DSQ = DIST * DIST;
+        let gx = [], gy = [];
+        gx.push(this.rocX[0]);
+        gy.push(this.rocY[0]);
+        for (let i = 1; i < rocT.length - 1; i++) {
+            const dx = this.rocX[i] - gx[gx.length - 1], dy = this.rocY[i] - gy[gy.length - 1];
+            if (norm2_xy(dx, dy) < DSQ)
+                continue;
+            gx.push(this.rocX[i]);
+            gy.push(this.rocY[i]);
+        }
+        gx.push(this.rocX[rocT.length - 1]);
+        gy.push(this.rocY[rocT.length - 1]);
+    }
+    calculateTruth() {
+        let thresh = 0.5 * (this.lowThresh + this.highThresh);
+        this.truthTP = this.truthFP = this.truthTN = this.truthFN = 0;
+        for (let n = 0; n < this.activity.length; n++) {
+            let actual = this.activity[n], predicted = this.estimates[n] >= thresh;
+            if (actual && predicted)
+                this.truthTP++;
+            else if (!actual && predicted)
+                this.truthFP++;
+            else if (actual && !predicted)
+                this.truthFN++;
+            else if (!actual && !predicted)
+                this.truthTN++;
+        }
+        const TP = this.truthTP, FP = this.truthFP, TN = this.truthTN, FN = this.truthFN;
+        let invSize = 1.0 / this.activity.length;
+        this.precision = TP / (TP + FP);
+        this.recall = TP / (TP + FN);
+        this.specificity = TN / (TN + FP);
+        this.statF1 = 2 * (this.precision * this.recall) / (this.precision + this.recall);
+        let Pyes = (TP + FP) * invSize * (TP + FN) * invSize;
+        let Pno = (FP + TN) * invSize * (FN + TN) * invSize;
+        let P0 = (TP + TN) * invSize, Pe = Pyes + Pno;
+        this.statKappa = (P0 - Pe) / (1 - Pe);
+        let mccOver = TP * TN - FP * FN;
+        let mccUnder = (TP + FP) * (TP + FN) * (TN + FP) * (TN + FN);
+        this.statMCC = mccOver / Math.sqrt(mccUnder);
+    }
+    calibrateThresholds(x, y, t) {
+        const sz = t.length;
+        let idx = 0;
+        for (let n = 1; n < sz; n++)
+            if (y[n] - x[n] > y[idx] - x[idx])
+                idx = n;
+        const midThresh = t[idx];
+        let idxX = 0, idxY = sz - 1;
+        for (; idxX < idx - 1; idxX++)
+            if (x[idxX] > 0)
+                break;
+        for (; idxY > idx + 1; idxY--)
+            if (y[idxY] < 1)
+                break;
+        let delta = Math.min(t[idxX] - midThresh, midThresh - t[idxY]);
+        this.lowThresh = midThresh - delta;
+        this.highThresh = midThresh + delta;
+        this.range = 2 * delta;
+        this.invRange = this.range > 0 ? 1 / this.range : 0;
+    }
+    determineCoverage(mol, approvedHashes) {
+        const na = mol.numAtoms;
+        let cover = {};
+        const andBits = this.folding == 0 ? 0xFFFFFFFF : this.folding - 1;
+        let meta = MetaMolecule.createStrictRubric(mol);
+        let circ = new CircularFingerprints(meta, this.classType);
+        let collectFP = (fp) => {
+            let idx = fp.hashCode & andBits;
+            if (this.contribs[idx] == null)
+                return;
+            let mask = cover[idx];
+            if (mask == null) {
+                mask = Vec.booleanArray(false, na);
+                cover[idx] = mask;
+            }
+            for (let a of fp.atoms)
+                mask[a - 1] = true;
+        };
+        circ.hookApplyNewFP = collectFP;
+        circ.hookConsiderNewFP = collectFP;
+        circ.calculate();
+        if (approvedHashes != null) {
+            let hashes = this.folding == 0 ? circ.getUniqueHashes() : circ.getFoldedHashes(this.folding);
+            for (let h of hashes)
+                approvedHashes.add(h);
+        }
+        return cover;
+    }
+}
+class FormatList {
+}
+FormatList.FMT_NATIVE = 'native';
+FormatList.FMT_XMLDS = 'xmlds';
+FormatList.FMT_MDLMOL = 'mdlmol';
+FormatList.FMT_MDLSDF = 'mdlsdf';
+FormatList.FMT_MDLRDF = 'mdlrdf';
+FormatList.FMT_MDLRXN = 'mdlrxn';
+FormatList.GFX_PNG = 'png';
+FormatList.GFX_PNGZIP = 'pngzip';
+FormatList.GFX_SVG = 'svg';
+FormatList.GFX_SVGZIP = 'svgzip';
+FormatList.GFX_PDF = 'pdf';
+FormatList.GFX_PDFZIP = 'pdfzip';
+FormatList.GFX_EPS = 'eps';
+FormatList.GFX_HTML = 'html';
+FormatList.GFX_OPENDOC_ODG = 'odg';
+FormatList.GFX_OPENDOC_ODT = 'odt';
+FormatList.GFX_OPENDOC_ODS = 'ods';
+FormatList.GFX_OOXML_DOCX = 'docx';
+FormatList.GFX_OOXML_XLSX = 'xlsx';
+FormatList.FORMAT_DESCR = {
+    'native': 'SketchEl Molecule',
+    'xmlds': 'DataSheet XML',
+    'mdlmol': 'MDL MOL (single molecule)',
+    'mdlsdf': 'MDL SDF (molecules + data)',
+    'mdlrdf': 'MDL RDF (reactions + data)',
+    'mdlrxn': 'MDL RXN (single reaction)',
+    'png': 'PNG image (raster)',
+    'pngzip': 'ZIP (multiple PNG files)',
+    'svg': 'SVG picture (vector)',
+    'svgzip': 'ZIP (multiple SVG files)',
+    'pdf': 'PDF diagram (vector)',
+    'pdfzip': 'ZIP (multiple PDF files)',
+    'eps': 'Encapsulated PostScript (vector)',
+    'html': 'HTML with embedded SVG',
+    'odg': 'OpenDocument Graphic',
+    'odt': 'OpenDocument Text',
+    'ods': 'OpenDocument SpreadSheet',
+    'docx': 'Microsoft Word',
+    'xlsx': 'Microsoft Excel'
+};
+FormatList.FORMAT_EXTN = {
+    'native': '.el',
+    'xmlds': '.ds',
+    'mdlmol': '.mol',
+    'mdlsdf': '.sdf',
+    'mdlrdf': '.rdf',
+    'mdlrxn': '.rxn',
+    'png': '.png',
+    'pngzip': '_png.zip',
+    'svg': '.svg',
+    'svgzip': '_svg.zip',
+    'pdf': '.pdf',
+    'pdfzip': '_pdf.zip',
+    'eps': '.eps',
+    'html': '.html',
+    'odg': '.odg',
+    'odt': '.odt',
+    'ods': '.ods',
+    'docx': '.docx',
+    'xlsx': '.xlsx'
+};
+FormatList.FORMAT_MIMETYPE = {
+    'native': 'chemical/x-sketchel',
+    'xmlds': 'chemical/x-datasheet',
+    'mdlmol': 'chemical/x-mdl-molfile',
+    'mdlsdf': 'chemical/x-mdl-sdfile',
+    'mdlrdf': 'chemical/x-mdl-rdfile',
+    'mdlrxn': 'chemical/x-mdl-rxnfile',
+    'png': 'image/png',
+    'pngzip': 'application/zip',
+    'svg': 'image/png',
+    'svgzip': 'application/zip',
+    'pdf': 'application/pdf',
+    'pdfzip': 'application/zip',
+    'eps': 'image/eps',
+    'html': 'text/html',
+    'odg': 'application/vnd.oasis.opendocument.graphics',
+    'odt': 'application/vnd.oasis.opendocument.text',
+    'ods': 'application/vnd.oasis.opendocument.spreadsheet',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+};
+class QuantityComp {
+    constructor(comp, step, type, idx) {
+        this.comp = comp;
+        this.step = step;
+        this.type = type;
+        this.idx = idx;
+        this.role = 0;
+        this.molw = 0;
+        this.valueEquiv = 0;
+        this.statEquiv = QuantityCalc.STAT_UNKNOWN;
+        this.valueMass = QuantityCalc.UNSPECIFIED;
+        this.statMass = QuantityCalc.STAT_UNKNOWN;
+        this.valueVolume = QuantityCalc.UNSPECIFIED;
+        this.statVolume = QuantityCalc.STAT_UNKNOWN;
+        this.valueMoles = QuantityCalc.UNSPECIFIED;
+        this.statMoles = QuantityCalc.STAT_UNKNOWN;
+        this.valueDensity = QuantityCalc.UNSPECIFIED;
+        this.statDensity = QuantityCalc.STAT_UNKNOWN;
+        this.valueConc = QuantityCalc.UNSPECIFIED;
+        this.statConc = QuantityCalc.STAT_UNKNOWN;
+        this.valueYield = QuantityCalc.UNSPECIFIED;
+        this.statYield = QuantityCalc.STAT_UNKNOWN;
+    }
+}
+class GreenMetrics {
+    constructor() {
+        this.step = 0;
+        this.idx = 0;
+        this.massReact = [];
+        this.massProd = [];
+        this.massWaste = [];
+        this.massProdWaste = [];
+        this.molwReact = [];
+        this.molwProd = [];
+        this.impliedWaste = 0;
+        this.isBlank = false;
+    }
+}
+class QuantityCalc {
+    constructor(entry) {
+        this.entry = entry;
+        this.quantities = [];
+        this.idxPrimary = [];
+        this.idxYield = [];
+        this.allMassReact = [];
+        this.allMassProd = [];
+        this.allMassWaste = [];
+        this.greenMetrics = [];
+    }
+    static isStoichZero(stoich) {
+        if (this.isStoichUnity(stoich))
+            return false;
+        if (parseFloat(stoich) == 0)
+            return true;
+        return false;
+    }
+    static isStoichUnity(stoich) {
+        if (!stoich || stoich == '1')
+            return true;
+        let [numer, denom] = this.extractStoichFraction(stoich);
+        return numer != 0 && numer == denom;
+    }
+    static extractStoichFraction(stoich) {
+        if (!stoich)
+            return [1, 1];
+        let numer = 1, denom = 1;
+        let i = stoich.indexOf('/');
+        if (i < 0) {
+            let v = parseFloat(stoich);
+            if (v >= 0)
+                numer = v;
+        }
+        else {
+            let v1 = parseFloat(stoich.substring(0, i)), v2 = parseFloat(stoich.substring(i + 1));
+            if (v1 >= 0)
+                numer = v1;
+            if (v2 >= 0)
+                denom = v2;
+        }
+        return [numer, denom];
+    }
+    static extractStoichValue(stoich) {
+        let [numer, denom] = this.extractStoichFraction(stoich);
+        return denom <= 1 ? numer : numer / denom;
+    }
+    static stoichAsRatio(stoich) {
+        let [numer, denom] = this.extractStoichFraction(stoich);
+        if (numer == Math.floor(numer))
+            return [numer, denom];
+        return this.stoichFractAsRatio(numer);
+    }
+    static stoichFractAsRatio(fract) {
+        if (fract == Math.floor(fract))
+            return [fract, 1];
+        const MAX_DENOM = QuantityCalc.MAX_DENOM;
+        if (QuantityCalc.RATIO_FRACT == null) {
+            QuantityCalc.RATIO_FRACT = [];
+            for (let p = 0, j = 2; j <= MAX_DENOM; j++)
+                for (let i = 1; i < j && i < MAX_DENOM - 1; i++)
+                    QuantityCalc.RATIO_FRACT.push(i * 1.0 / j);
+        }
+        let whole = Math.floor(fract);
+        let resid = fract - whole;
+        let bestDiff = Number.MAX_VALUE;
+        let bestOver = 1, bestUnder = 1;
+        for (let p = 0, j = 2; j <= MAX_DENOM; j++)
+            for (let i = 1; i < j && i < MAX_DENOM - 1; i++) {
+                let diff = Math.abs(QuantityCalc.RATIO_FRACT[p++] - resid);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    bestOver = i;
+                    bestUnder = j;
+                }
+            }
+        return [bestOver + (whole * bestUnder), bestUnder];
+    }
+    static impliedReagentStoich(reagent, products) {
+        if (MolUtil.isBlank(reagent.mol) || products.length == 0)
+            return 0;
+        let pstoich = Vec.numberArray(-1, products.length);
+        let rmol = reagent.mol;
+        let highest = 0;
+        for (let n = 1; n <= rmol.numAtoms; n++) {
+            let m = rmol.atomMapNum(n);
+            if (m == 0)
+                continue;
+            let total = 0;
+            for (let i = 0; i < products.length; i++) {
+                let pmol = products[i].mol;
+                if (MolUtil.isBlank(pmol))
+                    continue;
+                let pcount = 0;
+                for (let j = 1; j <= pmol.numAtoms; j++)
+                    if (pmol.atomMapNum(j) == m)
+                        pcount++;
+                if (pcount > 0) {
+                    let rcount = 0;
+                    for (let k = 1; k <= rmol.numAtoms; k++)
+                        if (rmol.atomMapNum(k) == m)
+                            rcount++;
+                    if (pstoich[i] < 0)
+                        pstoich[i] = QuantityCalc.extractStoichValue(products[i].stoich);
+                    total += pcount * pstoich[i] / rcount;
+                }
+            }
+            highest = Math.max(highest, total);
+        }
+        return highest;
+    }
+    calculate() {
+        this.classifyTypes();
+        while (this.calculateSomething()) { }
+        this.allMassReact = [];
+        this.allMassProd = [];
+        this.allMassWaste = [];
+        for (let n = 0; n < this.quantities.length; n++) {
+            let qc = this.quantities[n];
+            if (qc.type == Experiment.REACTANT || qc.type == Experiment.REAGENT) {
+                if (qc.valueEquiv == 0 && qc.type == Experiment.REAGENT)
+                    continue;
+                this.allMassReact.push(qc.valueMass);
+            }
+            else if (qc.type == Experiment.PRODUCT) {
+                if (!qc.comp.waste) {
+                    this.allMassProd.push(qc.valueMass);
+                    this.calculateGreenMetrics(n);
+                }
+                else {
+                    this.allMassWaste.push(qc.valueMass);
+                }
+            }
+        }
+    }
+    get numQuantities() { return this.quantities.length; }
+    getQuantity(idx) { return this.quantities[idx]; }
+    getAllQuantities() { return this.quantities.slice(0); }
+    get numGreenMetrics() { return this.greenMetrics.length; }
+    getGreenMetrics(idx) { return this.greenMetrics[idx]; }
+    getAllGreenMetrics() { return this.greenMetrics.slice(0); }
+    getAllMassReact() { return this.allMassReact.slice(0); }
+    getAllMassProd() { return this.allMassProd.slice(0); }
+    getAllMassWaste() { return this.allMassWaste.slice(0); }
+    findComponent(step, type, idx) {
+        for (let qc of this.quantities)
+            if (qc.step == step && qc.type == type && qc.idx == idx)
+                return qc;
+        return null;
+    }
+    static formatMolWeight(value) {
+        if (value == QuantityCalc.UNSPECIFIED)
+            return '';
+        return formatDouble(value, 6) + ' g/mol';
+    }
+    static formatMass(value) {
+        if (value == QuantityCalc.UNSPECIFIED)
+            return '';
+        if (value <= 1E-6)
+            return formatDouble(value * 1E6, 6) + ' \u03BCg';
+        if (value <= 1E-3)
+            return formatDouble(value * 1E3, 6) + ' mg';
+        if (value >= 1E3)
+            return formatDouble(value * 1E-3, 6) + ' kg';
+        return formatDouble(value, 6) + ' g';
+    }
+    static formatVolume(value) {
+        if (value == QuantityCalc.UNSPECIFIED)
+            return '';
+        if (value <= 1E-6)
+            return formatDouble(value * 1E6, 6) + ' nL';
+        if (value <= 1E-3)
+            return formatDouble(value * 1E3, 6) + ' \u03BCL';
+        if (value >= 1E3)
+            return formatDouble(value * 1E-3, 6) + ' L';
+        return formatDouble(value, 6) + ' mL';
+    }
+    static formatMoles(value) {
+        if (value == QuantityCalc.UNSPECIFIED)
+            return '';
+        if (value <= 1E-9)
+            return formatDouble(value * 1E9, 6) + ' nmol';
+        if (value <= 1E-6)
+            return formatDouble(value * 1E6, 6) + ' \u03BCmol';
+        if (value <= 1E-3)
+            return formatDouble(value * 1E3, 6) + ' mmol';
+        return formatDouble(value, 6) + ' mol';
+    }
+    static formatDensity(value) {
+        if (value == QuantityCalc.UNSPECIFIED)
+            return '';
+        return formatDouble(value, 6) + ' g/mL';
+    }
+    static formatConc(value) {
+        if (value == QuantityCalc.UNSPECIFIED)
+            return '';
+        if (value <= 1E-9)
+            return formatDouble(value * 1E9, 6) + ' nmol/L';
+        if (value <= 1E-6)
+            return formatDouble(value * 1E6, 6) + ' \u03BCmol/L';
+        if (value <= 1E-3)
+            return formatDouble(value * 1E3, 6) + ' mmol/L';
+        return formatDouble(value, 6) + ' mol/L';
+    }
+    static formatPercent(value) {
+        if (value == QuantityCalc.UNSPECIFIED)
+            return '';
+        return formatDouble(value, 6) + '%';
+    }
+    classifyTypes() {
+        for (let s = 0; s < this.entry.steps.length; s++) {
+            let step = this.entry.steps[s];
+            for (let n = 0; n < step.reactants.length; n++)
+                this.quantities.push(new QuantityComp(step.reactants[n], s, Experiment.REACTANT, n));
+            for (let n = 0; n < step.reagents.length; n++)
+                this.quantities.push(new QuantityComp(step.reagents[n], s, Experiment.REAGENT, n));
+            for (let n = 0; n < step.products.length; n++)
+                this.quantities.push(new QuantityComp(step.products[n], s, Experiment.PRODUCT, n));
+        }
+        for (let n = 0; n < this.quantities.length; n++) {
+            let qc = this.quantities[n];
+            if (qc.type == Experiment.REAGENT) {
+                if (qc.comp.equiv != null)
+                    qc.valueEquiv = qc.comp.equiv;
+                else {
+                    let eq = QuantityCalc.impliedReagentStoich(qc.comp, this.entry.steps[qc.step].products);
+                    if (eq > 0)
+                        qc.valueEquiv = eq;
+                }
+            }
+            else {
+                qc.valueEquiv = QuantityCalc.extractStoichValue(qc.comp.stoich);
+            }
+            if (qc.comp.mol != null)
+                qc.molw = MolUtil.molecularWeight(qc.comp.mol);
+            qc.role = QuantityCalc.ROLE_INDEPENDENT;
+            if (qc.step == 0 && qc.type == Experiment.REACTANT) {
+                if (qc.comp.primary) {
+                    qc.role = QuantityCalc.ROLE_PRIMARY;
+                    this.idxPrimary.push(n);
+                }
+                else
+                    qc.role = QuantityCalc.ROLE_SECONDARY;
+            }
+            else if (qc.type == Experiment.REAGENT) {
+                if (qc.valueEquiv > 0)
+                    qc.role = QuantityCalc.ROLE_SECONDARY;
+            }
+            else if (qc.type == Experiment.PRODUCT && !qc.comp.waste) {
+                qc.role = QuantityCalc.ROLE_PRODUCT;
+                this.idxYield.push(n);
+            }
+            else if (qc.valueEquiv > 0) {
+                qc.role = QuantityCalc.ROLE_SECONDARY;
+            }
+            if (qc.comp.mass != null)
+                qc.valueMass = qc.comp.mass;
+            if (qc.comp.volume != null)
+                qc.valueVolume = qc.comp.volume;
+            if (qc.comp.moles != null)
+                qc.valueMoles = qc.comp.moles;
+            if (qc.comp.density != null)
+                qc.valueDensity = qc.comp.density;
+            if (qc.comp.conc != null)
+                qc.valueConc = qc.comp.conc;
+            if (qc.comp.yield != null)
+                qc.valueYield = qc.comp.yield;
+            qc.statEquiv = qc.valueEquiv == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+            qc.statMass = qc.valueMass == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+            qc.statVolume = qc.valueVolume == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+            qc.statMoles = qc.valueMoles == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+            qc.statDensity = qc.valueDensity == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+            qc.statConc = qc.valueConc == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+            qc.statYield = qc.valueYield == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+        }
+        if (this.idxPrimary.length == 0) {
+            for (let n = 0; n < this.quantities.length; n++) {
+                let qc = this.quantities[n];
+                if (qc.type == Experiment.REACTANT && qc.step == 0) {
+                    qc.role = QuantityCalc.ROLE_PRIMARY;
+                    this.idxPrimary.push(n);
+                }
+            }
+        }
+    }
+    calculateSomething() {
+        let anything = false;
+        for (let qc of this.quantities) {
+            if (qc.molw > 0 && qc.valueMass == QuantityCalc.UNSPECIFIED && qc.statMoles == QuantityCalc.STAT_ACTUAL) {
+                qc.valueMass = qc.valueMoles * qc.molw;
+                qc.statMass = QuantityCalc.STAT_VIRTUAL;
+                anything = true;
+            }
+            if (qc.molw > 0 && qc.valueMass != QuantityCalc.UNSPECIFIED && qc.valueMoles == QuantityCalc.UNSPECIFIED) {
+                qc.valueMoles = qc.valueMass / qc.molw;
+                qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                anything = true;
+            }
+            if (qc.molw > 0 && qc.statMass == QuantityCalc.STAT_ACTUAL && qc.statMoles == QuantityCalc.STAT_ACTUAL) {
+                let calcMoles = qc.valueMass / qc.molw;
+                if (!this.closeEnough(qc.valueMoles, calcMoles)) {
+                    qc.statMass = QuantityCalc.STAT_CONFLICT;
+                    qc.statMoles = QuantityCalc.STAT_CONFLICT;
+                }
+            }
+            let isSoln = qc.statConc == QuantityCalc.STAT_ACTUAL ||
+                (qc.statVolume == QuantityCalc.STAT_ACTUAL && (qc.statMass == QuantityCalc.STAT_ACTUAL || qc.statMoles == QuantityCalc.STAT_ACTUAL));
+            if (!isSoln) {
+                if (qc.valueDensity > 0 && qc.valueMass == QuantityCalc.UNSPECIFIED && qc.valueVolume != QuantityCalc.UNSPECIFIED) {
+                    qc.valueMass = qc.valueVolume * qc.valueDensity;
+                    qc.statMass = QuantityCalc.STAT_VIRTUAL;
+                    anything = true;
+                }
+                if (qc.valueDensity > 0 && qc.valueMass != QuantityCalc.UNSPECIFIED && qc.valueVolume == QuantityCalc.UNSPECIFIED) {
+                    qc.valueVolume = qc.valueMass / qc.valueDensity;
+                    qc.statVolume = QuantityCalc.STAT_VIRTUAL;
+                    anything = true;
+                }
+                if (qc.valueDensity == QuantityCalc.UNSPECIFIED && qc.valueMass != QuantityCalc.UNSPECIFIED &&
+                    qc.valueVolume != QuantityCalc.UNSPECIFIED && qc.valueConc == QuantityCalc.UNSPECIFIED) {
+                    if (qc.statMass == QuantityCalc.STAT_ACTUAL || qc.statMoles == QuantityCalc.STAT_ACTUAL) {
+                        qc.valueDensity = qc.valueMass / qc.valueVolume;
+                        qc.statDensity = QuantityCalc.STAT_VIRTUAL;
+                        anything = true;
+                    }
+                }
+            }
+            if (isSoln) {
+                if (qc.valueConc > 0 && qc.valueMoles == QuantityCalc.UNSPECIFIED && qc.valueVolume != QuantityCalc.UNSPECIFIED) {
+                    qc.valueMoles = 0.001 * qc.valueVolume * qc.valueConc;
+                    qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                    anything = true;
+                }
+                if (qc.valueConc > 0 && qc.valueMoles != QuantityCalc.UNSPECIFIED && qc.valueVolume == QuantityCalc.UNSPECIFIED) {
+                    qc.valueVolume = 1000 * qc.valueMoles / qc.valueConc;
+                    qc.statVolume = QuantityCalc.STAT_VIRTUAL;
+                    anything = true;
+                }
+                if (qc.valueConc == QuantityCalc.UNSPECIFIED && qc.valueMass != QuantityCalc.UNSPECIFIED && qc.valueVolume != QuantityCalc.UNSPECIFIED) {
+                    qc.valueConc = 1000 * qc.valueMoles / qc.valueVolume;
+                    qc.statConc = QuantityCalc.STAT_VIRTUAL;
+                    anything = true;
+                }
+                if (qc.statConc == QuantityCalc.STAT_ACTUAL && qc.valueMoles > 0 && qc.statVolume == QuantityCalc.STAT_ACTUAL) {
+                    let calcVolume = 1000 * qc.valueMoles / qc.valueConc;
+                    if (!this.closeEnough(qc.valueVolume, calcVolume)) {
+                        qc.statConc = QuantityCalc.STAT_CONFLICT;
+                        if (qc.statMass == QuantityCalc.STAT_ACTUAL)
+                            qc.statMass = QuantityCalc.STAT_CONFLICT;
+                        if (qc.statMoles == QuantityCalc.STAT_ACTUAL)
+                            qc.statMoles = QuantityCalc.STAT_CONFLICT;
+                        qc.statVolume = QuantityCalc.STAT_CONFLICT;
+                    }
+                }
+            }
+            if (qc.molw > 0 && qc.valueMass == QuantityCalc.UNSPECIFIED && qc.valueMoles != QuantityCalc.UNSPECIFIED) {
+                qc.valueMass = qc.valueMoles * qc.molw;
+                qc.statMass = QuantityCalc.STAT_VIRTUAL;
+                anything = true;
+            }
+            if (qc.statDensity == QuantityCalc.STAT_ACTUAL && qc.statConc == QuantityCalc.STAT_ACTUAL) {
+                qc.statDensity = QuantityCalc.STAT_CONFLICT;
+                qc.statConc = QuantityCalc.STAT_CONFLICT;
+            }
+        }
+        if (anything)
+            return true;
+        let hasRef = false;
+        let numSteps = this.entry.steps.length;
+        let primaryCounts = Vec.numberArray(0, numSteps);
+        let primaryEquivs = Vec.numberArray(0, numSteps);
+        let primaryMoles = Vec.numberArray(0, numSteps);
+        for (let qc of this.quantities) {
+            let ref = -1;
+            if (qc.step == 0 && qc.type == Experiment.REACTANT && qc.comp.primary)
+                ref = qc.step;
+            else if (qc.step < numSteps - 1 && qc.type == Experiment.PRODUCT && !qc.comp.waste)
+                ref = qc.step + 1;
+            else
+                continue;
+            if (primaryEquivs[ref] < 0)
+                continue;
+            if (qc.statMoles == QuantityCalc.STAT_UNKNOWN) {
+                primaryEquivs[ref] = -1;
+                continue;
+            }
+            primaryCounts[ref]++;
+            primaryEquivs[ref] += qc.valueEquiv;
+            primaryMoles[ref] += qc.valueMoles;
+        }
+        if (primaryEquivs[0] <= 0) {
+            primaryCounts[0] = 0;
+            primaryEquivs[0] = 0;
+            primaryMoles[0] = 0;
+            for (let i of this.idxPrimary) {
+                let qc = this.quantities[i];
+                if (qc.statMoles == QuantityCalc.STAT_UNKNOWN) {
+                    primaryCounts[0] = 0;
+                    primaryEquivs[0] = -1;
+                    primaryMoles[0] = 0;
+                    break;
+                }
+                primaryCounts[0]++;
+                primaryEquivs[0] += qc.valueEquiv;
+                primaryMoles[0] += qc.valueMoles;
+            }
+        }
+        let refMoles = Vec.numberArray(0, numSteps);
+        for (let n = 0; n < numSteps; n++) {
+            refMoles[n] = primaryCounts[n] == 0 || primaryEquivs[n] <= 0 ? 0 : primaryMoles[n] / primaryEquivs[n];
+            if (refMoles[n] > 0)
+                hasRef = true;
+        }
+        if (!hasRef) {
+            for (let n = 0; n < numSteps; n++) {
+                let prodMolar = [];
+                for (let qc of this.quantities) {
+                    if (qc.step != n || qc.role != QuantityCalc.ROLE_PRODUCT)
+                        continue;
+                    if (qc.statMoles == QuantityCalc.STAT_UNKNOWN || qc.valueMoles <= 0 || qc.valueEquiv <= 0)
+                        continue;
+                    let yld = qc.valueYield > 0 ? qc.valueYield * 0.01 : 1;
+                    prodMolar.push(qc.valueMoles / (qc.valueEquiv * yld));
+                }
+                if (prodMolar.length > 0) {
+                    refMoles[n] = Vec.sum(prodMolar) / prodMolar.length;
+                    hasRef = true;
+                }
+            }
+        }
+        if (!hasRef)
+            return false;
+        for (let qc of this.quantities) {
+            if (qc.type != Experiment.PRODUCT)
+                continue;
+            if (refMoles[qc.step] == 0)
+                continue;
+            if (qc.valueYield == QuantityCalc.UNSPECIFIED && qc.valueMoles != QuantityCalc.UNSPECIFIED) {
+                qc.valueYield = 100 * qc.valueMoles / (refMoles[qc.step] * qc.valueEquiv);
+                qc.statYield = QuantityCalc.STAT_VIRTUAL;
+                anything = true;
+            }
+            if (qc.valueYield != QuantityCalc.UNSPECIFIED && qc.valueMoles == QuantityCalc.UNSPECIFIED) {
+                qc.valueMoles = qc.valueYield * 0.01 * (refMoles[qc.step] * qc.valueEquiv);
+                qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                anything = true;
+            }
+            if (qc.valueMoles > 0 && qc.statYield == QuantityCalc.STAT_ACTUAL) {
+                let calcYield = 100 * qc.valueMoles / (refMoles[qc.step] * qc.valueEquiv);
+                if (!this.closeEnough(qc.valueYield, calcYield)) {
+                    if (qc.statMass == QuantityCalc.STAT_ACTUAL)
+                        qc.statMass = QuantityCalc.STAT_CONFLICT;
+                    if (qc.statMoles == QuantityCalc.STAT_ACTUAL)
+                        qc.statMoles = QuantityCalc.STAT_CONFLICT;
+                    qc.statYield = QuantityCalc.STAT_CONFLICT;
+                }
+            }
+        }
+        if (anything)
+            return true;
+        for (let qc of this.quantities) {
+            if (refMoles[qc.step] == 0)
+                continue;
+            if (qc.valueMass == QuantityCalc.UNSPECIFIED && qc.valueMoles == QuantityCalc.UNSPECIFIED && qc.valueEquiv > 0) {
+                qc.valueMoles = refMoles[qc.step] * qc.valueEquiv;
+                qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                anything = true;
+            }
+            if (qc.valueMoles != QuantityCalc.UNSPECIFIED && qc.valueEquiv == QuantityCalc.UNSPECIFIED) {
+                qc.valueEquiv = qc.valueMoles / refMoles[qc.step];
+                qc.statEquiv = QuantityCalc.STAT_VIRTUAL;
+                anything = true;
+            }
+        }
+        return anything;
+    }
+    calculateGreenMetrics(idx) {
+        let qc = this.quantities[idx];
+        let gm = new GreenMetrics();
+        gm.step = qc.step;
+        gm.idx = idx;
+        gm.isBlank = true;
+        for (let n = 0; n < this.quantities.length; n++) {
+            let sub = this.quantities[n];
+            if (sub.step > gm.step)
+                continue;
+            let eq = sub.valueEquiv;
+            if (eq == 0 && sub.type == Experiment.REAGENT)
+                continue;
+            if (sub.valueMass != QuantityCalc.UNSPECIFIED)
+                gm.isBlank = false;
+            if (sub.type == Experiment.REACTANT || sub.type == Experiment.REAGENT) {
+                gm.massReact.push(sub.valueMass);
+                if (sub.step == gm.step && eq > 0 && sub.molw > 0)
+                    gm.molwReact.push(eq * sub.molw);
+            }
+            else if (sub.type == Experiment.PRODUCT) {
+                if (!sub.comp.waste) {
+                    if (sub.step == gm.step)
+                        gm.massProd.push(sub.valueMass);
+                    if (eq > 0 && sub.molw > 0) {
+                        if (sub.step == gm.step)
+                            gm.molwProd.push(eq * sub.molw);
+                        else if (sub.step == gm.step - 1)
+                            gm.molwReact.push(eq * sub.molw);
+                    }
+                }
+                else {
+                    gm.massWaste.push(sub.valueMass);
+                }
+                if (sub.step == gm.step)
+                    gm.massProdWaste.push(sub.valueMass);
+            }
+        }
+        gm.impliedWaste = Vec.sum(gm.massReact) - Vec.sum(gm.massProdWaste);
+        if (Math.abs(gm.impliedWaste) > 1E-3)
+            gm.impliedWaste = 0;
+        this.greenMetrics.push(gm);
+    }
+    closeEnough(value1, value2) {
+        if (value1 <= 0 || value2 <= 0)
+            return true;
+        let ratio = value1 / value2;
+        return ratio >= 0.99 && ratio <= 1.01;
+    }
+}
+QuantityCalc.UNSPECIFIED = -1;
+QuantityCalc.ROLE_PRIMARY = 1;
+QuantityCalc.ROLE_SECONDARY = 2;
+QuantityCalc.ROLE_PRODUCT = 3;
+QuantityCalc.ROLE_INDEPENDENT = 4;
+QuantityCalc.STAT_UNKNOWN = 0;
+QuantityCalc.STAT_ACTUAL = 1;
+QuantityCalc.STAT_VIRTUAL = 2;
+QuantityCalc.STAT_CONFLICT = 3;
+QuantityCalc.MAX_DENOM = 16;
+QuantityCalc.RATIO_FRACT = null;
+class OptionList extends Widget {
+    constructor(options, isVertical = false) {
+        super();
+        this.options = options;
+        this.isVertical = isVertical;
+        this.selidx = 0;
+        this.buttonDiv = [];
+        this.auxCell = [];
+        this.callbackSelect = null;
+        if (options.length == 0)
+            throw 'molsync.ui.OptionList: must provide a list of option labels.';
+    }
+    getSelectedIndex() {
+        return this.selidx;
+    }
+    getSelectedValue() {
+        return this.options[this.selidx];
+    }
+    getAuxiliaryCell(idx) {
+        return this.auxCell[idx];
+    }
+    render(parent) {
+        super.render(parent);
+        let table = $('<table class="option-table"></table>').appendTo(this.content);
+        let tr = this.isVertical ? null : $('<tr></tr>').appendTo(table);
+        for (var n = 0; n < this.options.length; n++) {
+            if (this.isVertical)
+                tr = $('<tr></tr>').appendTo(table);
+            let td = $('<td class="option-cell"></td>').appendTo(tr);
+            let div = $('<div class="option"></div>').appendTo(td);
+            if (n != this.selidx)
+                div.addClass('option-unselected');
+            else
+                div.addClass('option-selected');
+            let txt = this.options[n];
+            if (txt.length == 0 && n == this.selidx)
+                div.append('\u00A0\u2716\u00A0');
+            else if (txt.length == 0)
+                div.append('\u00A0\u00A0\u00A0');
+            else
+                div.append(txt);
+            if (n != this.selidx) {
+                div.mouseover(() => div.addClass('option-hover'));
+                div.mouseout(() => div.removeClass('option-hover option-active'));
+                div.mousedown(() => div.addClass('option-active'));
+                div.mouseup(() => div.removeClass('option-active'));
+                div.mouseleave(() => div.removeClass('option-hover option-active'));
+                div.mousemove(() => { return false; });
+                const idx = n;
+                div.click(() => this.clickButton(idx));
+            }
+            this.buttonDiv.push(div);
+            if (this.isVertical) {
+                td = $('<td style="vertical-align: middle;"></td>').appendTo(tr);
+                this.auxCell.push(td);
+            }
+        }
+    }
+    clickButton(idx) {
+        if (idx == this.selidx)
+            return;
+        this.setSelectedIndex(idx);
+        if (this.callbackSelect)
+            this.callbackSelect(idx, this);
+    }
+    setSelectedIndex(idx) {
+        if (this.selidx == idx)
+            return;
+        let div = this.buttonDiv[this.selidx];
+        div.attr('class', 'option option-unselected');
+        if (this.options[this.selidx].length == 0)
+            div.text('\u00A0\u00A0\u00A0');
+        div.mouseover(() => div.addClass('option-hover'));
+        div.mouseout(() => div.removeClass('option-hover option-active'));
+        div.mousedown(() => div.addClass('option-active'));
+        div.mouseup(() => div.removeClass('option-active'));
+        div.mouseleave(() => div.removeClass('option-hover option-active'));
+        div.mousemove(() => false);
+        const clickidx = this.selidx;
+        div.click(() => this.clickButton(clickidx));
+        this.selidx = idx;
+        div = this.buttonDiv[this.selidx];
+        div.attr('class', 'option option-selected');
+        if (this.options[this.selidx].length == 0)
+            div.text('\u00A0\u2716\u00A0');
+        div.off('mouseover');
+        div.off('mouseout');
+        div.off('mousedown');
+        div.off('mouseup');
+        div.off('mouseleave');
+        div.off('mousemove');
+        div.off('click');
+    }
+    setSelectedValue(val) {
+        let idx = this.options.indexOf(val);
+        if (idx >= 0)
+            this.setSelectedIndex(idx);
+    }
+}
+class Download extends Dialog {
+    constructor(tokenID) {
+        super();
+        this.tokenID = tokenID;
+        this.mol = null;
+        this.ds = null;
+        this.policy = RenderPolicy.defaultColourOnWhite();
+        this.formatKey = [];
+        this.formatGfx = [];
+    }
+    ;
+    static openTransientMolecule(tokenID, mol) {
+        let dlg = new Download(tokenID);
+        dlg.mol = mol;
+        dlg.title = 'Download Molecule';
+        dlg.open();
+        return dlg;
+    }
+    ;
+    static openTransientDataSheet(tokenID, ds) {
+        let dlg = new Download(tokenID);
+        dlg.ds = ds;
+        dlg.title = 'Download DataSheet';
+        dlg.open();
+        return dlg;
+    }
+    ;
+    populate() {
+        let body = this.body();
+        this.mainArea = $('<p>Setting up...</p>').appendTo(body);
+        let paraBtn = $('<p align="right"></p>').appendTo(body);
+        this.downloadArea = $('<span style="padding-right: 2em;"></span>').appendTo(paraBtn);
+        this.btnPrepare = $('<button class="button button-primary">Prepare</button>').appendTo(paraBtn);
+        this.btnPrepare.click(() => this.clickPrepare());
+        if (this.mol != null) {
+            this.formatKey.push(FormatList.FMT_NATIVE);
+            this.formatGfx.push(false);
+            this.formatKey.push(FormatList.FMT_MDLMOL);
+            this.formatGfx.push(false);
+            this.formatKey.push(FormatList.GFX_PNG);
+            this.formatGfx.push(true);
+            this.formatKey.push(FormatList.GFX_SVG);
+            this.formatGfx.push(true);
+            this.formatKey.push(FormatList.GFX_PDF);
+            this.formatGfx.push(true);
+            this.formatKey.push(FormatList.GFX_EPS);
+            this.formatGfx.push(true);
+        }
+        else if (this.ds != null) {
+            let isReaction = false, isExperiment = false;
+            for (let n = 0; n < this.ds.numExtensions; n++) {
+                if (this.ds.getExtType(n) == 'org.mmi.aspect.Reaction')
+                    isReaction = true;
+                if (this.ds.getExtType(n) == 'org.mmi.aspect.Experiment')
+                    isExperiment = true;
+            }
+            this.formatKey.push(FormatList.FMT_XMLDS);
+            this.formatGfx.push(false);
+            if (!isReaction) {
+                this.formatKey.push(FormatList.FMT_MDLSDF);
+                this.formatGfx.push(false);
+            }
+            if (isReaction) {
+                this.formatKey.push(FormatList.FMT_MDLRDF);
+                this.formatGfx.push(false);
+                if (this.ds.numRows == 1) {
+                    this.formatKey.push(FormatList.FMT_MDLRXN);
+                    this.formatGfx.push(false);
+                }
+            }
+            if (this.ds.numRows == 1 || isExperiment) {
+                if (!isReaction && this.ds.firstColOfType(DataSheet.COLTYPE_MOLECULE) >= 0) {
+                    this.formatKey.push(FormatList.FMT_NATIVE);
+                    this.formatGfx.push(false);
+                    this.formatKey.push(FormatList.FMT_MDLMOL);
+                    this.formatGfx.push(false);
+                }
+                this.formatKey.push(FormatList.GFX_PNG);
+                this.formatGfx.push(true);
+                this.formatKey.push(FormatList.GFX_SVG);
+                this.formatGfx.push(true);
+                this.formatKey.push(FormatList.GFX_EPS);
+                this.formatGfx.push(true);
+                this.formatKey.push(FormatList.GFX_PDF);
+                this.formatGfx.push(true);
+            }
+            this.formatKey.push(FormatList.GFX_PNGZIP);
+            this.formatGfx.push(true);
+            this.formatKey.push(FormatList.GFX_SVGZIP);
+            this.formatGfx.push(true);
+            this.formatKey.push(FormatList.GFX_PDFZIP);
+            this.formatGfx.push(true);
+            this.formatKey.push(FormatList.GFX_HTML);
+            this.formatGfx.push(true);
+        }
+        this.formatKey.push(FormatList.GFX_OOXML_DOCX);
+        this.formatGfx.push(true);
+        this.formatKey.push(FormatList.GFX_OOXML_XLSX);
+        this.formatGfx.push(true);
+        this.fillContent();
+    }
+    clickPrepare() {
+        let input = { 'tokenID': this.tokenID };
+        input.format = this.formatKey[this.optFormatList.getSelectedIndex()];
+        input.policy = clone(this.policy.data);
+        let sizeType = this.optSizeType.getSelectedValue();
+        if (sizeType == 'Scale') {
+            input.policy.pointScale = this.lineScale.val();
+        }
+        else if (sizeType == 'Box') {
+            input.policy.pointScale = this.lineBoxMaxScale.val();
+            input.box = [this.lineBoxWidth.val(), this.lineBoxHeight.val()];
+        }
+        this.btnPrepare.prop('disabled', true);
+        if (this.mol != null) {
+            input.molNative = this.mol.toString();
+        }
+        else if (this.ds != null) {
+            input.dataXML = DataSheetStream.writeXML(this.ds);
+        }
+        Func.prepareDownloadable(input, (result, error) => this.downloadContent(result, error));
+    }
+    fillContent() {
+        let input = { 'tokenID': this.tokenID };
+        input.policy = this.policy.data;
+        if (this.mol != null) {
+            input.molNative = this.mol.toString();
+        }
+        else if (this.ds != null) {
+            input.dataXML = DataSheetStream.writeXML(this.ds);
+            input.dataRow = 0;
+        }
+        Func.renderStructure(input, (result, error) => this.updateStructure(result, error));
+    }
+    updateStructure(result, error) {
+        if (!result) {
+            alert('Request failed: ' + error.message);
+            return;
+        }
+        let metavec = result.metavec;
+        if (this.pictureArea == null)
+            this.buildDisplay();
+        this.pictureArea.empty();
+        let w = metavec.size[0], h = metavec.size[1], padding = 2, scale = 1;
+        if (w > 700) {
+            let mod = 700 / w;
+            scale *= mod;
+            w *= mod;
+            h *= mod;
+        }
+        if (h > 500) {
+            let mod = 500 / h;
+            scale *= mod;
+            w *= mod;
+            h *= mod;
+        }
+        let cw = Math.ceil(w) + 2 * padding, ch = Math.ceil(h) + 2 * padding;
+        let canvas = newElement(this.pictureArea, 'canvas', { 'width': cw, 'height': ch });
+        let density = pixelDensity();
+        canvas.width = cw * density;
+        canvas.height = ch * density;
+        canvas.style.width = cw + 'px';
+        canvas.style.height = ch + 'px';
+        let ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.scale(density, density);
+        let grad = ctx.createLinearGradient(0, 0, cw, ch);
+        if (this.policy.data.background != 0x000000) {
+            grad.addColorStop(0, colourCode(0xF8F8F8));
+            grad.addColorStop(1, colourCode(0xE0E0E0));
+        }
+        else {
+            grad.addColorStop(0, colourCode(0x404040));
+            grad.addColorStop(1, colourCode(0x101010));
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, cw, h + ch);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0.5, 0.5, cw - 1, ch - 1);
+        let draw = new MetaVector(metavec);
+        draw.offsetX = padding;
+        draw.offsetY = padding;
+        draw.scale = scale;
+        draw.renderContext(ctx);
+        let isExperiment = false;
+        if (this.ds != null) {
+            for (let n = 0; n < this.ds.numExtensions; n++)
+                if (this.ds.getExtType(n) == 'org.mmi.aspect.Experiment')
+                    isExperiment = true;
+        }
+        if (this.ds != null && this.ds.numRows > 1 && !isExperiment) {
+            let dstxt = '... and ' + (this.ds.numRows - 1) + ' more row' + (this.ds.numRows == 2 ? '' : 's') + '.';
+            addText(newElement(this.pictureArea, 'p'), dstxt);
+        }
+        ctx.restore();
+    }
+    ;
+    buildDisplay() {
+        this.mainArea.empty();
+        this.pictureArea = $('<p align="center"></p>').appendTo(this.mainArea);
+        this.formatArea = $('<div style="text-align: left;"></div>').appendTo(this.mainArea);
+        this.graphicArea = $('<div style="text-align: left;"></div>').appendTo(this.mainArea);
+        this.formatArea.append($('<h2 class="tight">Choose Format</h2>'));
+        this.formatArea.append($('<hr class="thin"></hr>'));
+        let optList = [];
+        for (let n = 0; n < this.formatKey.length; n++)
+            optList.push('');
+        let optFormatList = new OptionList(optList, true);
+        optFormatList.render(this.formatArea);
+        for (let n = 0; n < this.formatKey.length; n++) {
+            let k = this.formatKey[n];
+            $(optFormatList.getAuxiliaryCell(n)).append('\u00A0' + FormatList.FORMAT_DESCR[k]);
+        }
+        optFormatList.callbackSelect = (idx, source) => this.changeFormat(idx);
+        this.graphicArea.append($('<h2 class="tight">Graphic Options</h2>'));
+        this.graphicArea.append($('<hr class="thin"></hr>'));
+        let paraSizeType = $('<p></p>').appendTo(this.graphicArea);
+        let paraSizeSpec = $('<p></p>').appendTo(this.graphicArea);
+        let paraRender = $('<p></p>').appendTo(this.graphicArea);
+        let trSize = $('<table><tr></tr></table>').appendTo(paraSizeType).find('tr');
+        trSize.append('<td style="vertical-align: middle; font-weight: bold;">Sizing: </td>');
+        let optSizeType = new OptionList(['Scale', 'Box'], false);
+        optSizeType.setSelectedIndex(0);
+        optSizeType.render($('<td style="vertical-align: middle;"></td>').appendTo(trSize));
+        optSizeType.callbackSelect = (idx, source) => this.changeSizeType(idx);
+        let divSizeScale = $('<div></div>').appendTo(paraSizeSpec);
+        divSizeScale.append('<b>Angstroms-to-Points: </b>');
+        let lineScale = $('<input type="text" size="6"></input>"').appendTo(divSizeScale);
+        lineScale.val('30');
+        let divSizeBox = $('<div style="display: none;"></div>').appendTo(paraSizeSpec);
+        divSizeBox.append('<b>Width: </b>');
+        let lineBoxWidth = $('<input type="text" size="6"></input>"').appendTo(divSizeBox);
+        lineBoxWidth.val('400');
+        divSizeBox.append('<b> Height: </b>');
+        let lineBoxHeight = $('<input type="text" size="6"></input>"').appendTo(divSizeBox);
+        lineBoxHeight.val('300');
+        divSizeBox.append(' <b>Max Scale: </b>');
+        let lineBoxMaxScale = $('<input type="text" size="6"></input>"').appendTo(divSizeBox);
+        lineBoxMaxScale.val('30');
+        paraRender.append('<b>Rendering: </b>');
+        let selectRender = $('<select></select>').appendTo(paraRender);
+        selectRender.append('<option>Black-on-White</option>');
+        selectRender.append('<option>Colour-on-White</option>');
+        selectRender.append('<option>White-on-Black</option>');
+        selectRender.append('<option>Colour-on-Black</option>');
+        selectRender.append('<option>Printed Publication</option>');
+        selectRender.prop('selectedIndex', 1);
+        selectRender.change(() => this.changeRender());
+        this.optFormatList = optFormatList;
+        this.optSizeType = optSizeType;
+        this.divSizeScale = divSizeScale;
+        this.divSizeBox = divSizeBox;
+        this.lineScale = lineScale;
+        this.lineBoxWidth = lineBoxWidth;
+        this.lineBoxHeight = lineBoxHeight;
+        this.lineBoxMaxScale = lineBoxMaxScale;
+        this.selectRender = selectRender;
+    }
+    changeFormat(idx) {
+        let ftype = this.formatKey[idx];
+        let psz = 30;
+        if (ftype == FormatList.GFX_OOXML_DOCX || ftype == FormatList.GFX_OOXML_XLSX)
+            psz = 10;
+        this.lineScale.val(psz.toString());
+    }
+    ;
+    changeSizeType(idx) {
+        if (idx == 0) {
+            this.divSizeScale.css('display', 'block');
+            this.divSizeBox.css('display', 'none');
+        }
+        else {
+            this.divSizeScale.css('display', 'none');
+            this.divSizeBox.css('display', 'block');
+        }
+    }
+    changeRender() {
+        let t = this.selectRender.prop('selectedIndex');
+        if (t == 0)
+            this.policy = RenderPolicy.defaultBlackOnWhite();
+        else if (t == 1)
+            this.policy = RenderPolicy.defaultColourOnWhite();
+        else if (t == 2)
+            this.policy = RenderPolicy.defaultWhiteOnBlack();
+        else if (t == 3)
+            this.policy = RenderPolicy.defaultColourOnBlack();
+        else if (t == 4)
+            this.policy = RenderPolicy.defaultPrintedPublication();
+        let input = { 'tokenID': this.tokenID };
+        input.policy = this.policy.data;
+        if (this.mol != null) {
+            input.molNative = this.mol.toString();
+        }
+        else if (this.ds != null) {
+            input.dataXML = DataSheetStream.writeXML(this.ds);
+            input.dataRow = 0;
+        }
+        Func.renderStructure(input, () => this.updateStructure);
+    }
+    downloadContent(result, error) {
+        this.btnPrepare.prop('disabled', false);
+        if (!result) {
+            alert('Request failed: ' + error.message);
+            return;
+        }
+        let format = this.formatKey[this.optFormatList.getSelectedIndex()];
+        let id = result.transientID;
+        let fn = 'download' + FormatList.FORMAT_EXTN[format];
+        let url = RPC.BASE_URL + '/Download/' + fn + '?transientID=' + id;
+        this.downloadArea.empty();
+        addText(this.downloadArea, 'Temporary download link: ');
+        addText(newElement(this.downloadArea, 'a', { 'href': url, 'target': '_blank' }), fn);
+    }
+}
+class EditCompound extends Dialog {
+    constructor(mol) {
+        super();
+        this.mol = mol;
+        this.fakeTextArea = null;
+        this.callbackSave = null;
+        this.title = "Edit Compound";
+        this.minPortionWidth = 20;
+        this.maxPortionWidth = 95;
+    }
+    onSave(callback) {
+        this.callbackSave = callback;
+    }
+    getMolecule() { return this.sketcher.getMolecule(); }
+    populate() {
+        let buttons = this.buttons(), body = this.body();
+        this.btnClear = $('<button class="button button-default">Clear</button>').appendTo(buttons);
+        this.btnClear.click(() => this.sketcher.clearMolecule());
+        buttons.append(' ');
+        this.btnCopy = $('<button class="button button-default">Copy</button>').appendTo(buttons);
+        this.btnCopy.click(() => this.copyMolecule());
+        buttons.append(' ');
+        buttons.append(this.btnClose);
+        buttons.append(' ');
+        this.btnSave = $('<button class="button button-primary">Save</button>').appendTo(buttons);
+        this.btnSave.click(() => { if (this.callbackSave)
+            this.callbackSave(this); });
+        let skw = 800, skh = 650;
+        let skdiv = $('<div></div>').appendTo(this.body());
+        skdiv.css('width', skw + 'px');
+        skdiv.css('height', skh + 'px');
+        this.sketcher = new Sketcher();
+        this.sketcher.setSize(skw, skh);
+        this.sketcher.defineMolecule(this.mol);
+        this.sketcher.setup(() => this.sketcher.render(skdiv));
+    }
+    pasteMolecule() {
+    }
+    copyMolecule() {
+        this.installFake();
+        this.fakeTextArea.value = this.sketcher.getMolecule().toString();
+        this.fakeTextArea.select();
+        document.execCommand('copy');
+    }
+    installFake() {
+        if (this.fakeTextArea != null)
+            return;
+        this.fakeTextArea = document.createElement('textarea');
+        this.fakeTextArea.style.fontSize = '12pt';
+        this.fakeTextArea.style.border = '0';
+        this.fakeTextArea.style.padding = '0';
+        this.fakeTextArea.style.margin = '0';
+        this.fakeTextArea.style.position = 'fixed';
+        this.fakeTextArea.style['left'] = '-9999px';
+        this.fakeTextArea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + 'px';
+        this.fakeTextArea.setAttribute('readonly', '');
+        document.body.appendChild(this.fakeTextArea);
+    }
+}
+class MapReaction extends Dialog {
+    constructor(mol1, mol2) {
+        super();
+        this.callbackSave = null;
+        this.rawvec1 = null;
+        this.metavec1 = null;
+        this.arrmol1 = null;
+        this.transform1 = null;
+        this.rawvec2 = null;
+        this.metavec2 = null;
+        this.arrmol2 = null;
+        this.transform2 = null;
+        this.scale = 1;
+        this.ARROWWIDTH = 30;
+        this.COLCYCLE = ['#89A54E', '#71588F', '#4198AF', '#DB843D', '#93A9CF', '#D19392', '#4572A7', '#AA4643'];
+        this.highlighted = [0, 0];
+        this.pressed = [0, 0];
+        this.mol1 = mol1.clone();
+        this.mol2 = mol2.clone();
+        this.policy = RenderPolicy.defaultBlackOnWhite();
+        this.policy.data.pointScale = 40;
+        this.title = "Map Reaction Atoms";
+        this.minPortionWidth = 20;
+        this.maxPortionWidth = 95;
+    }
+    getMolecule1() { return this.mol1; }
+    getMolecule2() { return this.mol2; }
+    populate() {
+        let buttons = this.buttons(), body = this.body();
+        this.btnClear = $('<button class="button button-default">Clear</button>').appendTo(buttons);
+        this.btnClear.click(() => this.clearAllMappings());
+        buttons.append(' ');
+        buttons.append(this.btnClose);
+        buttons.append(' ');
+        this.btnSave = $('<button class="button button-primary">Save</button>').appendTo(buttons);
+        this.btnSave.click(() => { if (this.callbackSave)
+            this.callbackSave(this); });
+        Func.arrangeMolecule({ 'policy': this.policy.data, 'molNative': this.mol1.toString() }, (result, error) => {
+            this.arrmol1 = result.arrmol;
+            this.rawvec1 = result.metavec;
+            this.metavec1 = new MetaVector(result.metavec);
+            this.transform1 = result.transform;
+            Func.arrangeMolecule({ 'policy': this.policy.data, 'molNative': this.mol2.toString() }, (result, error) => {
+                this.arrmol2 = result.arrmol;
+                this.rawvec2 = result.metavec;
+                this.metavec2 = new MetaVector(result.metavec);
+                this.transform2 = result.transform;
+                this.setupPanel();
+            });
+        });
+    }
+    setupPanel() {
+        let maxWidth = 0.9 * $(window).width(), maxHeight = 0.8 * $(window).height();
+        this.padding = 1 * this.policy.data.pointScale;
+        let scale1 = (maxWidth - this.ARROWWIDTH) / (this.metavec1.width + this.metavec2.width + 4 * this.padding);
+        let scale2 = maxHeight / (this.metavec1.height + 2 * this.padding);
+        let scale3 = maxHeight / (this.metavec2.height + 2 * this.padding);
+        this.scale = Math.min(1, Math.min(scale1, Math.min(scale2, scale3)));
+        this.canvasW = Math.ceil((this.metavec1.width + this.metavec2.width + 4 * this.padding) * this.scale + this.ARROWWIDTH);
+        this.canvasH = Math.ceil((Math.max(this.metavec1.height, this.metavec2.height) + 2 * this.padding) * this.scale);
+        this.offsetX1 = this.padding * this.scale;
+        this.offsetY1 = 0.5 * (this.canvasH - this.metavec1.height * this.scale);
+        this.offsetX2 = (this.metavec1.width + 3 * this.padding) * this.scale + this.ARROWWIDTH;
+        this.offsetY2 = 0.5 * (this.canvasH - this.metavec2.height * this.scale);
+        let div = $('<div></div>').appendTo(this.body());
+        div.css('position', 'relative');
+        div.css('width', this.canvasW + 'px');
+        div.css('height', this.canvasH + 'px');
+        let density = pixelDensity();
+        let styleCanvas = 'position: absolute; left: 0; top: 0; width: ' + this.canvasW + 'px; height: ' + this.canvasH + 'px;';
+        let styleOverlay = styleCanvas + 'pointer-events: none;';
+        this.canvas = newElement(div, 'canvas', { 'width': this.canvasW * density, 'height': this.canvasH * density, 'style': styleCanvas });
+        let ctx = this.canvas.getContext('2d');
+        ctx.scale(density, density);
+        this.redrawCanvas();
+        $(this.canvas).mousedown((event) => { event.preventDefault(); this.mouseDown(event); });
+        $(this.canvas).mouseup((event) => { this.mouseUp(event); });
+        $(this.canvas).mouseenter((event) => { this.mouseEnter(event); });
+        $(this.canvas).mouseleave((event) => { this.mouseLeave(event); });
+        $(this.canvas).mousemove((event) => { this.mouseMove(event); });
+        this.drawnMols = newElement(div, 'canvas', { 'width': this.canvasW * density, 'height': this.canvasH * density, 'style': styleOverlay });
+        ctx = this.drawnMols.getContext('2d');
+        ctx.scale(density, density);
+        let draw = new MetaVector(this.rawvec1);
+        draw.offsetX = this.offsetX1;
+        draw.offsetY = this.offsetY1;
+        draw.scale = this.scale;
+        draw.renderContext(ctx);
+        draw = new MetaVector(this.rawvec2);
+        draw.offsetX = this.offsetX2;
+        draw.offsetY = this.offsetY2;
+        draw.scale = this.scale;
+        draw.renderContext(ctx);
+        this.bump();
+    }
+    redrawCanvas() {
+        let ctx = this.canvas.getContext('2d');
+        let w = this.canvasW, h = this.canvasH;
+        ctx.clearRect(0, 0, w, h);
+        let arrowX1 = (2 * this.padding + this.metavec1.width) * this.scale;
+        let arrowX2 = arrowX1 + this.ARROWWIDTH;
+        let arrowY = 0.5 * this.canvasH;
+        ctx.beginPath();
+        ctx.moveTo(arrowX1, arrowY);
+        ctx.lineTo(arrowX2 - 2, arrowY);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowX2, arrowY);
+        ctx.lineTo(arrowX2 - 8, arrowY - 5);
+        ctx.lineTo(arrowX2 - 8, arrowY + 5);
+        ctx.fillStyle = 'black';
+        ctx.fill();
+        this.drawHighlights(ctx, 1, this.highlighted[0] == 1 ? this.highlighted[1] : 0);
+        this.drawHighlights(ctx, 2, this.highlighted[0] == 2 ? this.highlighted[1] : 0);
+        if (this.pressed[0] > 0) {
+            let compatMask = this.compatibilityMask(this.pressed[0], this.pressed[1]);
+            ctx.strokeStyle = '#808080';
+            ctx.lineWidth = 1;
+            if (this.pressed[0] == 1) {
+                for (let n = 1; n <= this.mol2.numAtoms; n++)
+                    if (compatMask[n - 1]) {
+                        let [cx, cy, rw, rh] = this.getAtomPos(2, n);
+                        ctx.beginPath();
+                        ctx.ellipse(cx, cy, rw, rh, 0, 0, TWOPI, false);
+                        ctx.stroke();
+                    }
+            }
+            else {
+                for (let n = 1; n <= this.mol1.numAtoms; n++)
+                    if (compatMask[n - 1]) {
+                        let [cx, cy, rw, rh] = this.getAtomPos(1, n);
+                        ctx.beginPath();
+                        ctx.ellipse(cx, cy, rw, rh, 0, 0, TWOPI, false);
+                        ctx.stroke();
+                    }
+            }
+            let [cx1, cy1, rw1, rh1] = this.getAtomPos(this.pressed[0], this.pressed[1]);
+            ctx.beginPath();
+            ctx.ellipse(cx1, cy1, rw1, rh1, 0, 0, TWOPI, false);
+            ctx.fillStyle = '#808080';
+            ctx.fill();
+            let dx = this.dragToX, dy = this.dragToY;
+            let dest = this.pickAtom(dx, dy, this.pressed[0] == 2 ? compatMask : null, this.pressed[0] == 1 ? compatMask : null);
+            if (dest[0] == 3 - this.pressed[0]) {
+                let [cx2, cy2, rw2, rh2] = this.getAtomPos(dest[0], dest[1]);
+                ctx.beginPath();
+                ctx.ellipse(cx2, cy2, rw2, rh2, 0, 0, TWOPI, false);
+                ctx.fillStyle = '#808080';
+                ctx.fill();
+                dx = cx2;
+                dy = cy2;
+            }
+            ctx.beginPath();
+            ctx.moveTo(cx1, cy1);
+            ctx.lineTo(dx, dy);
+            ctx.strokeStyle = '#808080';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+    drawHighlights(ctx, side, highlight) {
+        const mol = side == 1 ? this.mol1 : this.mol2;
+        const arrmol = side == 1 ? this.arrmol1 : this.arrmol2;
+        const offsetX = side == 1 ? this.offsetX1 : this.offsetX2;
+        const offsetY = side == 1 ? this.offsetY1 : this.offsetY2;
+        const scale = this.scale;
+        for (let n = 1; n <= mol.numAtoms; n++) {
+            let mapnum = mol.atomMapNum(n);
+            if (mapnum == 0 && n != highlight)
+                continue;
+            let pt = arrmol.points[n - 1];
+            let cx = offsetX + pt.cx * scale, cy = offsetY + pt.cy * scale;
+            let rw = Math.max(0.5 * this.policy.data.pointScale, pt.rw) * scale, rh = Math.max(0.5 * this.policy.data.pointScale, pt.rh) * scale;
+            if (mapnum > 0) {
+                let col = this.COLCYCLE[(mapnum - 1) % this.COLCYCLE.length];
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rw, rh, 0, 0, TWOPI, false);
+                ctx.fillStyle = col;
+                ctx.fill();
+                if (n == highlight) {
+                    let oside = 3 - side, omol = side == 1 ? this.mol2 : this.mol1;
+                    for (let i = 1; i <= omol.numAtoms; i++)
+                        if (omol.atomMapNum(i) == mapnum) {
+                            let [dx, dy] = this.getAtomPos(oside, i);
+                            ctx.beginPath();
+                            ctx.moveTo(cx, cy);
+                            ctx.lineTo(dx, dy);
+                            ctx.strokeStyle = col;
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                        }
+                }
+            }
+            if (n == highlight) {
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rw, rh, 0, 0, TWOPI, false);
+                ctx.strokeStyle = '#404040';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+    }
+    pickAtom(x, y, mask1, mask2) {
+        let ret = [0, 0];
+        const scale = this.scale, thresh2 = sqr(this.scale * 1.0 * this.policy.data.pointScale);
+        let bestDist = Number.POSITIVE_INFINITY;
+        for (let n = 1; n <= this.mol1.numAtoms; n++) {
+            if (mask1 != null && !mask1[n - 1])
+                continue;
+            let pt = this.arrmol1.points[n - 1];
+            let cx = this.offsetX1 + pt.cx * scale, cy = this.offsetY1 + pt.cy * scale;
+            let dsq = norm2_xy(x - cx, y - cy);
+            if (dsq < thresh2 && dsq < bestDist) {
+                ret = [1, n];
+                bestDist = dsq;
+            }
+        }
+        for (let n = 1; n <= this.mol2.numAtoms; n++) {
+            if (mask2 != null && !mask2[n - 1])
+                continue;
+            let pt = this.arrmol2.points[n - 1];
+            let cx = this.offsetX2 + pt.cx * scale, cy = this.offsetY2 + pt.cy * scale;
+            let dsq = norm2_xy(x - cx, y - cy);
+            if (dsq < thresh2 && dsq < bestDist) {
+                ret = [2, n];
+                bestDist = dsq;
+            }
+        }
+        return ret;
+    }
+    getAtomPos(side, atom) {
+        let arrmol = side == 1 ? this.arrmol1 : this.arrmol2;
+        let ox = side == 1 ? this.offsetX1 : this.offsetX2, oy = side == 1 ? this.offsetY1 : this.offsetY2;
+        let pt = arrmol.points[atom - 1];
+        let cx = ox + pt.cx * this.scale, cy = oy + pt.cy * this.scale;
+        let rw = Math.max(0.5 * this.policy.data.pointScale, pt.rw) * this.scale, rh = Math.max(0.5 * this.policy.data.pointScale, pt.rh) * this.scale;
+        return [cx, cy, rw, rh];
+    }
+    compatibilityMask(side, atom) {
+        let mask = [];
+        let mol1 = side == 1 ? this.mol1 : this.mol2, mol2 = side == 1 ? this.mol2 : this.mol1;
+        let el = mol1.atomElement(atom), iso = mol1.atomIsotope(atom), map = mol1.atomMapNum(atom);
+        for (let n = 1; n <= mol2.numAtoms; n++) {
+            let match = el == mol2.atomElement(n) && iso == mol2.atomIsotope(n);
+            match = match && (map == 0 || mol2.atomMapNum(n) == 0);
+            mask.push(match);
+        }
+        return mask;
+    }
+    connectAtoms(side, atom1, atom2) {
+        let mol1 = side == 1 ? this.mol1 : this.mol2, mol2 = side == 1 ? this.mol2 : this.mol1;
+        let map = mol1.atomMapNum(atom1);
+        if (map == 0)
+            map = mol2.atomMapNum(atom2);
+        if (map == 0) {
+            let allnums = new Set();
+            for (let n = 1; n <= mol1.numAtoms; n++)
+                allnums.add(mol1.atomMapNum(n));
+            for (let n = 1; n <= mol2.numAtoms; n++)
+                allnums.add(mol2.atomMapNum(n));
+            for (map = 1; allnums.has(map); map++)
+                ;
+        }
+        mol1.setAtomMapNum(atom1, map);
+        mol2.setAtomMapNum(atom2, map);
+    }
+    autoConnect() {
+        Func.atomMapping({ 'leftNative': this.mol1.toString(), 'rightNative': this.mol2.toString() }, (result, error) => {
+            if (!result)
+                return;
+            let map1 = result.map1, map2 = result.map2;
+            if (map1 == null || map2 == null)
+                return;
+            let modified = false;
+            for (let n = 1; n <= this.mol1.numAtoms && n <= map1.length; n++)
+                if (map1[n - 1] > 0 && this.mol1.atomMapNum(n) == 0) {
+                    this.mol1.setAtomMapNum(n, map1[n - 1]);
+                    modified = true;
+                }
+            for (let n = 1; n <= this.mol2.numAtoms && n <= map2.length; n++)
+                if (map2[n - 1] > 0 && this.mol2.atomMapNum(n) == 0) {
+                    this.mol2.setAtomMapNum(n, map2[n - 1]);
+                    modified = true;
+                }
+            if (modified)
+                this.redrawCanvas();
+        });
+    }
+    clearAllMappings() {
+        let anything = false;
+        for (let n = 1; n <= this.mol1.numAtoms; n++)
+            if (this.mol1.atomMapNum(n) > 0) {
+                this.mol1.setAtomMapNum(n, 0);
+                anything = true;
+            }
+        for (let n = 1; n <= this.mol2.numAtoms; n++)
+            if (this.mol2.atomMapNum(n) > 0) {
+                this.mol2.setAtomMapNum(n, 0);
+                anything = true;
+            }
+        if (anything)
+            this.redrawCanvas();
+    }
+    clearMapping(side, atom) {
+        let map = side == 1 ? this.mol1.atomMapNum(atom) : this.mol2.atomMapNum(atom);
+        if (map == 0)
+            return;
+        for (let n = 1; n <= this.mol1.numAtoms; n++)
+            if (this.mol1.atomMapNum(n) == map)
+                this.mol1.setAtomMapNum(n, 0);
+        for (let n = 1; n <= this.mol2.numAtoms; n++)
+            if (this.mol2.atomMapNum(n) == map)
+                this.mol2.setAtomMapNum(n, 0);
+    }
+    mouseDown(event) {
+        let xy = eventCoords(event, this.canvas);
+        this.pressed = this.pickAtom(xy[0], xy[1]);
+        this.dragToX = xy[0];
+        this.dragToY = xy[1];
+        this.redrawCanvas();
+    }
+    mouseUp(event) {
+        let xy = eventCoords(event, this.canvas);
+        if (this.pressed[0] > 0) {
+            let dest = this.pickAtom(xy[0], xy[1]);
+            if (dest[0] == this.pressed[0] && dest[1] == this.pressed[1]) {
+                this.clearMapping(dest[0], dest[1]);
+            }
+            else {
+                let compatMask = this.compatibilityMask(this.pressed[0], this.pressed[1]);
+                dest = this.pickAtom(xy[0], xy[1], this.pressed[0] == 2 ? compatMask : null, this.pressed[0] == 1 ? compatMask : null);
+                if (dest[0] == 3 - this.pressed[0]) {
+                    this.connectAtoms(this.pressed[0], this.pressed[1], dest[1]);
+                    this.autoConnect();
+                }
+            }
+            this.pressed = [0, 0];
+        }
+        this.highlighted = this.pickAtom(xy[0], xy[1]);
+        this.redrawCanvas();
+    }
+    mouseEnter(event) {
+    }
+    mouseLeave(event) {
+        if (this.highlighted[0] > 0 || this.pressed[0] > 0) {
+            this.highlighted = [0, 0];
+            this.pressed = [0, 0];
+            this.redrawCanvas();
+        }
+    }
+    mouseMove(event) {
+        let xy = eventCoords(event, this.canvas);
+        if (this.pressed[0] > 0) {
+            this.dragToX = xy[0];
+            this.dragToY = xy[1];
+            this.redrawCanvas();
+        }
+        else {
+            let high = this.pickAtom(xy[0], xy[1]);
+            if (high[0] != this.highlighted[0] || high[1] != this.highlighted[1]) {
+                this.highlighted = high;
+                this.redrawCanvas();
+            }
+        }
+    }
+}
+class ArrangeComponent {
+    constructor() {
+        this.annot = ArrangeExperiment.COMP_ANNOT_NONE;
+        this.box = new Box();
+    }
+    clone() {
+        let dup = new ArrangeComponent();
+        dup.type = this.type;
+        dup.srcIdx = this.srcIdx;
+        dup.step = this.step;
+        dup.side = this.side;
+        dup.refIdx = this.refIdx;
+        dup.mol = this.mol;
+        dup.text = this.text;
+        dup.leftNumer = this.leftNumer;
+        dup.leftDenom = this.leftDenom;
+        dup.fszText = this.fszText;
+        dup.fszLeft = this.fszLeft;
+        dup.annot = this.annot;
+        dup.box = this.box.clone();
+        dup.padding = this.padding;
+        return dup;
+    }
+}
+class ArrangeExperiment {
+    constructor(entry, measure, policy) {
+        this.entry = entry;
+        this.measure = measure;
+        this.policy = policy;
+        this.width = 0;
+        this.height = 0;
+        this.components = [];
+        this.limitTotalW = 1000;
+        this.limitTotalH = 1000;
+        this.limitStructW = 0;
+        this.limitStructH = 0;
+        this.includeReagents = true;
+        this.includeNames = false;
+        this.includeStoich = true;
+        this.includeAnnot = false;
+        this.includeBlank = false;
+        this.PADDING = 0.25;
+        this.PLUSSZ = 0.5;
+        this.ARROW_W = 2;
+        this.ARROW_H = 0.5;
+        this.REAGENT_SCALE = 0.7;
+        this.PLACEHOLDER_W = 2;
+        this.PLACEHOLDER_H = 2;
+        this.scale = policy.data.pointScale;
+        this.limitStructW = this.limitStructH = this.scale * 10;
+    }
+    arrange() {
+        this.createComponents();
+        let fszText = this.scale * this.policy.data.fontSize, fszLeft = this.scale * this.policy.data.fontSize * 1.5;
+        let padding = this.PADDING * this.scale;
+        for (let xc of this.components) {
+            if (xc.type == ArrangeExperiment.COMP_PLUS)
+                xc.box = new Box(0, 0, this.scale * this.PLUSSZ, this.scale * this.PLUSSZ);
+            else if (xc.type == ArrangeExperiment.COMP_ARROW) { }
+            else {
+                let w = 0, h = 0;
+                if (MolUtil.notBlank(xc.mol)) {
+                    let sz = Size.fromArray(ArrangeMolecule.guestimateSize(xc.mol, this.policy));
+                    if (xc.type == ArrangeExperiment.COMP_REAGENT)
+                        sz.scaleBy(this.REAGENT_SCALE);
+                    if (xc.leftNumer) {
+                        xc.fszLeft = fszLeft;
+                        let wad = this.measure.measureText(xc.leftNumer, fszLeft);
+                        let lw = wad[0], lh = wad[1] + wad[2];
+                        if (xc.leftDenom)
+                            lw = Math.max(lw, this.measure.measureText(xc.leftDenom, fszLeft)[0]);
+                        sz.w += lw + ArrangeExperiment.COMP_GAP_LEFT * lh;
+                        sz.h = Math.max(sz.h, lh * (xc.leftDenom ? 2 : 1));
+                    }
+                    sz.fitInto(this.limitStructW, this.limitStructH);
+                    w = sz.w;
+                    h = sz.h;
+                }
+                if (xc.text) {
+                    xc.fszText = fszText;
+                    let wad = this.measure.measureText(xc.text, fszText);
+                    w = Math.max(w, wad[0]);
+                    h += wad[1] + wad[2];
+                }
+                if (xc.annot != 0)
+                    w += ArrangeExperiment.COMP_ANNOT_SIZE * this.scale;
+                if (this.includeBlank || w == 0 || h == 0) {
+                    w = Math.max(w, this.PLACEHOLDER_W * this.scale);
+                    h = Math.max(h, this.PLACEHOLDER_H * this.scale);
+                }
+                xc.box = new Box(0, 0, w, h);
+            }
+            xc.padding = padding;
+            xc.box = new Box(0, 0, xc.box.w + 2 * padding, xc.box.h + 2 * padding);
+        }
+        let best = null;
+        let bestScore = 0;
+        for (let bend = this.entry.steps.length + 1; bend >= 1; bend--)
+            for (let vert = 0; vert <= 1; vert++) {
+                let trial = [];
+                for (let xc of this.components)
+                    trial.push(xc.clone());
+                this.arrangeComponents(trial, bend, vert > 0);
+                let score = this.scoreArrangement(trial);
+                if (best == null || score > bestScore) {
+                    best = trial;
+                    bestScore = score;
+                }
+            }
+        this.components = best;
+        this.width = this.height = 0;
+        for (let xc of this.components) {
+            this.width = Math.max(this.width, xc.box.maxX());
+            this.height = Math.max(this.height, xc.box.maxY());
+        }
+    }
+    get numComponents() { return this.components.length; }
+    getComponent(idx) { return this.components[idx]; }
+    scaleComponents(modScale) {
+        if (modScale == 1)
+            return;
+        this.scale *= modScale;
+        this.width *= modScale;
+        this.height *= modScale;
+        for (let xc of this.components) {
+            xc.box.scaleBy(modScale);
+            xc.fszText *= modScale;
+            xc.fszLeft *= modScale;
+            xc.padding *= modScale;
+        }
+    }
+    createComponents() {
+        for (let n = 0; n < this.entry.steps[0].reactants.length; n++) {
+            if (n > 0)
+                this.createSegregator(ArrangeExperiment.COMP_PLUS, 0, -1);
+            this.createReactant(n, 0);
+        }
+        if (this.components.length == 0 && this.includeBlank)
+            this.createBlank(ArrangeExperiment.COMP_REACTANT, 0);
+        for (let s = 0; s < this.entry.steps.length; s++) {
+            this.createSegregator(ArrangeExperiment.COMP_ARROW, s, 0);
+            if (this.includeReagents) {
+                let any = false;
+                for (let n = 0; n < this.entry.steps[s].reagents.length; n++) {
+                    this.createReagent(n, s);
+                    any = true;
+                }
+                if (!any && this.includeBlank)
+                    this.createBlank(ArrangeExperiment.COMP_REAGENT, s);
+            }
+            let any = false;
+            for (let n = 0; n < this.entry.steps[s].products.length; n++) {
+                if (n > 0)
+                    this.createSegregator(ArrangeExperiment.COMP_PLUS, s, 1);
+                this.createProduct(n, s);
+                any = true;
+            }
+            if (!any && this.includeBlank)
+                this.createBlank(ArrangeExperiment.COMP_PRODUCT, s);
+        }
+    }
+    createReactant(idx, step) {
+        let comp = this.entry.steps[step].reactants[idx];
+        let xc = new ArrangeComponent();
+        xc.type = ArrangeExperiment.COMP_REACTANT;
+        xc.srcIdx = idx;
+        xc.step = step;
+        xc.side = -1;
+        if (MolUtil.notBlank(comp.mol))
+            xc.mol = comp.mol;
+        if (name && (this.includeNames || MolUtil.isBlank(comp.mol)))
+            xc.text = name;
+        if (MolUtil.isBlank(xc.mol) && !xc.text)
+            xc.text = '?';
+        if (this.includeStoich && !QuantityCalc.isStoichZero(comp.stoich) && !QuantityCalc.isStoichUnity(comp.stoich)) {
+            let slash = comp.stoich.indexOf('/');
+            if (slash >= 0) {
+                xc.leftNumer = comp.stoich.substring(0, slash);
+                xc.leftDenom = comp.stoich.substring(slash + 1);
+            }
+            else
+                xc.leftNumer = comp.stoich;
+        }
+        if (this.includeAnnot && MolUtil.notBlank(comp.mol) && comp.primary)
+            xc.annot = ArrangeExperiment.COMP_ANNOT_PRIMARY;
+        this.components.push(xc);
+    }
+    createReagent(idx, step) {
+        let comp = this.entry.steps[step].reagents[idx];
+        let xc = new ArrangeComponent();
+        xc.type = ArrangeExperiment.COMP_REAGENT;
+        xc.srcIdx = idx;
+        xc.step = step;
+        xc.side = 0;
+        if (MolUtil.notBlank(comp.mol))
+            xc.mol = comp.mol;
+        if (name && (this.includeNames || MolUtil.isBlank(comp.mol)))
+            xc.text = name;
+        if (MolUtil.isBlank(xc.mol) && !xc.text)
+            xc.text = '?';
+        if (this.includeAnnot) {
+            let stoich = QuantityCalc.impliedReagentStoich(comp, this.entry.steps[step].products);
+            if (stoich > 0)
+                xc.annot = ArrangeExperiment.COMP_ANNOT_IMPLIED;
+            if (stoich > 0 && stoich != 1) {
+                if (realEqual(stoich, Math.round(stoich)))
+                    xc.leftNumer = Math.round(stoich).toString();
+                else
+                    xc.leftNumer = stoich.toString();
+            }
+        }
+        this.components.push(xc);
+    }
+    createProduct(idx, step) {
+        let comp = this.entry.steps[step].products[idx];
+        let xc = new ArrangeComponent();
+        xc.type = ArrangeExperiment.COMP_PRODUCT;
+        xc.srcIdx = idx;
+        xc.step = step;
+        xc.side = 1;
+        if (MolUtil.notBlank(comp.mol))
+            xc.mol = comp.mol;
+        if (name && (this.includeNames || MolUtil.isBlank(comp.mol)))
+            xc.text = comp.name;
+        if (MolUtil.isBlank(xc.mol) && !xc.text)
+            xc.text = '?';
+        if (this.includeStoich && !QuantityCalc.isStoichZero(comp.stoich) && !QuantityCalc.isStoichUnity(comp.stoich)) {
+            let slash = comp.stoich.indexOf('/');
+            if (slash >= 0) {
+                xc.leftNumer = comp.stoich.substring(0, slash);
+                xc.leftDenom = comp.stoich.substring(slash + 1);
+            }
+            else
+                xc.leftNumer = comp.stoich;
+        }
+        if (this.includeAnnot && MolUtil.notBlank(comp.mol) && comp.waste)
+            xc.annot = ArrangeExperiment.COMP_ANNOT_WASTE;
+        this.components.push(xc);
+    }
+    createSegregator(type, step, side) {
+        let xc = new ArrangeComponent();
+        xc.type = type;
+        xc.step = step;
+        xc.side = side;
+        this.components.push(xc);
+    }
+    createBlank(type, step) {
+        let xc = new ArrangeComponent();
+        xc.type = type;
+        xc.step = step;
+        xc.side = type == ArrangeExperiment.COMP_REACTANT ? -1 : type == ArrangeExperiment.COMP_PRODUCT ? 1 : 0;
+        xc.srcIdx = -1;
+        this.components.push(xc);
+    }
+    arrangeComponents(comps, bendStep, vertComp) {
+        let blkMain = [];
+        let blkArrow = [];
+        let szMain = [], szArrow = [];
+        let midMain = [], midArrow = [];
+        blkMain.push(this.gatherBlock(comps, 0, -1));
+        szMain.push(this.arrangeMainBlock(blkMain[0], vertComp));
+        midMain.push(this.findMidBlock(blkMain[0], szMain[0]));
+        for (let n = 0; n < this.entry.steps.length; n++) {
+            let bent = n + 1 >= bendStep;
+            blkMain.push(this.gatherBlock(comps, n, 1));
+            szMain.push(this.arrangeMainBlock(blkMain[n + 1], vertComp && !bent));
+            midMain.push(this.findMidBlock(blkMain[n + 1], szMain[n + 1]));
+            blkArrow.push(this.gatherBlock(comps, n, 0));
+            if (!bent)
+                szArrow.push(this.arrangeHorizontalArrowBlock(blkArrow[n]));
+            else
+                szArrow.push(this.arrangeVerticalArrowBlock(blkArrow[n]));
+            midArrow.push(this.findMidBlock(blkArrow[n], szArrow[n]));
+        }
+        let midH = 0;
+        for (let n = 0; n < bendStep; n++) {
+            midH = Math.max(midH, midMain[n].y);
+            if (n > 0)
+                midH = Math.max(midH, midArrow[n - 1].y);
+        }
+        let sz = Size.zero();
+        for (let n = 0; n < bendStep; n++) {
+            sz.w += szMain[n].w;
+            sz.h = Math.max(sz.h, midH + (szMain[n].h - midMain[n].y));
+            if (n > 0) {
+                sz.w += szArrow[n - 1].w;
+                sz.h = Math.max(sz.h, midH + (szArrow[n - 1].h - midArrow[n - 1].y));
+            }
+        }
+        let x = 0, arrowX = 0;
+        for (let n = 0; n < bendStep; n++) {
+            if (n > 0) {
+                this.originateBlock(blkArrow[n - 1], x, midH - midArrow[n - 1].y);
+                x += szArrow[n - 1].w;
+            }
+            this.originateBlock(blkMain[n], x, midH - midMain[n].y);
+            arrowX = x + midMain[n].x;
+            x += szMain[n].w;
+        }
+        let y = sz.h, lowX = 0;
+        for (let n = bendStep; n <= this.entry.steps.length; n++) {
+            x = arrowX - midArrow[n - 1].x;
+            lowX = Math.min(lowX, x);
+            this.originateBlock(blkArrow[n - 1], x, y);
+            y += szArrow[n - 1].h;
+            sz.w = Math.max(sz.w, x + szArrow[n - 1].w);
+            x = arrowX - midMain[n].x;
+            lowX = Math.min(lowX, x);
+            this.originateBlock(blkMain[n], x, y);
+            y += szMain[n].h;
+            sz.w = Math.max(sz.w, x + szMain[n].w);
+        }
+        if (lowX < 0) {
+            for (let xc of comps)
+                xc.box.x -= lowX;
+        }
+    }
+    gatherBlock(comps, step, side) {
+        let block = [];
+        for (let xc of comps)
+            if (xc.side == side && xc.step == step)
+                block.push(xc);
+        return block;
+    }
+    arrangeMainBlock(block, vertComp) {
+        let sz = Size.zero();
+        if (!vertComp) {
+            for (let xc of block) {
+                sz.w += xc.box.w;
+                sz.h = Math.max(sz.h, xc.box.h);
+            }
+        }
+        else {
+            for (let xc of block) {
+                sz.w = Math.max(sz.w, xc.box.w);
+                sz.h += xc.box.h;
+            }
+        }
+        sz.w = Math.max(sz.w, this.scale * 2.0);
+        sz.h = Math.max(sz.h, this.scale * 2.0);
+        if (!vertComp) {
+            let x = 0;
+            for (let xc of block) {
+                xc.box.x = x;
+                xc.box.y = 0.5 * (sz.h - xc.box.h);
+                x += xc.box.w;
+            }
+        }
+        else {
+            let y = 0;
+            for (let xc of block) {
+                xc.box.x = 0.5 * (sz.w - xc.box.w);
+                xc.box.y = y;
+                y += xc.box.h;
+            }
+        }
+        return sz;
+    }
+    arrangeHorizontalArrowBlock(block) {
+        let arrow = null;
+        for (let xc of block)
+            if (xc.type == ArrangeExperiment.COMP_ARROW) {
+                arrow = xc;
+                xc.box.w = this.ARROW_W * this.scale + 2 * xc.padding;
+                xc.box.h = this.ARROW_H * this.scale + 2 * xc.padding;
+            }
+        let mid = block.length >> 1;
+        for (let xc of block)
+            arrow.box.w = Math.max(xc.box.w, arrow.box.w);
+        let sz = Size.zero();
+        let n = 0;
+        let y = 0;
+        let arrowPlaced = false;
+        for (let xc of block)
+            if (xc.type != ArrangeExperiment.COMP_ARROW) {
+                xc.box.x = 0.5 * (arrow.box.w - xc.box.w);
+                xc.box.y = y;
+                y += xc.box.h;
+                n++;
+                if (n == mid) {
+                    arrow.box.x = 0;
+                    arrow.box.y = y;
+                    y += arrow.box.h;
+                    arrowPlaced = true;
+                }
+            }
+        if (!arrowPlaced) {
+            arrow.box.x = 0;
+            arrow.box.y = y;
+            y += arrow.box.h;
+        }
+        sz.w = arrow.box.w;
+        sz.h = y;
+        return sz;
+    }
+    arrangeVerticalArrowBlock(block) {
+        let arrow = null;
+        for (let xc of block)
+            if (xc.type == ArrangeExperiment.COMP_ARROW) {
+                arrow = xc;
+                xc.box.w = this.ARROW_H * this.scale + 2 * xc.padding;
+                xc.box.h = this.ARROW_W * this.scale + 2 * xc.padding;
+            }
+        let mid = block.length >> 1;
+        let sz1 = Size.zero(), sz2 = Size.zero();
+        let n = 0;
+        for (let xc of block)
+            if (xc.type != ArrangeExperiment.COMP_ARROW) {
+                if (n < mid) {
+                    sz1.w = Math.max(sz1.w, xc.box.w);
+                    sz1.h += xc.box.h;
+                }
+                else {
+                    sz2.w = Math.max(sz2.w, xc.box.w);
+                    sz2.h += xc.box.h;
+                }
+                n++;
+            }
+        let sz = new Size(sz1.w + sz2.w + arrow.box.w, Math.max(arrow.box.h, Math.max(sz1.h, sz2.h)));
+        arrow.box = new Box(sz1.w, 0, arrow.box.w, sz.h);
+        let y1 = 0.5 * (sz.h - sz1.h), y2 = 0.5 * (sz.h - sz2.h);
+        n = 0;
+        for (let xc of block)
+            if (xc.type != ArrangeExperiment.COMP_ARROW) {
+                if (n < mid) {
+                    xc.box.x = sz1.w - xc.box.w;
+                    xc.box.y = y1;
+                    y1 += xc.box.h;
+                }
+                else {
+                    xc.box.x = sz.w - sz2.w;
+                    xc.box.y = y2;
+                    y2 += xc.box.h;
+                }
+                n++;
+            }
+        return sz;
+    }
+    findMidBlock(block, sz) {
+        let count = 0;
+        let mid = Pos.zero();
+        for (let xc of block)
+            if (xc.type == ArrangeExperiment.COMP_PLUS || xc.type == ArrangeExperiment.COMP_ARROW) {
+                mid.x += xc.box.midX();
+                mid.y += xc.box.midY();
+                count++;
+            }
+        if (count == 0) {
+            mid.x = 0.5 * sz.w;
+            mid.y = 0.5 * sz.h;
+        }
+        else if (count > 1) {
+            let inv = 1.0 / count;
+            mid.x *= inv;
+            mid.y *= inv;
+        }
+        return mid;
+    }
+    scoreArrangement(comps) {
+        let w = 0;
+        for (let xc of comps)
+            w = Math.max(w, xc.box.maxX());
+        let score = 0;
+        score -= Math.abs(w - this.limitTotalW);
+        return score;
+    }
+    originateBlock(block, x, y) {
+        for (let xc of block) {
+            xc.box.x += x;
+            xc.box.y += y;
+        }
+    }
+}
+ArrangeExperiment.COMP_ARROW = 1;
+ArrangeExperiment.COMP_PLUS = 2;
+ArrangeExperiment.COMP_REACTANT = 3;
+ArrangeExperiment.COMP_REAGENT = 4;
+ArrangeExperiment.COMP_PRODUCT = 5;
+ArrangeExperiment.COMP_ANNOT_NONE = 0;
+ArrangeExperiment.COMP_ANNOT_PRIMARY = 1;
+ArrangeExperiment.COMP_ANNOT_WASTE = 2;
+ArrangeExperiment.COMP_ANNOT_IMPLIED = 3;
+ArrangeExperiment.COMP_GAP_LEFT = 0.5;
+ArrangeExperiment.COMP_ANNOT_SIZE = 1;
+class AxisLabeller {
+    constructor(width, minVal, maxVal, textWidth, inverse) {
+        this.width = width;
+        this.minVal = minVal;
+        this.maxVal = maxVal;
+        this.textWidth = textWidth;
+        this.inverse = inverse;
+        this.notches = [];
+    }
+    calculate() {
+        if (this.minVal == this.maxVal) {
+            this.notches.push({
+                'label': this.minVal.toString(),
+                'value': this.minVal,
+                'pos': 0.5 * this.width
+            });
+            return;
+        }
+        const width = this.width, minVal = this.minVal, maxVal = this.maxVal;
+        const range = maxVal - minVal, invRange = 1.0 / range;
+        let position = (val) => width * (val - minVal) * invRange;
+        let loT = null, hiT = null;
+        const bumpLess = 1 - 1E-5, bumpMore = 1 + 1E-5;
+        got: for (let outer = 1E-10; outer <= 1E11; outer *= 10)
+            for (let inner of [0.2, 0.5, 1]) {
+                let mag = outer * inner, inv = 1.0 / mag;
+                let t1 = Math.floor(minVal * mag * bumpLess) * inv, t2 = Math.round(minVal * mag) * inv, t3 = Math.ceil(minVal * mag * bumpMore) * inv;
+                let t4 = Math.floor(maxVal * mag * bumpLess) * inv, t5 = Math.round(maxVal * mag) * inv, t6 = Math.ceil(maxVal * mag * bumpMore) * inv;
+                let p1 = position(t1), p2 = position(t2), p3 = position(t3);
+                let p4 = position(t4), p5 = position(t5), p6 = position(t6);
+                if ((fltEqual(p1, 0) || p1 >= 0) && p1 <= 0.1 * width)
+                    loT = t1;
+                else if ((fltEqual(p2, 0) || p2 >= 0) && p2 <= 0.1 * width)
+                    loT = t2;
+                else if ((fltEqual(p3, 0) || p3 >= 0) && p3 <= 0.1 * width)
+                    loT = t3;
+                else
+                    continue;
+                if (p6 >= 0.9 * width && (fltEqual(p6, width) || p6 <= width))
+                    hiT = t6;
+                else if (p5 >= 0.9 * width && (fltEqual(p5, width) || p5 <= width))
+                    hiT = t5;
+                else if (p4 >= 0.9 * width && (fltEqual(p4, width) || p4 <= width))
+                    hiT = t4;
+                else
+                    continue;
+                break got;
+            }
+        if (loT == null || hiT == null)
+            return;
+        let loVal = this.inverse(loT), hiVal = this.inverse(hiT);
+        this.notches.push({
+            'label': this.formatNumber(loVal),
+            'value': loVal,
+            'pos': position(loT)
+        });
+        this.notches.push({
+            'label': this.formatNumber(hiVal),
+            'value': hiVal,
+            'pos': position(hiT)
+        });
+    }
+    formatNumber(num) {
+        let str = num.toPrecision(4);
+        str = str.replace(/^(-?\d+)\.0+$/, '$1');
+        str = str.replace(/^(-?\d+\.0*[1-9]+)0+$/, '$1');
+        str = str.replace(/^(-?\d+)\.0+(e[\+\-]\d+)$/, '$1$2');
+        str = str.replace(/^(-?\d+\.0*[1-9]+)0+(e[\+\-]\d+)$/, '$1$2');
+        return str;
+    }
+}
+class DrawExperiment {
+    constructor(layout, vg) {
+        this.layout = layout;
+        this.vg = vg;
+        this.entry = layout.entry;
+        this.measure = layout.measure;
+        this.policy = layout.policy;
+        this.scale = layout.scale;
+        this.invScale = 1.0 / this.scale;
+    }
+    draw() {
+        for (let xc of this.layout.components) {
+            if (xc.type == ArrangeExperiment.COMP_ARROW)
+                this.drawSymbolArrow(xc);
+            else if (xc.type == ArrangeExperiment.COMP_PLUS)
+                this.drawSymbolPlus(xc);
+            else
+                this.drawComponent(xc);
+        }
+    }
+    drawComponent(xc) {
+        let vg = this.vg, policy = this.policy;
+        let bx = xc.box.x + xc.padding, by = xc.box.y + xc.padding;
+        let bw = xc.box.w - 2 * xc.padding, bh = xc.box.h - 2 * xc.padding;
+        if (xc.text) {
+            let wad = this.measure.measureText(xc.text, xc.fszText);
+            vg.drawText(bx + 0.5 * bw, by + bh, xc.text, xc.fszText, policy.data.foreground, TextAlign.Bottom | TextAlign.Centre);
+            bh -= wad[1] + wad[2];
+        }
+        if (xc.leftNumer) {
+            let wad1 = this.measure.measureText(xc.leftNumer, xc.fszLeft);
+            if (xc.leftDenom) {
+                vg.drawText(bx, by + 0.5 * bh, xc.leftNumer, xc.fszLeft, policy.data.foreground, TextAlign.Left | TextAlign.Middle);
+                let useW = wad1[0] + ArrangeExperiment.COMP_GAP_LEFT * (wad1[1] + wad1[2]);
+                bx += useW;
+                bw -= useW;
+            }
+            else {
+                let wad2 = this.measure.measureText(xc.leftDenom, xc.fszLeft);
+                let tw = Math.max(wad1[0], wad2[0]);
+                let x = bx + 0.5 * tw, y = by + 0.5 * bh;
+                vg.drawText(x, y, xc.leftNumer, xc.fszLeft, policy.data.foreground, TextAlign.Centre | TextAlign.Bottom);
+                vg.drawText(x, y + wad1[2], xc.leftDenom, xc.fszLeft, policy.data.foreground, TextAlign.Centre | TextAlign.Top);
+                vg.drawLine(bx, y, bx + tw, y, policy.data.foreground, this.scale * 0.03);
+                let useW = tw + ArrangeExperiment.COMP_GAP_LEFT * (wad1[1] + wad1[2]);
+                bx += useW;
+                bw -= useW;
+            }
+        }
+        if (xc.annot != 0) {
+            let aw = ArrangeExperiment.COMP_ANNOT_SIZE * this.scale;
+            bw -= aw;
+            this.drawAnnotation(xc.annot, bx + bw, by, aw, bh);
+        }
+        if (MolUtil.notBlank(xc.mol)) {
+            let arrmol = new ArrangeMolecule(xc.mol, this.layout.measure, policy, new RenderEffects());
+            arrmol.arrange();
+            arrmol.squeezeInto(bx, by, bw, bh, 0);
+            let drawmol = new DrawMolecule(arrmol, vg);
+            drawmol.draw();
+        }
+        if (xc.srcIdx < 0) {
+            let fsz = 0.5 * bh;
+            vg.drawText(bx + 0.5 * bw, by + 0.5 * bh, '?', fsz, policy.data.foreground, TextAlign.Centre | TextAlign.Middle);
+        }
+    }
+    drawSymbolArrow(xc) {
+        let bx = xc.box.x + xc.padding, by = xc.box.y + xc.padding;
+        let bw = xc.box.w - 2 * xc.padding, bh = xc.box.h - 2 * xc.padding;
+        if (bw > bh)
+            this.drawArrow(bx, by + 0.5 * bh, bx + bw, by + 0.5 * bh, bh, this.policy.data.foreground, this.scale * 0.05);
+        else
+            this.drawArrow(bx + 0.5 * bw, by, bx + 0.5 * bw, by + bh, bw, this.policy.data.foreground, this.scale * 0.05);
+    }
+    drawSymbolPlus(xc) {
+        let vg = this.vg, policy = this.policy;
+        let x1 = xc.box.x + xc.padding, y1 = xc.box.y + xc.padding;
+        let x3 = x1 + xc.box.w - 2 * xc.padding, y3 = y1 + xc.box.h - 2 * xc.padding;
+        let x2 = 0.5 * (x1 + x3), y2 = 0.5 * (y1 + y3);
+        let lw = 0.2 * 0.5 * (x3 - x1 + y3 - y1);
+        vg.drawLine(x1, y2, x3, y2, policy.data.foreground, lw);
+        vg.drawLine(x2, y1, x2, y3, policy.data.foreground, lw);
+    }
+    drawAnnotation(annot, bx, by, bw, bh) {
+        let vg = this.vg, policy = this.policy;
+        let sz = bw, x2 = bx + bw, y2 = by + bh, x1 = x2 - sz, y1 = by;
+        if (annot == ArrangeExperiment.COMP_ANNOT_PRIMARY)
+            y2 = y1 + sz;
+        else if (annot == ArrangeExperiment.COMP_ANNOT_WASTE)
+            y1 = y2 - sz;
+        if (annot == ArrangeExperiment.COMP_ANNOT_PRIMARY) {
+            let cx = 0.5 * (x1 + x2), cy = 0.5 * (y1 + y2), ext = 0.25 * sz;
+            let px = [cx, cx + 0.866 * ext, cx + 0.866 * ext, cx, cx - 0.866 * ext, cx - 0.866 * ext];
+            let py = [cy - ext, cy - 0.5 * ext, cy + 0.5 * ext, cy + ext, cy + 0.5 * ext, cy - 0.5 * ext];
+            let lw = 0.05 * this.scale;
+            vg.drawLine(px[0], py[0], px[3], py[3], policy.data.foreground, lw);
+            vg.drawLine(px[1], py[1], px[4], py[4], policy.data.foreground, lw);
+            vg.drawLine(px[2], py[2], px[5], py[5], policy.data.foreground, lw);
+            let inset = 0.1 * sz;
+            vg.drawOval(x1 + 0.5 * sz, y1 + 0.5 * sz, 0.5 * sz - inset, 0.5 * sz - inset, policy.data.foreground, lw, MetaVector.NOCOLOUR);
+        }
+        else if (annot == ArrangeExperiment.COMP_ANNOT_WASTE) {
+            let cx = x1 + 0.7 * sz, cy = 0.5 * (y1 + y2), quart = 0.25 * sz;
+            let lw = 0.05 * this.scale;
+            let px = [x1 + 0.1 * sz, cx - quart, cx, cx, cx];
+            let py = [y1, y1, y1, cy - quart, cy];
+            let ctrl = [false, false, true, false, false];
+            vg.drawPath(px, py, ctrl, false, policy.data.foreground, lw, MetaVector.NOCOLOUR, false);
+            for (let n = 0; n < 4; n++) {
+                let y = cy + n * 0.45 * sz * (1.0 / 3), dw = (3.1 - n) * 0.1 * sz;
+                vg.drawLine(cx - dw, y, cx + dw, y, policy.data.foreground, lw);
+            }
+        }
+        else if (annot == ArrangeExperiment.COMP_ANNOT_IMPLIED) {
+            let tw = 0.5 * sz, th = 0.75 * sz;
+            let cx = x2 - 0.5 * tw, cy = y1 + 0.5 * th;
+            let ty = y1 + 0.25 * th, dsz = sz * 0.1, hsz = 0.5 * dsz;
+            let lw = 0.05 * this.scale, fg = policy.data.foreground;
+            vg.drawLine(cx, y1, cx, y1 + th, fg, lw);
+            vg.drawLine(x2 - tw, ty, x2, ty, fg, lw);
+            vg.drawLine(x2 - tw, cy, x2, cy, fg, lw);
+            vg.drawOval(x2 - tw + hsz, y1 + th - hsz, hsz, hsz, 0, 0, fg);
+            vg.drawOval(x2 - hsz, y1 + th - hsz, hsz, hsz, 0, 0, fg);
+        }
+    }
+    drawArrow(x1, y1, x2, y2, headsz, colour, linesz) {
+        let dx = x2 - x1, dy = y2 - y1, invD = invZ(norm_xy(dx, dy));
+        dx *= invD;
+        dy *= invD;
+        let ox = dy, oy = -dx;
+        let hx = x2 - dx * headsz, hy = y2 - dy * headsz;
+        let px = [
+            x1 + ox * 0.5 * linesz,
+            hx + ox * 0.5 * linesz,
+            hx + ox * 0.5 * headsz,
+            x2,
+            hx - ox * 0.5 * headsz,
+            hx - ox * 0.5 * linesz,
+            x1 - ox * 0.5 * linesz
+        ];
+        let py = [
+            y1 + oy * 0.5 * linesz,
+            hy + oy * 0.5 * linesz,
+            hy + oy * 0.5 * headsz,
+            y2,
+            hy - oy * 0.5 * headsz,
+            hy - oy * 0.5 * linesz,
+            y1 - oy * 0.5 * linesz
+        ];
+        this.vg.drawPoly(px, py, MetaVector.NOCOLOUR, 0, colour, true);
+    }
+}
+class Account {
+    static connectTransient(callback) {
+        new RPC('account.connectTransient', {}, callback).invoke();
+    }
+    static refreshTransient(input, callback) {
+        new RPC('account.refreshTransient', input, callback).invoke();
+    }
+}
+class Pile {
+    static uploadMolecule(input, callback) {
+        new RPC('pile.uploadMolecule', input, callback).invoke();
+    }
+    static uploadDataSheet(input, callback) {
+        new RPC('pile.uploadDataSheet', input, callback).invoke();
+    }
+    static downloadMolecule(input, callback) {
+        new RPC('pile.downloadMolecule', input, callback).invoke();
+    }
+    static downloadDataSheet(input, callback) {
+        new RPC('pile.downloadDataSheet', input, callback).invoke();
+    }
+    static fetchSelection(input, callback) {
+        new RPC('pile.fetchSelection', input, callback).invoke();
+    }
+    static fetchMolecules(input, callback) {
+        new RPC('pile.fetchMolecules', input, callback).invoke();
+    }
+}
+class Search {
+    static startMolSearch(input, callback) {
+        new RPC('search.startMolSearch', input, callback).invoke();
+    }
+    static pollMolSearch(input, callback) {
+        new RPC('search.pollMolSearch', input, callback).invoke();
+    }
+    static startRxnSearch(input, callback) {
+        new RPC('search.startRxnSearch', input, callback).invoke();
+    }
+    static pollRxnSearch(input, callback) {
+        new RPC('search.pollRxnSearch', input, callback).invoke();
+    }
+}
+class CircleButton extends Widget {
+    constructor(icon) {
+        super();
+        this.icon = icon;
+        this.BUTTON_DIAMETER = 50;
+        this.BUTTON_HPADDING = 4;
+        this.BUTTON_VPADDING = 2;
+        this.STATE_NORMAL = 'normal';
+        this.STATE_SELECTED = 'selected';
+        this.STATE_DISABLED = 'disabled';
+        this.content = null;
+        this.state = this.STATE_NORMAL;
+        this.isHighlight = false;
+        this.isPressed = false;
+        this.progressFraction = null;
+        this.callbackAction = null;
+    }
+    render(parent) {
+        super.render(parent);
+        this.content.addClass('no_selection');
+        const diameter = this.BUTTON_DIAMETER;
+        const width = diameter, height = diameter;
+        let div = this.content;
+        let density = pixelDensity();
+        div.css('width', width + 2 * this.BUTTON_HPADDING);
+        div.css('height', height + 2 * this.BUTTON_VPADDING);
+        div.css('position', 'relative');
+        let canvasStyle = 'position: absolute; left: ' + this.BUTTON_HPADDING + 'px; top: ' + this.BUTTON_VPADDING + 'px;';
+        canvasStyle += 'pointer-events: none;';
+        function renderSolid(col1, col2) {
+            let node = newElement(div, 'canvas', { 'width': width * density, 'height': height * density, 'style': canvasStyle });
+            node.style.width = width + 'px';
+            node.style.height = height + 'px';
+            let ctx = node.getContext('2d');
+            ctx.save();
+            ctx.scale(density, density);
+            ctx.beginPath();
+            ctx.arc(0.5 * width, 0.5 * height, 0.5 * diameter - 1, 0, 2 * Math.PI, true);
+            ctx.clip();
+            let grad = ctx.createLinearGradient(0, 0, width, height);
+            grad.addColorStop(0, col1);
+            grad.addColorStop(1, col2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+            return node;
+        }
+        function renderBorder(lw) {
+            let node = newElement(div, 'canvas', { 'width': width * density, 'height': height * density, 'style': canvasStyle });
+            node.style.width = width + 'px';
+            node.style.height = height + 'px';
+            var ctx = node.getContext('2d');
+            ctx.save();
+            ctx.scale(density, density);
+            ctx.beginPath();
+            ctx.arc(0.5 * width, 0.5 * height, 0.5 * diameter - 0.5 * (1 + lw), 0, 2 * Math.PI, true);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = lw;
+            ctx.stroke();
+            ctx.restore();
+            return node;
+        }
+        this.normalBackgr = renderSolid('#FFFFFF', '#D0D0D0');
+        this.selectedBackgr = renderSolid('#47D5D2', '#008FD1');
+        this.pressedBackgr = renderSolid('#00CA59', '#008650');
+        this.disabledBackgr = renderSolid('white', 'white');
+        this.ringProgress = newElement(div, 'canvas', { 'width': width * density, 'height': height * density, 'style': canvasStyle });
+        this.ringProgress.style.width = width + 'px';
+        this.ringProgress.style.height = height + 'px';
+        this.ringProgress.getContext('2d').scale(density, density);
+        this.ringProgress.hidden = true;
+        this.thinBorder = renderBorder(1);
+        this.thickBorder = renderBorder(2);
+        var svgurl = RPC.BASE_URL + "/img/icons/" + this.icon;
+        this.svg = newElement(div, 'object', { 'width': width, 'height': height, 'style': canvasStyle, 'data': svgurl, 'type': 'image/svg+xml' });
+        this.updateLayers();
+        div.mouseenter(() => this.mouseEnter());
+        div.mouseleave(() => this.mouseLeave());
+        div.mousedown(() => this.mouseDown());
+        div.mouseup(() => this.mouseUp());
+        div.click(() => this.mouseClicked());
+    }
+    ;
+    setProgress(fraction) {
+        if (this.progressFraction == fraction)
+            return;
+        this.progressFraction = fraction;
+        this.ringProgress.hidden = false;
+        let diameter = this.BUTTON_DIAMETER, mid = 0.5 * diameter, outer = mid - 1, inner = 0.8 * mid;
+        var ctx = this.ringProgress.getContext('2d');
+        ctx.clearRect(0, 0, diameter, diameter);
+        ctx.strokeStyle = 'rgba(80,80,80,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(mid, mid, inner + 0.5, inner + 0.5, 0, 0, TWOPI, false);
+        ctx.stroke();
+        if (this.progressFraction == 0) {
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#47D5D2';
+            drawLine(ctx, mid, mid - inner, mid, mid - outer);
+            return;
+        }
+        let delta = TWOPI * fraction;
+        let theta1 = -0.5 * Math.PI, theta2 = theta1 + delta;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(mid, mid - outer);
+        ctx.arc(mid, mid, outer, theta1, theta2, false);
+        ctx.lineTo(mid + inner * Math.cos(theta2), mid + inner * Math.sin(theta2));
+        ctx.arc(mid, mid, inner, theta2, theta1, true);
+        ctx.closePath();
+        let grad = ctx.createRadialGradient(mid, mid, inner, mid, mid, outer);
+        grad.addColorStop(0, '#47D5D2');
+        grad.addColorStop(1, '#008FD2');
+        ctx.fillStyle = grad;
+        ctx.fill();
+        ctx.restore();
+    }
+    clearProgress() {
+        this.progressFraction = null;
+        this.ringProgress.hidden = true;
+    }
+    updateLayers() {
+        setVisible(this.pressedBackgr, this.isPressed);
+        setVisible(this.normalBackgr, !this.isPressed && this.state == this.STATE_NORMAL);
+        setVisible(this.selectedBackgr, !this.isPressed && this.state == this.STATE_SELECTED);
+        setVisible(this.disabledBackgr, !this.isPressed && this.state == this.STATE_DISABLED);
+        var highlight = this.isHighlight;
+        if (this.state == this.STATE_DISABLED) {
+            highlight = false;
+            this.content.css('cursor', 'no-drop');
+        }
+        else
+            this.content.css('cursor', 'pointer');
+        setVisible(this.thinBorder, !highlight);
+        setVisible(this.thickBorder, highlight);
+    }
+    mouseEnter() {
+        this.isHighlight = true;
+        this.updateLayers();
+    }
+    mouseLeave() {
+        this.isHighlight = false;
+        this.isPressed = false;
+        this.updateLayers();
+    }
+    mouseDown() {
+        this.isPressed = this.state != this.STATE_DISABLED;
+        this.updateLayers();
+    }
+    mouseUp() {
+        this.isPressed = false;
+        this.updateLayers();
+    }
+    mouseClicked() {
+        if (this.callbackAction)
+            this.callbackAction(this);
+    }
+}
+class EmbedChemistry extends Widget {
+    constructor() {
+        super();
+        this.padding = 4;
+        this.borderCol = 0xD0D0D0;
+        this.borderRadius = 8;
+        this.backgroundCol1 = 0xFFFFFF;
+        this.backgroundCol2 = 0xF0F0F0;
+        this.policy = RenderPolicy.defaultColourOnWhite();
+    }
+    clearBackground() { this.backgroundCol1 = null; this.backgroundCol2 = null; }
+    setBackground(bg) { this.backgroundCol1 = bg; this.backgroundCol2 = null; }
+    setBackgroundGradient(bg1, bg2) { this.backgroundCol1 = bg1; this.backgroundCol2 = bg2; }
+    render(parent) {
+        super.render(parent);
+        if (this.borderCol != null)
+            this.content.css('border', '1px solid ' + colourCanvas(this.borderCol));
+        if (this.borderRadius > 0)
+            this.content.css('border-radius', this.borderRadius + 'px');
+        let bg1 = this.backgroundCol1, bg2 = this.backgroundCol2;
+        if (bg1 != null && bg2 != null) {
+            let cols = colourCanvas(bg1) + ',' + colourCanvas(bg2);
+            this.content.css('background-image', 'linear-gradient(to bottom right, ' + cols + ')');
+        }
+        else if (bg1 != null) {
+            this.content.css('background-color', colourCanvas(bg1));
+        }
+        this.content.css('padding', this.padding + 'px');
+        this.content.css('margin', 0);
+    }
+}
+class EmbedCollection extends EmbedChemistry {
+    constructor(datastr, options) {
+        super();
+        this.datastr = datastr;
+        this.ds = null;
+        this.failmsg = '';
+        this.tight = false;
+        if (!options)
+            options = {};
+        let ds = null, name = options.name;
+        if (options.format == 'datasheet' || options.format == 'chemical/x-datasheet') {
+            ds = DataSheetStream.readXML(datastr);
+        }
+        else if (options.format == 'sdfile' || options.format == 'chemical/x-mdl-sdfile') {
+            try {
+                let mdl = new MDLSDFReader(datastr);
+                ds = mdl.parse();
+            }
+            catch (ex) {
+                this.failmsg = ex;
+            }
+        }
+        else {
+            try {
+                ds = DataSheetStream.readXML(datastr);
+            }
+            catch (ex) { }
+            if (ds == null) {
+                try {
+                    let mdl = new MDLSDFReader(datastr);
+                    ds = mdl.parse();
+                }
+                catch (ex) { }
+            }
+        }
+        if (ds == null)
+            return;
+        if (options.padding)
+            this.padding = options.padding;
+        if (options.background == 'transparent')
+            this.clearBackground();
+        else if (options.background) {
+            let bg = options.background, comma = bg.indexOf(',');
+            if (comma < 0)
+                this.setBackground(htmlToRGB(bg));
+            else
+                this.setBackgroundGradient(htmlToRGB(bg.substring(0, comma)), htmlToRGB(bg.substring(comma + 1)));
+        }
+        if (options.border == 'transparent')
+            this.borderCol = MetaVector.NOCOLOUR;
+        else if (options.border)
+            this.borderCol = htmlToRGB(options.border);
+        if (options.radius != null)
+            this.borderRadius = parseInt(options.radius);
+        if (options.scheme == 'wob')
+            this.policy = RenderPolicy.defaultWhiteOnBlack();
+        else if (options.scheme == 'cob')
+            this.policy = RenderPolicy.defaultColourOnBlack();
+        else if (options.scheme == 'bow')
+            this.policy = RenderPolicy.defaultBlackOnWhite();
+        else if (options.scheme == 'cow')
+            this.policy = RenderPolicy.defaultColourOnWhite();
+        if (options.scale)
+            this.policy.data.pointScale = options.scale;
+        if (options.tight == true || options.tight == 'true')
+            this.tight = true;
+        this.ds = ds;
+    }
+    render(parent) {
+        this.tagType = 'span';
+        super.render(parent);
+        let span = this.content, ds = this.ds, policy = this.policy;
+        span.css('display', 'inline-block');
+        span.css('line-height', '0');
+        if (!this.tight)
+            span.css('margin-bottom', '1.5em');
+        if (ds != null) {
+            let aspects = new AspectList(ds).enumerate();
+            let columns = this.determineColumns(aspects);
+            let table = $('<table></table>').appendTo(span);
+            table.css('font-family', '"HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif');
+            table.css('border-collapse', 'collapse');
+            table.css('line-height', '1');
+            table.css('margin', '2px');
+            table.css('border', '0');
+            let tr = $('<tr></tr>').appendTo(table);
+            tr.css('line-height', '1');
+            for (let n = 0; n < columns.length; n++) {
+                let th = $('<th></th>').appendTo(tr);
+                th.css('white-space', 'nowrap');
+                th.css('font-weight', '600');
+                th.css('color', 'black');
+                th.css('text-decoration', 'underline');
+                th.css('text-align', 'center');
+                th.css('padding', '0.2em 0.5em 0.2em 0.5em');
+                th.css('border', '0');
+                th.text(columns[n].name);
+            }
+            for (let row = 0; row < ds.numRows;) {
+                let blksz = 1;
+                for (let aspect of aspects)
+                    blksz = Math.max(blksz, aspect.rowBlockCount(row));
+                tr = $('<tr></tr>').appendTo(table);
+                tr.css('line-height', '1');
+                for (let col = 0; col < columns.length; col++) {
+                    let td = $('<td></td>').appendTo(tr);
+                    td.css('border', '1px solid #D0D0D0');
+                    td.css('padding', '0.2em');
+                    td.css('vertical-align', 'middle');
+                    let spec = columns[col];
+                    if (spec.aspect == null) {
+                        if (ds.isNull(row, spec.idx))
+                            td.text(' ');
+                        else if (ds.colType(spec.idx) == DataSheet.COLTYPE_MOLECULE)
+                            this.renderMolecule(td, row, spec.idx);
+                        else
+                            this.renderPrimitive(td, row, spec.idx);
+                    }
+                    else if (spec.type == 'text')
+                        this.renderTextAspect(td, row, spec.aspect, spec.idx);
+                    else if (spec.type == 'graphic')
+                        this.renderGraphicAspect(td, row, spec.aspect, spec.idx);
+                }
+                row += blksz;
+            }
+        }
+        else {
+            span.css('color', 'red');
+            span.text('Unable to parse datasheet: ' + this.failmsg);
+            let pre = $('<pre></pre>').appendTo(span);
+            pre.css('line-height', '1.1');
+            pre.text(this.datastr);
+            console.log('Unparseable datasheet source string:\n[' + this.datastr + ']');
+        }
+    }
+    determineColumns(aspects) {
+        let ds = this.ds;
+        let columns = [];
+        let reserved = Vec.booleanArray(false, ds.numCols);
+        let names = [];
+        for (let n = 0; n < ds.numCols; n++)
+            names.push(ds.colName(n));
+        for (let aspect of aspects) {
+            if (ds.numRows > 0)
+                for (let n = 0, num = aspect.numTextRenderings(0); n < num; n++) {
+                    let title = aspect.produceTextRendering(0, n).name;
+                    columns.push({ 'name': title, 'aspect': aspect, 'type': 'text', 'idx': n });
+                }
+            if (ds.numRows > 0)
+                for (let n = 0, num = aspect.numGraphicRenderings(0); n < num; n++) {
+                    let title = aspect.produceGraphicRendering(0, n, this.policy)[0];
+                    columns.push({ 'name': title, 'aspect': aspect, 'type': 'graphic', 'idx': n });
+                }
+            let claimed = aspect.areColumnsReserved(names);
+            for (let n = 0; n < names.length; n++)
+                reserved[n] = reserved[n] || claimed[n];
+        }
+        for (let n = 0; n < ds.numCols; n++)
+            if (!reserved[n] && ds.colType(n) != DataSheet.COLTYPE_EXTEND) {
+                columns.push({ 'name': ds.colName(n), 'aspect': null, 'type': null, 'idx': n });
+            }
+        return columns;
+    }
+    renderPrimitive(td, row, col) {
+        let txt = '', ct = this.ds.colType(col), align = 'center';
+        if (ct == DataSheet.COLTYPE_STRING) {
+            txt = this.ds.getString(row, col);
+            align = 'left';
+        }
+        else if (ct == DataSheet.COLTYPE_INTEGER)
+            txt = this.ds.getInteger(row, col).toString();
+        else if (ct == DataSheet.COLTYPE_REAL)
+            txt = this.ds.getReal(row, col).toString();
+        else if (ct == DataSheet.COLTYPE_BOOLEAN)
+            txt = this.ds.getBoolean(row, col) ? 'true' : 'false';
+        td.text(txt);
+        td.css('text-align', align);
+    }
+    renderMolecule(td, row, col) {
+        td.css('text-align', 'center');
+        let effects = new RenderEffects();
+        let measure = new OutlineMeasurement(0, 0, this.policy.data.pointScale);
+        let layout = new ArrangeMolecule(this.ds.getMolecule(row, col), measure, this.policy, effects);
+        layout.arrange();
+        let metavec = new MetaVector();
+        new DrawMolecule(layout, metavec).draw();
+        metavec.normalise();
+        let svg = $(metavec.createSVG()).appendTo(td);
+    }
+    renderTextAspect(td, row, aspect, idx) {
+        let rend = aspect.produceTextRendering(row, idx);
+        if (!rend.text)
+            td.text(' ');
+        else if (rend.type == Aspect.TEXT_PLAIN)
+            td.text(rend.text);
+        else if (rend.type == Aspect.TEXT_LINK) {
+            let ahref = $('<a target="_blank"></a>').appendTo(td);
+            ahref.attr('href', rend.text);
+            ahref.text(rend.text);
+        }
+        else if (rend.type == Aspect.TEXT_HTML)
+            td.html(rend.text);
+    }
+    renderGraphicAspect(td, row, aspect, idx) {
+        let [name, metavec] = aspect.produceGraphicRendering(row, idx, this.policy);
+        if (metavec == null) {
+            td.text(' ');
+            return;
+        }
+        td.css('text-align', 'center');
+        metavec.normalise();
+        $(metavec.createSVG()).appendTo(td);
+    }
+}
+class EmbedMolecule extends EmbedChemistry {
+    constructor(molstr, options) {
+        super();
+        this.molstr = molstr;
+        this.mol = null;
+        this.name = '';
+        this.failmsg = '';
+        this.maxWidth = 0;
+        this.maxHeight = 0;
+        this.boxSize = null;
+        this.tight = false;
+        if (!options)
+            options = {};
+        let mol = null, name = options.name;
+        if (options.format == 'sketchel' || options.format == 'chemical/x-sketchel') {
+            mol = Molecule.fromString(molstr);
+        }
+        else if (options.format == 'molfile' || options.format == 'chemical/x-mdl-molfile') {
+            try {
+                let mdl = new MDLMOLReader(molstr);
+                mol = mdl.parse();
+                if (mol != null && name == null)
+                    name = mdl.molName;
+            }
+            catch (ex) {
+                this.failmsg = ex;
+            }
+        }
+        else {
+            mol = Molecule.fromString(molstr);
+            if (mol == null) {
+                try {
+                    let mdl = new MDLMOLReader(molstr);
+                    mol = mdl.parse();
+                    if (mol != null && name == null)
+                        name = mdl.molName;
+                }
+                catch (ex) { }
+            }
+        }
+        if (mol == null)
+            return;
+        if (options.invert)
+            mol = CoordUtil.mirrorImage(mol);
+        if (options.rotate)
+            CoordUtil.rotateMolecule(mol, options.rotate * DEGRAD);
+        if (options.padding)
+            this.padding = options.padding;
+        if (options.background == 'transparent')
+            this.clearBackground();
+        else if (options.background) {
+            let bg = options.background, comma = bg.indexOf(',');
+            if (comma < 0)
+                this.setBackground(htmlToRGB(bg));
+            else
+                this.setBackgroundGradient(htmlToRGB(bg.substring(0, comma)), htmlToRGB(bg.substring(comma + 1)));
+        }
+        if (options.border == 'transparent')
+            this.borderCol = MetaVector.NOCOLOUR;
+        else if (options.border)
+            this.borderCol = htmlToRGB(options.border);
+        if (options.radius != null)
+            this.borderRadius = parseInt(options.radius);
+        if (options.width)
+            this.maxWidth = options.width;
+        if (options.height)
+            this.maxHeight = options.height;
+        if (options.box) {
+            let box = options.box, comma = box.indexOf(',');
+            this.boxSize = new Size(parseInt(box.substring(0, comma)), parseInt(box.substring(comma + 1)));
+        }
+        if (options.scheme == 'wob')
+            this.policy = RenderPolicy.defaultWhiteOnBlack();
+        else if (options.scheme == 'cob')
+            this.policy = RenderPolicy.defaultColourOnBlack();
+        else if (options.scheme == 'bow')
+            this.policy = RenderPolicy.defaultBlackOnWhite();
+        else if (options.scheme == 'cow')
+            this.policy = RenderPolicy.defaultColourOnWhite();
+        if (options.scale)
+            this.policy.data.pointScale = options.scale;
+        if (options.tight == true || options.tight == 'true')
+            this.tight = true;
+        this.mol = mol;
+        this.name = name;
+    }
+    render(parent) {
+        this.tagType = 'span';
+        super.render(parent);
+        let span = this.content, mol = this.mol, policy = this.policy;
+        span.css('display', 'inline-block');
+        span.css('line-height', '0');
+        if (!this.tight)
+            span.css('margin-bottom', '1.5em');
+        if (mol != null && mol.numAtoms > 0) {
+            span.css('text-align', 'center');
+            let effects = new RenderEffects();
+            let measure = new OutlineMeasurement(0, 0, policy.data.pointScale);
+            let layout = new ArrangeMolecule(mol, measure, policy, effects);
+            layout.arrange();
+            if (this.boxSize)
+                layout.squeezeInto(0, 0, this.boxSize.w, this.boxSize.h);
+            else if (this.maxWidth > 0 || this.maxHeight > 0) {
+                let bounds = layout.determineBoundary();
+                let w = bounds[2] - bounds[0], h = bounds[3] - bounds[1];
+                let limW = this.maxWidth == 0 ? w : Math.min(w, this.maxWidth);
+                let limH = this.maxHeight == 0 ? h : Math.min(h, this.maxHeight);
+                if (limW != w || limH != h)
+                    layout.squeezeInto(0, 0, limW, limH);
+            }
+            let metavec = new MetaVector();
+            new DrawMolecule(layout, metavec).draw();
+            if (this.boxSize == null)
+                metavec.normalise();
+            else
+                metavec.setSize(this.boxSize.w, this.boxSize.h);
+            let svg = $(metavec.createSVG()).appendTo(span);
+            if (this.name) {
+                let p = $('<p></p>').appendTo(span);
+                p.css('padding', '0');
+                p.css('padding-top', '0.2em');
+                p.css('margin', 0);
+                p.css('font-family', '"HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif');
+                p.css('line-height', '1');
+                p.css('width', '100%');
+                p.css('color', '#606060');
+                p.text(this.name);
+            }
+        }
+        else {
+            span.css('color', 'red');
+            span.text('Unable to parse molecule: ' + this.failmsg);
+            let pre = $('<pre></pre>').appendTo(span);
+            pre.css('line-height', '1.1');
+            pre.text(this.molstr);
+            console.log('Unparseable molecule source string:\n[' + this.molstr + ']');
+        }
+    }
+}
+class EmbedReaction extends EmbedChemistry {
+    constructor(datastr, options) {
+        super();
+        this.datastr = datastr;
+        this.row = 0;
+        this.entry = null;
+        this.failmsg = '';
+        this.tight = false;
+        this.facet = 'scheme';
+        this.limitTotalW = 800;
+        this.includeStoich = true;
+        this.includeAnnot = false;
+        if (!options)
+            options = {};
+        let xs = null;
+        if (options.format == 'datasheet' || options.format == 'chemical/x-datasheet') {
+            let ds = DataSheetStream.readXML(datastr);
+            if (ds == null) {
+                this.failmsg = 'Unable to parse raw XML datasheet.';
+                return;
+            }
+            if (Experiment.isExperiment(ds))
+                xs = new Experiment(ds);
+        }
+        else {
+            let ds = DataSheetStream.readXML(datastr);
+            if (ds == null) {
+                this.failmsg = 'Unable to parse raw XML datasheet.';
+                return;
+            }
+            if (Experiment.isExperiment(ds))
+                xs = new Experiment(ds);
+        }
+        if (xs == null) {
+            this.failmsg = 'Unable to instantiate Experiment aspect.';
+            return;
+        }
+        if (xs.ds.numRows == 0) {
+            this.failmsg = 'Experiment datasheet has no rows.';
+            return;
+        }
+        if (options.row)
+            this.row = options.row;
+        if (this.row < 0 || this.row >= xs.ds.numRows) {
+            this.failmsg = 'Requested row ' + this.row + ' out of bounds.';
+            return;
+        }
+        this.entry = xs.getEntry(this.row);
+        if (options.facet)
+            this.facet = options.facet;
+        if (options.padding)
+            this.padding = options.padding;
+        if (options.background == 'transparent')
+            this.clearBackground();
+        else if (options.background) {
+            let bg = options.background, comma = bg.indexOf(',');
+            if (comma < 0)
+                this.setBackground(htmlToRGB(bg));
+            else
+                this.setBackgroundGradient(htmlToRGB(bg.substring(0, comma)), htmlToRGB(bg.substring(comma + 1)));
+        }
+        if (options.border == 'transparent')
+            this.borderCol = MetaVector.NOCOLOUR;
+        else if (options.border)
+            this.borderCol = htmlToRGB(options.border);
+        if (options.radius != null)
+            this.borderRadius = parseInt(options.radius);
+        if (options.scheme == 'wob')
+            this.policy = RenderPolicy.defaultWhiteOnBlack();
+        else if (options.scheme == 'cob')
+            this.policy = RenderPolicy.defaultColourOnBlack();
+        else if (options.scheme == 'bow')
+            this.policy = RenderPolicy.defaultBlackOnWhite();
+        else if (options.scheme == 'cow')
+            this.policy = RenderPolicy.defaultColourOnWhite();
+        if (options.scale)
+            this.policy.data.pointScale = options.scale;
+        if (options.tight == true || options.tight == 'true')
+            this.tight = true;
+        if (options.maximumwidth > 0)
+            this.limitTotalW = options.maximumwidth;
+        if (options.stoichiometry == false || options.stoichiometry == 'false')
+            this.includeStoich = true;
+        if (options.annotations == true || options.annotations == 'true')
+            this.includeAnnot = true;
+    }
+    render(parent) {
+        this.tagType = 'span';
+        super.render(parent);
+        let span = this.content;
+        span.css('display', 'inline-block');
+        span.css('line-height', '0');
+        if (!this.tight)
+            span.css('margin-bottom', '1.5em');
+        if (this.entry != null) {
+            if (this.facet == 'header')
+                this.renderHeader(span);
+            else if (this.facet == 'scheme')
+                this.renderScheme(span);
+            else if (this.facet == 'quantity')
+                this.renderQuantity(span);
+            else if (this.facet == 'metrics')
+                this.renderMetrics(span);
+        }
+        else {
+            span.css('color', 'red');
+            span.text('Failure to acquire data: ' + this.failmsg);
+            let pre = $('<pre></pre>').appendTo(span);
+            pre.css('line-height', '1.1');
+            pre.text(this.datastr);
+            console.log('Unparseable datasheet source string:\n[' + this.datastr + ']');
+        }
+    }
+    renderHeader(span) {
+        let table = $('<table></table>').appendTo(span);
+        table.css('font-family', '"HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif');
+        table.css('border-collapse', 'collapse');
+        table.css('line-height', '1');
+        table.css('margin', '2px');
+        table.css('border', '0');
+        let titles = ['Title', 'Created', 'Modified', 'DOI'];
+        for (let n = 0; n < 4; n++) {
+            if (n == 3 && !this.entry.doi)
+                continue;
+            let tr = $('<tr></tr>').appendTo(table);
+            tr.css('line-height', '1');
+            let th = $('<th></th>').appendTo(tr);
+            th.css('white-space', 'nowrap');
+            th.css('font-weight', '600');
+            th.css('color', 'black');
+            th.css('text-align', 'left');
+            th.css('vertical-align', 'middle');
+            th.css('padding', '0.2em 0.5em 0.2em 0.5em');
+            th.css('border', '1px solid #D0D0D0');
+            th.text(titles[n]);
+            let td = $('<td></td>').appendTo(tr);
+            td.css('border', '1px solid #D0D0D0');
+            td.css('padding', '0.2em');
+            td.css('vertical-align', 'middle');
+            if (n == 0) {
+                if (!this.entry.title)
+                    td.css('font-style', 'italic');
+                td.text(this.entry.title ? this.entry.title : '(none)');
+            }
+            else if (n == 1 || n == 2) {
+                let date = n == 1 ? this.entry.createDate : this.entry.modifyDate;
+                if (date == null)
+                    td.css('font-style', 'italic');
+                td.text(date == null ? '(none)' : date.toLocaleString());
+            }
+            else if (n == 3) {
+                let url = this.doiToLink(this.entry.doi);
+                if (url != null && (url.startsWith('http://') || url.startsWith('https://'))) {
+                    let ahref = $('<a target="_blank"></a>').appendTo(td);
+                    ahref.attr('href', url);
+                    ahref.text(this.entry.doi);
+                }
+                else
+                    td.text(this.entry.doi);
+            }
+        }
+    }
+    renderScheme(span) {
+        let measure = new OutlineMeasurement(0, 0, this.policy.data.pointScale);
+        let layout = new ArrangeExperiment(this.entry, measure, this.policy);
+        layout.limitTotalW = this.limitTotalW;
+        layout.includeStoich = this.includeStoich;
+        layout.includeAnnot = this.includeAnnot;
+        layout.arrange();
+        let metavec = new MetaVector();
+        new DrawExperiment(layout, metavec).draw();
+        metavec.normalise();
+        let svg = $(metavec.createSVG()).appendTo(span);
+    }
+    renderQuantity(span) {
+        let quant = new QuantityCalc(this.entry);
+        quant.calculate();
+        let table = $('<table></table>').appendTo(span);
+        table.css('font-family', '"HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif');
+        table.css('border-collapse', 'collapse');
+        table.css('line-height', '1');
+        table.css('margin', '2px');
+        table.css('border', '0');
+        let effects = new RenderEffects();
+        let measure = new OutlineMeasurement(0, 0, this.policy.data.pointScale);
+        for (let n = 0; n < quant.numQuantities; n++) {
+            let qc = quant.getQuantity(n);
+            let tr = $('<tr></tr>').appendTo(table);
+            tr.css('line-height', '1');
+            let td = $('<td></td>').appendTo(tr);
+            td.css('border', '1px solid #D0D0D0');
+            td.css('padding', '0.2em');
+            td.css('text-align', 'center');
+            td.css('vertical-align', 'middle');
+            if (MolUtil.notBlank(qc.comp.mol)) {
+                let layout = new ArrangeMolecule(qc.comp.mol, measure, this.policy, effects);
+                layout.arrange();
+                let metavec = new MetaVector();
+                new DrawMolecule(layout, metavec).draw();
+                metavec.normalise();
+                let svg = $(metavec.createSVG()).appendTo(td);
+            }
+            td = $('<td></td>').appendTo(tr);
+            td.css('border', '1px solid #D0D0D0');
+            td.css('padding', '0.2em');
+            td.css('text-align', 'left');
+            td.css('vertical-align', 'top');
+            this.renderComponentText(td, qc);
+        }
+    }
+    renderComponentText(parent, qc) {
+        let title = [], content = [];
+        if (qc.comp.name) {
+            title.push('Name');
+            content.push('<i>' + escapeHTML(qc.comp.name) + '</i>');
+        }
+        if (MolUtil.notBlank(qc.comp.mol)) {
+            let mw = MolUtil.molecularWeight(qc.comp.mol);
+            title.push('Weight');
+            content.push(mw.toFixed(4));
+            let mf = MolUtil.molecularFormula(qc.comp.mol, ['<sub>', '</sub>', '<sup>', '</sup>']);
+            title.push('Formula');
+            content.push(mf);
+        }
+        if (qc.valueEquiv > 0) {
+            let text = qc.valueEquiv.toString(), stat = qc.statEquiv;
+            if (stat == QuantityCalc.STAT_VIRTUAL)
+                text = "<i>(" + text + ")</i>";
+            else if (stat == QuantityCalc.STAT_CONFLICT)
+                text += " (conflicting)";
+            title.push('Stoichiometry');
+            content.push(text);
+        }
+        if (qc.valueMass > 0) {
+            let text = QuantityCalc.formatMass(qc.valueMass), stat = qc.statMass;
+            if (stat == QuantityCalc.STAT_VIRTUAL)
+                text = "<i>(" + text + ")</i>";
+            else if (stat == QuantityCalc.STAT_CONFLICT)
+                text += " (conflicting)";
+            title.push('Mass');
+            content.push(text);
+        }
+        if (qc.valueVolume > 0) {
+            let text = QuantityCalc.formatVolume(qc.valueVolume), stat = qc.statVolume;
+            if (stat == QuantityCalc.STAT_VIRTUAL)
+                text = "<i>(" + text + ")</i>";
+            else if (stat == QuantityCalc.STAT_CONFLICT)
+                text += " (conflicting)";
+            title.push('Volume');
+            content.push(text);
+        }
+        if (qc.valueMoles > 0) {
+            let text = QuantityCalc.formatMoles(qc.valueMoles), stat = qc.statMoles;
+            if (stat == QuantityCalc.STAT_VIRTUAL)
+                text = "<i>(" + text + ")</i>";
+            else if (stat == QuantityCalc.STAT_CONFLICT)
+                text += " (conflicting)";
+            title.push('Moles');
+            content.push(text);
+        }
+        if (qc.valueDensity > 0) {
+            let text = QuantityCalc.formatDensity(qc.valueDensity), stat = qc.statDensity;
+            if (stat == QuantityCalc.STAT_VIRTUAL)
+                text = "<i>(" + text + ")</i>";
+            else if (stat == QuantityCalc.STAT_CONFLICT)
+                text += " (conflicting)";
+            title.push('Density');
+            content.push(text);
+        }
+        if (qc.valueConc > 0) {
+            let text = QuantityCalc.formatConc(qc.valueConc), stat = qc.statConc;
+            if (stat == QuantityCalc.STAT_VIRTUAL)
+                text = "<i>(" + text + ")</i>";
+            else if (stat == QuantityCalc.STAT_CONFLICT)
+                text += " (conflicting)";
+            title.push('Concentration');
+            content.push(text);
+        }
+        if (qc.valueYield > 0 && !qc.comp.waste) {
+            let text = QuantityCalc.formatPercent(qc.valueYield), stat = qc.statYield;
+            if (stat == QuantityCalc.STAT_VIRTUAL)
+                text = "<i>(" + text + ")</i>";
+            else if (stat == QuantityCalc.STAT_CONFLICT)
+                text += " (conflicting)";
+            title.push('Yield');
+            content.push(text);
+        }
+        for (let n = 0; n < title.length; n++) {
+            let p = $('<p></p>').appendTo(parent);
+            p.css('margin', '0.1em');
+            p.append($('<b>' + title[n] + '</b>'));
+            p.append(': ');
+            p.append(content[n]);
+        }
+    }
+    renderMetrics(span) {
+        let quant = new QuantityCalc(this.entry);
+        quant.calculate();
+        let table = $('<table></table>').appendTo(span);
+        table.css('font-family', '"HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif');
+        table.css('border-collapse', 'collapse');
+        table.css('line-height', '1');
+        table.css('margin', '2px');
+        table.css('border', '0');
+        let effects = new RenderEffects();
+        let measure = new OutlineMeasurement(0, 0, this.policy.data.pointScale);
+        if (quant.numGreenMetrics > 0)
+            for (let n = 0; n < 3; n++) {
+                let tr = $('<tr></tr>').appendTo(table);
+                tr.css('line-height', '1');
+                let th = $('<th></th>').appendTo(tr);
+                th.css('border', '1px solid #D0D0D0');
+                th.css('padding', '0.5em');
+                th.css('text-align', 'right');
+                th.css('vertical-align', 'middle');
+                th.css('white-space', 'nowrap');
+                th.css('font-weight', 'bold');
+                th.text(n == 0 ? 'All Reactants' : n == 1 ? 'All Products' : 'All Waste');
+                let td = $('<td></td>').appendTo(tr);
+                td.css('border', '1px solid #D0D0D0');
+                td.css('padding', '0.5em');
+                td.css('text-align', 'left');
+                td.css('vertical-align', 'middle');
+                td.css('white-space', 'nowrap');
+                if (n == 0) {
+                    td.text(this.combineQuant(quant.getAllMassReact(), 'g') + ' = ' + this.sumQuant(quant.getAllMassReact(), 'g', true));
+                }
+                else if (n == 1) {
+                    td.text(this.combineQuant(quant.getAllMassProd(), 'g') + ' = ' + this.sumQuant(quant.getAllMassProd(), 'g', true));
+                }
+                else if (n == 2) {
+                    if (quant.getAllMassWaste().length > 0)
+                        td.text(this.combineQuant(quant.getAllMassWaste(), 'g') + ' = ' + this.sumQuant(quant.getAllMassWaste(), 'g', false));
+                    else
+                        td.text('none');
+                }
+            }
+        else {
+            let tr = $('<tr></tr>').appendTo(table);
+            let td = $('<td></td>').appendTo(tr);
+            td.text('No metrics to show.');
+        }
+        for (let n = 0; n < quant.numGreenMetrics; n++) {
+            let gm = quant.getGreenMetrics(n);
+            let qc = quant.getQuantity(gm.idx);
+            let tr = $('<tr></tr>').appendTo(table);
+            tr.css('line-height', '1');
+            let td = $('<td></td>').appendTo(tr);
+            td.css('border', '1px solid #D0D0D0');
+            td.css('padding', '0.2em');
+            td.css('text-align', 'center');
+            td.css('vertical-align', 'middle');
+            if (MolUtil.notBlank(qc.comp.mol)) {
+                let layout = new ArrangeMolecule(qc.comp.mol, measure, this.policy, effects);
+                layout.arrange();
+                let metavec = new MetaVector();
+                new DrawMolecule(layout, metavec).draw();
+                metavec.normalise();
+                $(metavec.createSVG()).appendTo(td);
+            }
+            td = $('<td></td>').appendTo(tr);
+            td.css('border', '1px solid #D0D0D0');
+            td.css('padding', '0.5em');
+            td.css('text-align', 'left');
+            td.css('vertical-align', 'top');
+            let pmi1 = this.combineQuant(gm.massReact, 'g'), pmi2 = this.combineQuant(gm.massProd, 'g');
+            let pmi3 = this.sumQuantExt(gm.massReact, gm.massProd, 1, Number.NaN, null);
+            let vg = this.drawTotals('PMI', pmi1, pmi2, pmi3);
+            vg.normalise();
+            let para = $('<p></p>').appendTo(td);
+            $(vg.createSVG()).appendTo(para);
+            let ef1 = this.combineQuant(gm.massWaste, 'g'), ef2 = this.combineQuant(gm.massProd, 'g');
+            let ef3 = this.sumQuantExt(gm.massWaste, gm.massProd, 1, Number.NaN, null);
+            vg = this.drawTotals('E-factor', ef1, ef2, ef3);
+            vg.normalise();
+            para = $('<p></p>').appendTo(td);
+            $(vg.createSVG()).appendTo(para);
+            let ae1 = this.combineQuant(gm.molwProd, null), ae2 = this.combineQuant(gm.molwReact, null);
+            let ae3 = this.sumQuantExt(gm.molwProd, gm.molwReact, 100, 100, '%');
+            vg = this.drawTotals('Atom-E', ae1, ae2, ae3);
+            vg.normalise();
+            para = $('<p></p>').appendTo(td);
+            $(vg.createSVG()).appendTo(para);
+        }
+    }
+    combineQuant(values, units) {
+        if (values.length == 0)
+            return '?';
+        let str = '';
+        for (let n = 0; n < values.length; n++) {
+            if (n > 0)
+                str += ' + ';
+            if (values[n] == QuantityCalc.UNSPECIFIED) {
+                str += '?';
+            }
+            else {
+                str += formatDouble(values[n], 4);
+                if (units)
+                    str += ' ' + units;
+            }
+        }
+        return str;
+    }
+    sumQuant(values, units, requireSomething) {
+        if (values.length == 0)
+            return requireSomething ? '?' : '0';
+        let sum = 0;
+        for (let n = 0; n < values.length; n++) {
+            if (values[n] == QuantityCalc.UNSPECIFIED)
+                return '?';
+            sum += values[n];
+        }
+        let ret = formatDouble(sum, 4);
+        if (units)
+            ret += ' ' + units;
+        return ret;
+    }
+    sumQuantExt(numer, denom, mul, max, units) {
+        if (numer.length == 0 || denom.length == 0)
+            return '?';
+        let sum1 = 0, sum2 = 0;
+        for (let n = 0; n < numer.length; n++) {
+            if (numer[n] == QuantityCalc.UNSPECIFIED)
+                return '?';
+            sum1 += numer[n];
+        }
+        for (let n = 0; n < denom.length; n++) {
+            if (denom[n] == QuantityCalc.UNSPECIFIED)
+                return '?';
+            sum2 += denom[n];
+        }
+        if (sum2 <= 0)
+            return '?';
+        let val = mul * sum1 / sum2;
+        if (!Number.isNaN(max))
+            val = Math.min(val, max);
+        let ret = formatDouble(val, 4);
+        if (units)
+            ret += ' ' + units;
+        return ret;
+    }
+    drawTotals(heading, over, under, answer) {
+        let vg = new MetaVector();
+        let measure = new OutlineMeasurement(0, 0, this.policy.data.pointScale);
+        let sep = ' = ';
+        let fsz = this.policy.data.pointScale * 0.8;
+        let wadHeading = measure.measureText(heading, fsz);
+        let wadOver = measure.measureText(over, fsz), wadUnder = measure.measureText(under, fsz);
+        let wadAnswer = measure.measureText(answer, fsz);
+        let wadSep = measure.measureText(sep, fsz);
+        let x = 0;
+        vg.drawText(x, 0, heading, fsz, 0x000000, TextAlign.Left | TextAlign.Middle);
+        x += wadHeading[0];
+        vg.drawText(x, 0, sep, fsz, 0x000000, TextAlign.Left | TextAlign.Middle);
+        x += wadSep[0];
+        vg.drawText(x, 0, answer, fsz, 0x000000, TextAlign.Left | TextAlign.Middle);
+        x += wadAnswer[0];
+        vg.drawText(x, 0, sep, fsz, 0x000000, TextAlign.Left | TextAlign.Middle);
+        x += wadSep[0];
+        let lw = Math.max(wadOver[0], wadUnder[0]);
+        vg.drawLine(x, 0, x + lw, 0, 0x000000, 1);
+        vg.drawText(x + 0.5 * lw, -2, over, fsz, 0x000000, TextAlign.Centre | TextAlign.Bottom);
+        vg.drawText(x + 0.5 * lw, 2, under, fsz, 0x000000, TextAlign.Centre | TextAlign.Top);
+        return vg;
+    }
+    doiToLink(doi) {
+        if (doi.startsWith('http://') || doi.startsWith('https://'))
+            return doi;
+        let m = EmbedReaction.PTN_DOI1.exec(doi);
+        if (m)
+            return 'http://dx.doi.org/' + m[1];
+        m = EmbedReaction.PTN_DOI2.exec(doi);
+        if (m)
+            return 'http://dx.doi.org/' + m[1];
+        m = EmbedReaction.PTN_ISBN.exec(doi);
+        if (m)
+            return 'ISBN: ' + m[1];
+        return null;
+    }
+}
+EmbedReaction.PTN_DOI1 = /^doi:(\d+\.\d+\/.*)$/;
+EmbedReaction.PTN_DOI2 = /^(\d+\.\d+\/.*)$/;
+EmbedReaction.PTN_ISBN = /^(\d+-\d+-\d+-\d+-\d+)$/;
+class HoneycombHex {
+    constructor() {
+        this.background = 0xFFFFFF;
+        this.withRim = false;
+        this.rimCols = [-1, -1, -1, -1, -1, -1];
+        this.policy = null;
+        this.annotation = null;
+        this.annotCol = 0x000000;
+        this.annotFontSize = 10;
+        this.x = null;
+        this.y = null;
+    }
+}
+class Honeycomb extends Widget {
+    constructor() {
+        super();
+        this.size = new Size(500, 500);
+        this.maxHexes = 1000;
+        this.molecules = [];
+        this.stopped = false;
+        this.watermark = 0;
+        this.hexes = [];
+        this.seed = 0;
+        this.density = 0.01;
+        this.hexSize = 100;
+        this.zoomFactor = 1;
+        this.FLOWER_PERMS = [
+            [0, 1, 2, 3, 4, 5], [0, 1, 2, 3, 5, 4], [0, 1, 2, 4, 3, 5], [0, 1, 2, 4, 5, 3], [0, 1, 2, 5, 3, 4], [0, 1, 2, 5, 4, 3], [0, 1, 3, 2, 4, 5], [0, 1, 3, 2, 5, 4], [0, 1, 3, 4, 2, 5], [0, 1, 3, 4, 5, 2],
+            [0, 1, 3, 5, 2, 4], [0, 1, 3, 5, 4, 2], [0, 1, 4, 2, 3, 5], [0, 1, 4, 2, 5, 3], [0, 1, 4, 3, 2, 5], [0, 1, 4, 3, 5, 2], [0, 1, 4, 5, 2, 3], [0, 1, 4, 5, 3, 2], [0, 1, 5, 2, 3, 4], [0, 1, 5, 2, 4, 3],
+            [0, 1, 5, 3, 2, 4], [0, 1, 5, 3, 4, 2], [0, 1, 5, 4, 2, 3], [0, 1, 5, 4, 3, 2], [0, 2, 1, 3, 4, 5], [0, 2, 1, 3, 5, 4], [0, 2, 1, 4, 3, 5], [0, 2, 1, 4, 5, 3], [0, 2, 1, 5, 3, 4], [0, 2, 1, 5, 4, 3],
+            [0, 2, 3, 1, 4, 5], [0, 2, 3, 1, 5, 4], [0, 2, 3, 4, 1, 5], [0, 2, 3, 5, 1, 4], [0, 2, 4, 1, 3, 5], [0, 2, 4, 1, 5, 3], [0, 2, 4, 3, 1, 5], [0, 2, 4, 5, 1, 3], [0, 2, 5, 1, 3, 4], [0, 2, 5, 1, 4, 3],
+            [0, 2, 5, 3, 1, 4], [0, 2, 5, 4, 1, 3], [0, 3, 1, 2, 4, 5], [0, 3, 1, 2, 5, 4], [0, 3, 1, 4, 2, 5], [0, 3, 1, 5, 2, 4], [0, 3, 2, 1, 4, 5], [0, 3, 2, 1, 5, 4], [0, 3, 2, 4, 1, 5], [0, 3, 2, 5, 1, 4],
+            [0, 3, 4, 1, 2, 5], [0, 3, 4, 2, 1, 5], [0, 3, 5, 1, 2, 4], [0, 3, 5, 2, 1, 4], [0, 4, 1, 2, 3, 5], [0, 4, 1, 3, 2, 5], [0, 4, 2, 1, 3, 5], [0, 4, 2, 3, 1, 5], [0, 4, 3, 1, 2, 5], [0, 4, 3, 2, 1, 5]
+        ];
+        this.HEX_N = 0;
+        this.HEX_S = 1;
+        this.HEX_NW = 2;
+        this.HEX_NE = 3;
+        this.HEX_SW = 4;
+        this.HEX_SE = 5;
+        this.dragging = false;
+        this.mouseFirst = null;
+        this.mouseLast = null;
+        this.panDelta = [0, 0];
+        this.hoverHex = -1;
+        this.hoverSpan = null;
+        let scale = 12;
+        this.policyColour = RenderPolicy.defaultColourOnWhite();
+        this.policyColour.data.pointScale = scale;
+        this.policyWhite = RenderPolicy.defaultWhiteOnBlack();
+        this.policyWhite.data.pointScale = scale;
+        this.effects = new RenderEffects();
+    }
+    addReferenceMolecule(mol, name) {
+        this.molecules.push({ 'mol': mol, 'name': name, 'isReference': true, 'rimColour': null });
+    }
+    addModelMolecule(mol, name, rimColour) {
+        this.molecules.push({ 'mol': mol, 'name': name, 'isReference': false, 'rimColour': rimColour });
+    }
+    render(parent) {
+        super.render(parent);
+        this.content.css('width', this.size.w + 'px');
+        this.content.css('height', this.size.h + 'px');
+        this.container = $('<div></div>').appendTo(this.content);
+        this.container.css('width', this.size.w + 'px');
+        this.container.css('height', this.size.h + 'px');
+        this.container.css('position', 'relative');
+        this.container.css('overflow', 'hidden');
+        this.container.click((event) => this.mouseClick(event));
+        this.container.dblclick((event) => this.mouseDoubleClick(event));
+        this.container.mousedown((event) => { event.preventDefault(); this.mouseDown(event); });
+        this.container.mouseup((event) => this.mouseUp(event));
+        this.container.mouseover((event) => this.mouseOver(event));
+        this.container.mouseout((event) => this.mouseOut(event));
+        this.container.mousemove((event) => this.mouseMove(event));
+        this.container.keypress((event) => this.keyPressed(event));
+        this.container.keydown((event) => this.keyDown(event));
+        this.container.keyup((event) => this.keyUp(event));
+    }
+    populate() {
+        this.changeHover(-1);
+        this.container.empty();
+        for (let hmol of this.molecules)
+            if (!hmol.fp) {
+                let circ = CircularFingerprints.create(hmol.mol, CircularFingerprints.CLASS_ECFP6);
+                hmol.fp = circ.getUniqueHashes();
+            }
+        let pri = [];
+        for (let n = 0; n < this.molecules.length; n++) {
+            let sim = Number.MAX_VALUE;
+            if (n != this.seed)
+                sim = CircularFingerprints.tanimoto(this.molecules[n].fp, this.molecules[this.seed].fp);
+            pri.push(sim);
+        }
+        let order = Vec.idxSort(pri);
+        this.hexes = [];
+        for (let n = order.length - 1; n >= 0 && this.hexes.length < this.maxHexes; n--) {
+            let hex = new HoneycombHex(), hmol = this.molecules[order[n]];
+            hex.molidx = order[n];
+            hex.mol = hmol.mol;
+            hex.fp = hmol.fp;
+            if (hmol.isReference) {
+                hex.background = 0x000000;
+                hex.annotCol = 0xFFFFFF;
+                hex.policy = this.policyWhite;
+            }
+            else if (hmol.rimColour != null && hmol.rimColour != MetaVector.NOCOLOUR) {
+                hex.withRim = true;
+                hex.rimCols = Vec.numberArray(hmol.rimColour, 6);
+            }
+            hex.annotation = hmol.name;
+            this.hexes.push(hex);
+        }
+        this.growFlower();
+        for (let n = 7; n < this.hexes.length; n++)
+            this.placeHex(n);
+        this.renderHexes();
+    }
+    zoom(dir) {
+        if (dir < 0) {
+            if (this.zoomFactor < 0.05)
+                return;
+            this.zoomFactor *= 2 / 3;
+        }
+        else {
+            if (this.zoomFactor > 20)
+                return;
+            this.zoomFactor *= 3 / 2;
+        }
+        this.changeHover(-1);
+        this.renderHexes();
+    }
+    growFlower() {
+        const sz = this.hexes.length, fsz = Math.min(6, sz - 1);
+        let perm = null, bestScore = 0;
+        for (let p of this.FLOWER_PERMS) {
+            let score = 0;
+            for (let n = 0; n < 6; n++) {
+                const nn = n == 5 ? 0 : n + 1;
+                let pn = p[n] + 1, pnn = p[nn] + 1;
+                if (pn >= sz)
+                    pn = 0;
+                if (pnn >= sz)
+                    pnn = 0;
+                score += CircularFingerprints.tanimoto(this.hexes[pn].fp, this.hexes[pnn].fp);
+            }
+            if (perm == null || score > bestScore) {
+                perm = p;
+                bestScore = score;
+            }
+        }
+        let dir = [this.HEX_N, this.HEX_NE, this.HEX_SE, this.HEX_S, this.HEX_SW, this.HEX_NW];
+        this.hexes[0].x = 0;
+        this.hexes[0].y = 0;
+        for (let n = 0; n < 6; n++) {
+            let idx = perm[n] + 1;
+            if (idx >= sz)
+                continue;
+            this.hexes[idx].x = this.offsetX(0, 0, dir[n]);
+            this.hexes[idx].y = this.offsetY(0, 0, dir[n]);
+        }
+    }
+    placeHex(idx) {
+        const sz = this.hexes.length;
+        let molX = [], molY = [];
+        let loX = this.hexes[0].x, loY = this.hexes[0].y, hiX = loX, hiY = loY;
+        for (let n = 0; n < idx; n++) {
+            let hex = this.hexes[n];
+            molX.push(hex.x);
+            molY.push(hex.y);
+            loX = Math.min(loX, hex.x);
+            loY = Math.min(loY, hex.y);
+            hiX = Math.max(hiX, hex.x);
+            hiY = Math.max(hiY, hex.y);
+        }
+        if ((loX & 1) == 1)
+            loX--;
+        Vec.addTo(molX, -loX);
+        Vec.addTo(molY, -loY);
+        const gridW = hiX - loX + 1, gridH = hiY - loY + 1;
+        let grid = [];
+        for (let n = 0; n < gridH; n++)
+            grid.push(Vec.numberArray(-1, gridW));
+        for (let n = 0; n < idx; n++)
+            grid[molY[n]][molX[n]] = n;
+        let ndiv = [1, 0.5, 1.0 / 3, 0.25, 0.2, 1.0 / 6];
+        let bestX = -1, bestY = -1, bestScore = -1;
+        for (let y = -1; y <= gridH; y++)
+            for (let x = -1; x <= gridW; x++) {
+                if (x >= 0 && x < gridW && y >= 0 && y < gridH && grid[y][x] >= 0)
+                    continue;
+                let nbrs = [], hitDir = -1, hitX = 0, hitY = 0;
+                for (let dir = 0; dir < 6; dir++) {
+                    let ox = this.offsetX(x, y, dir), oy = this.offsetY(x, y, dir);
+                    if (ox < 0 || ox >= gridW || oy < 0 || oy >= gridH)
+                        continue;
+                    let i = grid[oy][ox];
+                    if (i >= 0) {
+                        nbrs.push(i);
+                        if (nbrs.length == 1) {
+                            hitDir = dir;
+                            hitX = ox;
+                            hitY = oy;
+                        }
+                    }
+                }
+                if (nbrs.length == 0)
+                    continue;
+                let score = 0;
+                for (let n = 0; n < nbrs.length; n++)
+                    score += CircularFingerprints.tanimoto(this.hexes[idx].fp, this.hexes[nbrs[n]].fp);
+                score *= ndiv[nbrs.length - 1];
+                score += nbrs.length * this.density;
+                if (nbrs.length == 1) {
+                    for (let look = 5; look <= 7; look++) {
+                        let dir = (hitDir + look) % 6;
+                        let ox = this.offsetX(hitX, hitY, dir), oy = this.offsetY(hitX, hitY, dir);
+                        if (ox < 0 || ox >= gridW || oy < 0 || oy >= gridH)
+                            continue;
+                        let i = grid[oy][ox];
+                        if (i >= 0) {
+                            const mod = look == 6 ? 0.001 : 0.002;
+                            score += mod * CircularFingerprints.tanimoto(this.hexes[idx].fp, this.hexes[i].fp);
+                        }
+                    }
+                }
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestX = x;
+                    bestY = y;
+                }
+            }
+        this.hexes[idx].x = bestX + loX;
+        this.hexes[idx].y = bestY + loY;
+    }
+    offsetX(x, y, dir) {
+        return dir == this.HEX_NW || dir == this.HEX_SW ? x - 1 : dir == this.HEX_NE || dir == this.HEX_SE ? x + 1 : x;
+    }
+    offsetY(x, y, dir) {
+        if (dir == this.HEX_N)
+            return y - 1;
+        if (dir == this.HEX_S)
+            return y + 1;
+        if ((x & 1) == 0) {
+            return dir == this.HEX_NW || dir == this.HEX_NE ? y : y + 1;
+        }
+        else {
+            return dir == this.HEX_NW || dir == this.HEX_NE ? y - 1 : y;
+        }
+    }
+    prepareLayout() {
+        const nhex = this.hexes.length;
+        if (nhex == 0)
+            return;
+        let usize = this.hexSize * this.zoomFactor;
+        let hexW = usize * 0.75, hexH = usize * Math.cos(30 * DEGRAD);
+        let innerRad = 0.5 * hexH, outerRad = 0.5 * usize;
+        let edgeLen = usize * Math.sin(30 * DEGRAD);
+        let cx = [], cy = [];
+        for (let n = 0; n < nhex; n++) {
+            let x = this.hexes[n].x * hexW;
+            let y = this.hexes[n].y * hexH;
+            if ((this.hexes[n].x & 1) == 1)
+                y -= 0.5 * hexH;
+            cx.push(x);
+            cy.push(y);
+        }
+        Vec.addTo(cx, 0.5 * this.size.w - cx[0]);
+        Vec.addTo(cy, 0.5 * this.size.h - cy[0]);
+        for (let n = 0; n < nhex; n++) {
+            let x1 = Math.floor(cx[n] - 0.5 * usize - 1.5), y1 = Math.floor(cy[n] - 0.5 * hexH - 1.5);
+            let x2 = Math.ceil(cx[n] + 0.5 * usize + 1.5), y2 = Math.ceil(cy[n] + 0.5 * hexH + 1.5);
+            let hex = this.hexes[n];
+            hex.centre = new Pos(cx[n] - x1, cy[n] - y1);
+            hex.hexSize = usize;
+            hex.lineSize = this.hexSize * 0.01;
+            hex.innerRad = innerRad;
+            hex.outerRad = outerRad;
+            hex.edgeLen = edgeLen;
+            hex.frame = new Box(x1, y1, x2 - x1, y2 - y1);
+            if (hex.span)
+                hex.span.remove();
+            hex.span = null;
+        }
+        this.measure = new OutlineMeasurement(0, 0, this.policyColour.data.pointScale * this.zoomFactor);
+    }
+    renderHexes() {
+        this.prepareLayout();
+        let roster = Vec.identity0(this.hexes.length);
+        this.renderNext(++this.watermark, roster);
+    }
+    renderNext(watermark, roster) {
+        if (roster.length == 0 || this.stopped || watermark != this.watermark)
+            return;
+        let idx = roster.shift(), hex = this.hexes[idx];
+        if (!hex.span) {
+            hex.span = $('<span></span>').appendTo(this.container);
+            hex.span.css('position', 'absolute');
+            hex.span.css('pointer-events', 'none');
+        }
+        hex.span.css('left', (hex.frame.x + this.panDelta[0]) + 'px');
+        hex.span.css('top', (hex.frame.y + this.panDelta[1]) + 'px');
+        hex.span.css('width', hex.frame.w + 'px');
+        hex.span.css('height', hex.frame.h + 'px');
+        let gfx = new MetaVector();
+        let centre = hex.centre;
+        let edgeX = [], edgeY = [];
+        for (let n = 0; n < 6; n++) {
+            let th = (n - 2) * Math.PI * 1.0 / 3;
+            edgeX.push(centre.x + hex.hexSize * 0.5 * Math.cos(th));
+            edgeY.push(centre.y + hex.hexSize * 0.5 * Math.sin(th));
+        }
+        gfx.drawPoly(edgeX, edgeY, 0x000000, hex.lineSize, hex.background, true);
+        let rimFract = hex.withRim ? 0.10 : 0, mainFract = 1 - rimFract;
+        if (hex.withRim) {
+            for (let i = 0; i < 6; i++) {
+                if (hex.rimCols[i] == MetaVector.NOCOLOUR)
+                    continue;
+                let j = i == 5 ? 0 : i + 1;
+                let p1x = centre.x + (edgeX[i] - centre.x) * mainFract, p1y = centre.y + (edgeY[i] - centre.y) * mainFract;
+                let p2x = edgeX[i], p2y = edgeY[i];
+                let p3x = edgeX[j], p3y = edgeY[j];
+                let p4x = centre.x + (edgeX[j] - centre.x) * mainFract, p4y = centre.y + (edgeY[j] - centre.y) * mainFract;
+                gfx.drawPoly([p1x, p2x, p3x, p4x], [p1y, p2y, p3y, p4y], -1, 0, hex.rimCols[i], true);
+            }
+        }
+        let bumpDown = 0;
+        if (hex.annotation) {
+            let txt = hex.annotation, maxW = 0.5 * hex.hexSize;
+            let wad = this.measure.measureText(txt, hex.annotFontSize);
+            if (wad[0] > maxW) {
+                while (txt.length > 0 && wad[0] > maxW) {
+                    txt = txt.substring(0, txt.length - 1);
+                    wad = this.measure.measureText(txt + '..', hex.annotFontSize);
+                }
+                txt += '..';
+            }
+            let y = centre.y - hex.innerRad * mainFract;
+            gfx.drawText(centre.x, y + 2, txt, hex.annotFontSize, hex.annotCol, TextAlign.Centre | TextAlign.Top);
+            bumpDown = wad[1] + wad[2];
+        }
+        let rad = hex.innerRad * mainFract - 1 - bumpDown;
+        let policy = hex.policy ? hex.policy : this.policyColour;
+        let layout = new ArrangeMolecule(hex.mol, this.measure, policy, this.effects);
+        layout.arrange();
+        let [cx, cy, mrad] = this.determineCircularBoundary(layout);
+        if (mrad > rad) {
+            let downScale = rad / mrad;
+            layout.scaleEverything(downScale);
+            cx *= downScale;
+            cy *= downScale;
+        }
+        layout.offsetEverything(centre.x - cx, centre.y + 0.5 * bumpDown - cy);
+        new DrawMolecule(layout, gfx).draw();
+        hex.span.empty();
+        gfx.setSize(Math.ceil(gfx.boundHighX()), Math.ceil(gfx.boundHighY()));
+        $(gfx.createSVG()).appendTo(hex.span);
+        setTimeout(() => this.renderNext(watermark, roster), 1);
+    }
+    determineCircularBoundary(layout) {
+        let npoints = layout.numPoints(), nlines = layout.numLines();
+        if (npoints == 0)
+            return [0, 0, 0];
+        let cx = 0, cy = 0;
+        let px = [], py = [];
+        for (let n = 0; n < npoints; n++) {
+            let a = layout.getPoint(n);
+            cx += a.oval.cx;
+            cy += a.oval.cy;
+            let r = Math.max(a.oval.rw, a.oval.rh);
+            px.push(a.oval.cx - r);
+            py.push(a.oval.cy - r);
+            if (r == 0)
+                continue;
+            px.push(a.oval.cx - r);
+            py.push(a.oval.cy + r);
+            px.push(a.oval.cx + r);
+            py.push(a.oval.cy - r);
+            px.push(a.oval.cx + r);
+            py.push(a.oval.cy + r);
+        }
+        cx /= npoints;
+        cy /= npoints;
+        for (let n = 0; n < nlines; n++) {
+            let b = layout.getLine(n);
+            px.push(b.line.x1 - b.size);
+            py.push(b.line.y1 - b.size);
+            px.push(b.line.x1 + b.size);
+            py.push(b.line.y1 + b.size);
+            px.push(b.line.x2 - b.size);
+            py.push(b.line.y2 - b.size);
+            px.push(b.line.x2 + b.size);
+            py.push(b.line.y2 + b.size);
+        }
+        let calculateRadiusSq = (cx, cy, px, py) => {
+            let v = 0;
+            for (let n = px.length - 1; n >= 0; n--)
+                v = Math.max(v, norm2_xy(px[n] - cx, py[n] - cy));
+            return v;
+        };
+        var crsq = calculateRadiusSq(cx, cy, px, py);
+        var step = Math.sqrt(crsq) * 0.1;
+        while (step > 0.01) {
+            let x1 = cx - step, x2 = cx + step, y1 = cy - step, y2 = cy + step;
+            let r1 = calculateRadiusSq(x1, cy, px, py);
+            let r2 = calculateRadiusSq(x2, cy, px, py);
+            let r3 = calculateRadiusSq(cx, y1, px, py);
+            let r4 = calculateRadiusSq(cx, y2, px, py);
+            if (r1 < crsq && r1 < r2 && r1 < r3 && r1 < r4) {
+                cx = x1;
+                crsq = r1;
+            }
+            else if (r2 < crsq && r2 < r3 && r2 < r4) {
+                cx = x2;
+                crsq = r2;
+            }
+            else if (r3 < crsq && r3 < r4) {
+                cy = y1;
+                crsq = r3;
+            }
+            else if (r4 < crsq) {
+                cy = y2;
+                crsq = r4;
+            }
+            else {
+                step *= 0.5;
+            }
+        }
+        return [cx, cy, Math.sqrt(crsq)];
+    }
+    mouseClick(event) {
+        this.container.focus();
+    }
+    mouseDoubleClick(event) {
+        this.changeHover(-1);
+        let xy = eventCoords(event, this.container);
+        let idx = this.pickHex(xy[0], xy[1]);
+        if (idx >= 0 && idx != this.seed) {
+            this.seed = this.hexes[idx].molidx;
+            this.panDelta = [0, 0];
+            this.populate();
+        }
+        event.stopImmediatePropagation();
+    }
+    mouseDown(event) {
+        this.dragging = true;
+        this.mouseFirst = this.mouseLast = eventCoords(event, this.container);
+    }
+    mouseUp(event) {
+        this.dragging = false;
+        this.mouseFirst = this.mouseLast = null;
+    }
+    mouseOver(event) {
+    }
+    mouseOut(event) {
+        this.dragging = false;
+    }
+    mouseMove(event) {
+        if (this.dragging) {
+            let xy = eventCoords(event, this.container);
+            let dx = xy[0] - this.mouseLast[0], dy = xy[1] - this.mouseLast[1];
+            if (dx != 0 || dy != 0) {
+                this.panContent(dx, dy);
+                this.mouseLast = xy;
+            }
+        }
+        else {
+            let xy = eventCoords(event, this.container);
+            this.changeHover(this.pickHex(xy[0], xy[1]));
+        }
+    }
+    keyPressed(event) {
+    }
+    keyDown(event) {
+    }
+    keyUp(event) {
+    }
+    panContent(dx, dy) {
+        this.panDelta = [this.panDelta[0] + dx, this.panDelta[1] + dy];
+        for (let hex of this.hexes)
+            if (hex.span) {
+                hex.span.css('left', (hex.frame.x + this.panDelta[0]) + 'px');
+                hex.span.css('top', (hex.frame.y + this.panDelta[1]) + 'px');
+            }
+        this.changeHover(-1);
+    }
+    pickHex(x, y) {
+        let closest = -1, closestDSQ = 0;
+        for (let n = 0; n < this.hexes.length; n++) {
+            const hex = this.hexes[n];
+            let dsq = norm2_xy(hex.frame.x + hex.centre.x + this.panDelta[0] - x, hex.frame.y + hex.centre.y + this.panDelta[1] - y);
+            if (dsq >= hex.outerRad * hex.outerRad)
+                continue;
+            if (closest < 0 || dsq < closestDSQ) {
+                closest = n;
+                closestDSQ = dsq;
+            }
+        }
+        return closest;
+    }
+    changeHover(hover) {
+        if (hover >= 0 && this.hexes[hover].span == null)
+            hover = -1;
+        if (this.hoverHex == hover)
+            return;
+        this.hoverHex = hover;
+        if (hover < 0) {
+            if (this.hoverSpan)
+                this.hoverSpan.remove();
+            this.hoverSpan = null;
+            return;
+        }
+        if (this.hoverSpan == null) {
+            this.hoverSpan = $('<span></span>').appendTo(this.container);
+            this.hoverSpan.css('position', 'absolute');
+            this.hoverSpan.css('pointer-events', 'none');
+            this.hoverSpan.css('zIndex', 1);
+        }
+        else
+            this.hoverSpan.empty();
+        let hex = this.hexes[hover];
+        let urad = 0.5 * this.hexSize * this.zoomFactor, udiam = Math.ceil(2 * urad), uspan = 2 * udiam;
+        let x0 = Math.floor(hex.centre.x - udiam), y0 = Math.floor(hex.centre.y - udiam);
+        this.hoverSpan.css('left', (hex.frame.x + this.panDelta[0] + x0) + 'px');
+        this.hoverSpan.css('top', (hex.frame.y + this.panDelta[1] + y0) + 'px');
+        this.hoverSpan.css('width', uspan + 'px');
+        this.hoverSpan.css('height', uspan + 'px');
+        let gfx = new MetaVector();
+        const DEG30 = Math.PI / 6;
+        let ext = urad * (1 - sqr(Math.sin(DEG30))) / Math.cos(DEG30);
+        let xNE = this.offsetX(hex.x, hex.y, this.HEX_NE), yNE = this.offsetY(hex.x, hex.y, this.HEX_NE);
+        let xSE = this.offsetX(hex.x, hex.y, this.HEX_SE), ySE = this.offsetY(hex.x, hex.y, this.HEX_SE);
+        let xS = this.offsetX(hex.x, hex.y, this.HEX_S), yS = this.offsetY(hex.x, hex.y, this.HEX_S);
+        let xSW = this.offsetX(hex.x, hex.y, this.HEX_SW), ySW = this.offsetY(hex.x, hex.y, this.HEX_SW);
+        let xNW = this.offsetX(hex.x, hex.y, this.HEX_NW), yNW = this.offsetY(hex.x, hex.y, this.HEX_NW);
+        let xN = this.offsetX(hex.x, hex.y, this.HEX_N), yN = this.offsetY(hex.x, hex.y, this.HEX_N);
+        let adjHexes = [null, null, null, null, null, null];
+        for (let adj of this.hexes) {
+            if (adj.x == xNE && adj.y == yNE)
+                adjHexes[0] = adj;
+            else if (adj.x == xSE && adj.y == ySE)
+                adjHexes[1] = adj;
+            else if (adj.x == xS && adj.y == yS)
+                adjHexes[2] = adj;
+            else if (adj.x == xSW && adj.y == ySW)
+                adjHexes[3] = adj;
+            else if (adj.x == xNW && adj.y == yNW)
+                adjHexes[4] = adj;
+            else if (adj.x == xN && adj.y == yN)
+                adjHexes[5] = adj;
+        }
+        for (let n = 0; n < 6; n++)
+            if (adjHexes[n]) {
+                let th = (n - 0.5) * Math.PI * 1.0 / 3;
+                let lx = hex.centre.x - x0 + ext * Math.cos(th);
+                let ly = hex.centre.y - y0 + ext * Math.sin(th);
+                let sim = CircularFingerprints.tanimoto(hex.fp, adjHexes[n].fp);
+                let txt = sim.toFixed(3), wad = this.measure.measureText(txt, hex.annotFontSize);
+                gfx.drawRect(lx - wad[0] * 0.5 - 2, ly - wad[1] * 0.5 - 2, wad[0] + 4, wad[1] + 4, 0x000000, 1, 0xD0D0D0);
+                gfx.drawText(lx, ly + 0.5 * wad[1], txt, hex.annotFontSize, 0x000000, TextAlign.Centre);
+            }
+        gfx.setSize(uspan, uspan);
+        $(gfx.createSVG()).appendTo(this.hoverSpan);
+    }
+}
+class RowView extends Widget {
+    constructor(tokenID) {
+        super();
+        this.tokenID = tokenID;
+        this.entries = null;
+        this.watermark = 0;
+    }
+    defineEntries(entries) {
+        this.entries = entries;
+    }
+    render(parent) {
+        super.render(parent);
+        if (this.entries == null)
+            throw 'molsync.ui.RowView: entries must be defined before rendering';
+        let tableStyle = 'border-collapse: collapse;';
+        let table = $('<table></table>').appendTo(this.content);
+        table.attr('style', tableStyle);
+        let roster = [];
+        this.watermark++;
+        for (let n = 0; n < this.entries.length; n++) {
+            let entry = this.entries[n];
+            entry.tr = $('<tr></tr>').appendTo(table);
+            entry = clone(entry);
+            entry.tdStyle = '';
+            if (n > 0)
+                entry.tdStyle += 'border-top: 1px solid #80C080;';
+            if (n < this.entries.length - 1)
+                entry.tdStyle += 'border-bottom: 1px solid #80C080;';
+            entry.watermark = this.watermark;
+            roster.push(entry);
+        }
+        let fcnComposure = (result, error) => {
+            let entry = roster.shift();
+            if (entry.watermark != this.watermark)
+                return;
+            if (error != null)
+                throw 'molsync.ui.RowView: failed to obtain document composition: ' + error.message;
+            let nodes = [];
+            for (let n = 0; n < result.doc.nodes.length; n++) {
+                let node = result.doc.nodes[n];
+                let src = node.src;
+                if (src.startsWith('experiment:') && src != 'experiment:header' && src != 'experiment:scheme')
+                    continue;
+                nodes.push(node);
+            }
+            for (let n = 0; n < nodes.length; n++) {
+                let tdStyle = entry.tdStyle + 'vertical-align: top;';
+                if (n > 0)
+                    tdStyle += 'border-left: 1px solid #80C080;';
+                if (n < nodes.length - 1)
+                    tdStyle += 'border-right: 1px solid #80C080;';
+                if (nodes[n].type != 'graphics')
+                    tdStyle += 'padding: 0.5em;';
+                let td = $('<td></td>').appendTo(entry.tr);
+                td.attr('style', tdStyle);
+                this.renderNode(td, nodes[n]);
+            }
+            if (roster.length > 0)
+                Func.composeDocument({ 'tokenID': this.tokenID, 'dataXML': roster[0].dataXML, 'subsumeTitle': true }, fcnComposure);
+        };
+        if (roster.length > 0)
+            Func.composeDocument({ 'tokenID': this.tokenID, 'dataXML': roster[0].dataXML, 'subsumeTitle': true }, fcnComposure);
+    }
+    renderNode(parent, node) {
+        if (node.type == 'line')
+            this.renderLine(parent, node, true);
+        else if (node.type == 'link')
+            this.renderLink(parent, node);
+        else if (node.type == 'graphics')
+            this.renderGraphics(parent, node);
+        else if (node.type == 'para')
+            this.renderPara(parent, node);
+        else if (node.type == 'matrix')
+            this.renderMatrix(parent, node);
+    }
+    renderLine(parent, node, inPara) {
+        if (inPara)
+            parent = $(newElement(parent, 'p'));
+        if (node.title) {
+            addText(newElement(parent, 'b'), node.title);
+            addText(parent[0], ': ');
+        }
+        if (node.bold)
+            parent = $(newElement(parent, 'b'));
+        if (node.italic)
+            parent = $(newElement(parent, 'i'));
+        if (node.underline)
+            parent = $(newElement(parent, 'u'));
+        if (node.formula)
+            this.renderFormula(parent, node.text);
+        else
+            addText(parent, node.text);
+    }
+    renderLink(parent, node) {
+        if (node.title) {
+            addText(newElement(parent, 'b'), node.title);
+            addText(parent[0], ': ');
+        }
+        let ahref = newElement(parent, 'a', { 'href': node.url, 'target': '_blank' });
+        addText(ahref, node.url);
+    }
+    renderGraphics(parent, node) {
+        let draw = new MetaVector(node.metavec);
+        draw.renderInto(parent);
+    }
+    renderPara(parent, node) {
+        parent = $('<p></p>').appendTo(parent);
+        for (let n = 0; n < node.nodes.length; n++) {
+            let sub = node.nodes[n];
+            if (n > 0)
+                newElement(parent, 'br');
+            if (sub.type == 'line')
+                this.renderLine(parent, sub, false);
+            else
+                this.renderNode(parent, sub);
+        }
+    }
+    renderMatrix(parent, node) {
+        let ncols = node.ncols, nrows = node.nrows;
+        let table = newElement(parent, 'table', { 'class': 'data', 'style': 'margin: 0;' });
+        let tableBody = newElement(table, 'tbody');
+        for (let r = 0; r < nrows; r++) {
+            let tableRow = newElement(tableBody, 'tr');
+            for (let c = 0; c < ncols; c++) {
+                let cell = node.matrix[r][c];
+                let tableCell = newElement(tableRow, 'td', { 'class': 'data' });
+                this.renderNode($(tableCell), cell);
+            }
+        }
+    }
+    renderFormula(parent, formula) {
+        for (let n = 0; n < formula.length; n++) {
+            let ch = formula.charAt(n);
+            if (ch == '|') { }
+            else if (ch == '{') {
+                let end = formula.indexOf('}', n + 1);
+                if (end >= 0) {
+                    let snip = formula.substring(n + 1, end);
+                    addText(newElement(parent, 'sub'), snip);
+                    n = end;
+                }
+                else
+                    addText(parent, ch);
+            }
+            else
+                addText(parent, ch);
+        }
+    }
+}
+class SearchMolecules extends Widget {
+    constructor(tokenID) {
+        super();
+        this.tokenID = tokenID;
+        this.molsearchToken = null;
+        this.cancelled = false;
+        this.started = false;
+        this.finished = false;
+        this.progress = 0;
+        this.count = 0;
+        this.results = [];
+        this.callbackStop = null;
+        this.callbackProgress = null;
+        this.callbackMol = null;
+        this.callbackDS = null;
+    }
+    render(parent) {
+        super.render(parent);
+        let tableStyle = 'border-collapse: collapse;';
+        this.table = $('<table></table>').appendTo(this.content);
+        this.table.attr('style', tableStyle);
+    }
+    startSearch(origin, mol, type, maxResults = 100) {
+        this.cancelled = false;
+        this.results = [];
+        this.table.empty();
+        this.placeholder = $('<tr><td>Starting search...</td></tr>').appendTo(this.table);
+        let molstr = mol == null ? null : mol.toString();
+        let param = { 'origin': origin, 'molNative': molstr, 'type': type, 'maxResults': maxResults };
+        Search.startMolSearch(param, (result, error) => {
+            if (error != null)
+                throw 'molsync.ui.SearchMolecules: failed to initiate search: ' + error.message;
+            this.molsearchToken = result.molsearchToken;
+            this.started = true;
+            this.finished = false;
+            Search.pollMolSearch({ 'molsearchToken': this.molsearchToken }, () => this.batchSearch(result, error));
+        });
+    }
+    stopSearch() {
+        if (this.placeholder) {
+            this.placeholder.remove();
+            this.placeholder = null;
+        }
+        this.cancelled = true;
+        this.finished = true;
+        if (this.callbackStop)
+            this.callbackStop(this);
+    }
+    isRunning() {
+        return this.started && !this.finished;
+    }
+    batchSearch(result, error) {
+        if (this.placeholder) {
+            this.placeholder.remove();
+            this.placeholder = null;
+        }
+        if (error != null)
+            throw 'molsync.ui.SearchMolecules: failed to obtain next batch: ' + error.message;
+        if (this.cancelled)
+            return;
+        this.finished = result.finished;
+        this.progress = result.progress;
+        this.count = result.count;
+        if (result.modified)
+            this.updateResults(result.results);
+        if (!this.finished) {
+            Search.pollMolSearch({ 'molsearchToken': this.molsearchToken }, (result, error) => this.batchSearch(result, error));
+            if (this.callbackProgress)
+                this.callbackProgress(this.progress, this.count, this);
+        }
+        else {
+            if (this.callbackStop)
+                this.callbackStop(this);
+        }
+    }
+    updateResults(results) {
+        for (let n = 0; n < results.length; n++) {
+            let res = results[n];
+            res.tr = $('<tr></tr>').appendTo(this.table);
+            res.td = $('<td></td>').appendTo(res.tr);
+            if (n > 0)
+                res.td.css('border-top', '1px solid #80C080');
+            if (n < results.length - 1)
+                res.td.css('border-bottom', '1px solid #80C080');
+            let table = $('<table></table>').appendTo(res.td), tr = $('<tr></tr>').appendTo(table);
+            if (res.similarity) {
+                let td = $('<td></td>').appendTo(tr);
+                let txt = res.similarity == 1 ? '100%' : (res.similarity * 100).toFixed(1) + '%';
+                td.text(txt);
+            }
+            for (let sk of res.sketches) {
+                let td = $('<td></td>').appendTo(tr);
+                let vs = this.grabSketch(td, sk.molNative, sk.moleculeID);
+                sk.viewMol = vs;
+            }
+            let td = $('<td></td>').appendTo(tr);
+            for (let src of res.sources) {
+                let link = $('<a href="#' + src.datasheetID + '"></a>').appendTo(td);
+                link.mouseenter((e) => e.target.style.backgroundColor = '#D0D0D0');
+                link.mouseleave((e) => e.target.style.backgroundColor = 'transparent');
+                let title = src.subTitle ? src.subTitle : src.title ? src.title : 'DataSheet#' + src.datasheetID;
+                link.text(title);
+                let body = '';
+                if (src.title && src.title != title)
+                    body += '<div>Title: <i>' + escapeHTML(src.title) + '</i></div>';
+                if (src.descr)
+                    body += '<div>Description: <i>' + escapeHTML(src.descr) + '</i></div>';
+                body += '<div>Row ' + src.row + '</div>';
+                addTooltip(link, body, escapeHTML(title));
+                link.click(() => { if (this.callbackDS)
+                    this.callbackDS(src.datasheetID, this); });
+                td.append(' ');
+            }
+        }
+        for (let res of this.results)
+            res.tr.remove();
+        this.results = results;
+    }
+    grabSketch(parent, molNative, moleculeID) {
+        for (let res of this.results)
+            for (let sk of res.sketches) {
+                for (let mid of moleculeID)
+                    if (sk.moleculeID.indexOf(mid) >= 0 && sk.viewMol != null) {
+                        sk.viewMol.content.appendTo(parent);
+                        return sk.viewMol;
+                    }
+            }
+        const vs = new ViewStructure(this.tokenID);
+        vs.content = parent;
+        vs.defineMoleculeString(molNative);
+        vs.borderCol = -1;
+        vs.backgroundCol1 = 0xF8F8F8;
+        vs.backgroundCol2 = 0xE0E0E0;
+        vs.padding = 4;
+        vs.setup(() => {
+            vs.render(parent);
+            vs.content.css('cursor', 'pointer');
+            vs.content.click(() => {
+                if (this.callbackMol)
+                    this.callbackMol(moleculeID, Molecule.fromString(molNative));
+            });
+        });
+        return vs;
+    }
+}
+SearchMolecules.TYPE_EXACT = 'exact';
+SearchMolecules.TYPE_SUBSTRUCTURE = 'substructure';
+SearchMolecules.TYPE_SIMILARITY = 'similarity';
+SearchMolecules.TYPE_RANDOM = 'random';
+class SearchPanel extends Widget {
+    constructor(type) {
+        super();
+        this.type = type;
+        this.highlight = 0;
+        this.pressed = 0;
+        this.mol1 = new Molecule();
+        this.mol2 = new Molecule();
+        this.isSketching = false;
+        this.height = 50;
+        this.molWidth = 80;
+        this.arrowWidth = 30;
+        this.HPADDING = 4;
+        this.VPADDING = 2;
+        this.COLCYCLE = ['#89A54E', '#71588F', '#4198AF', '#DB843D', '#93A9CF', '#D19392', '#4572A7', '#AA4643'];
+        this.emptyMsg1 = null;
+        this.emptyMsg2 = null;
+    }
+    configureDisplay(molWidth, height, emptyMsg1, emptyMsg2) {
+        this.molWidth = molWidth;
+        this.height = height;
+        this.emptyMsg1 = emptyMsg1;
+        this.emptyMsg2 = emptyMsg2;
+    }
+    getMolecule1() { return this.mol1; }
+    getMolecule2() { return this.mol2; }
+    setMolecule1(mol) {
+        this.mol1 = mol;
+        this.renderMolecule(1);
+    }
+    setMolecule2(mol) {
+        this.mol2 = mol;
+        this.renderMolecule(2);
+    }
+    render(parent) {
+        super.render(parent);
+        this.content.addClass('no_selection');
+        const height = this.height, molw = this.molWidth, arrow = this.arrowWidth;
+        const density = pixelDensity();
+        const hpad = this.HPADDING, vpad = this.VPADDING;
+        let isRxn = this.type == SearchPanel.TYPE_REACTION, isMol = !isRxn;
+        let div = this.content;
+        if (isMol)
+            div.css('width', (molw + 2 * hpad) + 'px');
+        else
+            div.css('width', (2 * molw + arrow + 4 * hpad) + 'px');
+        div.css('height', (height + 2 * vpad) + 'px');
+        div.css('position', 'relative');
+        function renderSolid(col1, col2, style) {
+            let node = newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': style });
+            node.style.width = molw + 'px';
+            node.style.height = height + 'px';
+            let ctx = node.getContext('2d');
+            ctx.scale(density, density);
+            let grad = ctx.createLinearGradient(0, 0, molw, height);
+            grad.addColorStop(0, col1);
+            grad.addColorStop(1, col2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, molw, height);
+            return node;
+        }
+        function renderBorder(lw, style) {
+            let node = newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': style });
+            node.style.width = molw + 'px';
+            node.style.height = height + 'px';
+            let ctx = node.getContext('2d');
+            ctx.scale(density, density);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = lw;
+            ctx.strokeRect(0.5 * lw, 0.5 * lw, molw - lw, height - lw);
+            return node;
+        }
+        function renderArrow(style) {
+            let node = newElement(div, 'canvas', { 'width': arrow * density, 'height': height * density, 'style': style });
+            node.style.width = arrow + 'px';
+            node.style.height = height + 'px';
+            let ctx = node.getContext('2d');
+            ctx.scale(density, density);
+            let midY = Math.round(0.5 * height);
+            ctx.beginPath();
+            ctx.moveTo(0, midY);
+            ctx.lineTo(arrow - 2, midY);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(arrow, midY);
+            ctx.lineTo(arrow - 8, midY - 5);
+            ctx.lineTo(arrow - 8, midY + 5);
+            ctx.fillStyle = 'black';
+            ctx.fill();
+            return node;
+        }
+        function renderOutlineArrow(style, col) {
+            let node = newElement(div, 'canvas', { 'width': arrow * density, 'height': height * density, 'style': style });
+            node.style.width = arrow + 'px';
+            node.style.height = height + 'px';
+            let ctx = node.getContext('2d');
+            ctx.scale(density, density);
+            let midY = Math.round(0.5 * height);
+            var path = pathRoundedRect(0, midY - 8, arrow, midY + 8, 4);
+            ctx.fillStyle = col;
+            ctx.fill(path);
+            return node;
+        }
+        let styleMol1Pos = 'position: absolute; left: ' + hpad + 'px; top: ' + vpad + 'px;';
+        let styleMol1 = styleMol1Pos + 'pointer-events: none;';
+        this.normalMol1 = renderSolid('#FFFFFF', '#D0D0D0', styleMol1);
+        this.pressedMol1 = renderSolid('#00CA59', '#008650', styleMol1);
+        this.drawnMol1 = newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': styleMol1Pos });
+        this.drawnMol1.style.cursor = 'pointer';
+        this.renderMolecule(1);
+        this.thinMol1 = renderBorder(1, styleMol1);
+        this.thickMol1 = renderBorder(2, styleMol1);
+        if (isRxn) {
+            let styleArrowPos = 'position: absolute; left: ' + (2 * hpad + molw) + 'px; top: ' + vpad + 'px;';
+            let styleArrow = styleArrowPos + 'pointer-events: none;';
+            this.hoverArrow = renderOutlineArrow(styleArrow, '#C0C0C0');
+            this.pressedArrow = renderOutlineArrow(styleArrow, '#00CA59');
+            this.drawnArrow = renderArrow(styleArrowPos);
+            let styleMol2Pos = 'position: absolute; left: ' + (3 * hpad + molw + arrow) + 'px; top: ' + vpad + 'px;';
+            let styleMol2 = styleMol2Pos + 'pointer-events: none;';
+            this.normalMol2 = renderSolid('#FFFFFF', '#D0D0D0', styleMol2);
+            this.pressedMol2 = renderSolid('#00CA59', '#008650', styleMol2);
+            this.drawnMol2 = newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': styleMol2Pos });
+            this.drawnMol2.style.cursor = 'pointer';
+            this.renderMolecule(2);
+            this.thinMol2 = renderBorder(1, styleMol2);
+            this.thickMol2 = renderBorder(2, styleMol2);
+        }
+        this.updateLayers();
+        $(this.drawnMol1).mouseenter(() => this.mouseEnter(1));
+        $(this.drawnMol1).mouseleave(() => this.mouseLeave(1));
+        $(this.drawnMol1).mousedown(() => this.mouseDown(1));
+        $(this.drawnMol1).mouseup(() => this.mouseUp(1));
+        $(this.drawnMol1).attr('ondragstart', () => false);
+        $(this.drawnMol1).click(() => this.editMolecule(1));
+        if (isRxn) {
+            $(this.drawnArrow).mouseenter(() => this.mouseEnter(3));
+            $(this.drawnArrow).mouseleave(() => this.mouseLeave(3));
+            $(this.drawnArrow).mousedown(() => this.mouseDown(3));
+            $(this.drawnArrow).mouseup(() => this.mouseUp(3));
+            $(this.drawnArrow).attr('ondragstart', () => false);
+            $(this.drawnArrow).click(() => this.editMapping());
+            $(this.drawnMol2).mouseenter(() => this.mouseEnter(2));
+            $(this.drawnMol2).mouseleave(() => this.mouseLeave(2));
+            $(this.drawnMol2).mousedown(() => this.mouseDown(2));
+            $(this.drawnMol2).mouseup(() => this.mouseUp(2));
+            $(this.drawnMol2).attr('ondragstart', () => false);
+            $(this.drawnMol2).click(() => this.editMolecule(2));
+        }
+        if (!isRxn) {
+            addTooltip(this.drawnMol1, 'Edit the molecular structure.');
+        }
+        else {
+            addTooltip(this.drawnMol1, 'Edit the reactant structures.');
+            addTooltip(this.drawnMol2, 'Edit the product structures.');
+            addTooltip(this.drawnArrow, 'Map the reactant and product atoms, for more precise searches.');
+        }
+        document.addEventListener('paste', (e) => {
+            if (this.isSketching)
+                return true;
+            let wnd = window, txt = '';
+            if (wnd.clipboardData && wnd.clipboardData.getData)
+                txt = wnd.clipboardData.getData('Text');
+            else if (e.clipboardData && e.clipboardData.getData)
+                txt = e.clipboardData.getData('text/plain');
+            if (!txt)
+                return true;
+            let mol = MoleculeStream.readUnknown(txt);
+            if (!mol)
+                return true;
+            let which = this.type == SearchPanel.TYPE_REACTION && !MolUtil.isBlank(this.mol1) && MolUtil.isBlank(this.mol2) ? 2 : 1;
+            if (which == 1)
+                this.setMolecule1(mol);
+            else
+                this.setMolecule2(mol);
+            e.preventDefault();
+            return false;
+        });
+        this.drawnMol1.addEventListener('dragover', (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+        });
+        this.drawnMol1.addEventListener('drop', (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            this.dropInto(1, event.dataTransfer);
+        });
+        if (isRxn) {
+            this.drawnMol2.addEventListener('dragover', (event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+            });
+            this.drawnMol2.addEventListener('drop', (event) => {
+                event.stopPropagation();
+                event.preventDefault();
+                this.dropInto(2, event.dataTransfer);
+            });
+        }
+    }
+    ;
+    updateLayers() {
+        setVisible(this.normalMol1, this.pressed != 1);
+        setVisible(this.pressedMol1, this.pressed == 1);
+        setVisible(this.thinMol1, this.highlight != 1);
+        setVisible(this.thickMol1, this.highlight == 1);
+        setVisible(this.hoverArrow, this.highlight == 3);
+        setVisible(this.pressedArrow, this.pressed == 3);
+        setVisible(this.normalMol2, this.pressed != 2);
+        setVisible(this.pressedMol2, this.pressed == 2);
+        setVisible(this.thinMol2, this.highlight != 2);
+        setVisible(this.thickMol2, this.highlight == 2);
+    }
+    renderMolecule(which) {
+        let mol = which == 1 ? this.mol1 : this.mol2, canvas = which == 1 ? this.drawnMol1 : this.drawnMol2;
+        let withMapping = false;
+        if (this.type == SearchPanel.TYPE_REACTION)
+            for (let n = 1; n <= mol.numAtoms; n++)
+                if (mol.atomMapNum(n) > 0) {
+                    withMapping = true;
+                    break;
+                }
+        let width = this.molWidth, height = this.height;
+        let density = pixelDensity();
+        let ctx = canvas.getContext('2d');
+        ctx.save();
+        ctx.scale(density, density);
+        ctx.clearRect(0, 0, width, height);
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        if (mol.numAtoms > 0) {
+            let policy = withMapping ? RenderPolicy.defaultBlackOnWhite() : RenderPolicy.defaultColourOnWhite();
+            let measure = new OutlineMeasurement(0, 0, policy.data.pointScale);
+            let layout = new ArrangeMolecule(mol, measure, policy, new RenderEffects());
+            layout.arrange();
+            let metavec = new MetaVector();
+            new DrawMolecule(layout, metavec).draw();
+            metavec.transformIntoBox(new Box(2, 2, width - 4, height - 4));
+            metavec.renderContext(ctx);
+        }
+        else if ((which == 1 && this.emptyMsg1) || (which == 2 && this.emptyMsg2)) {
+            let lines = (which == 1 ? this.emptyMsg1 : this.emptyMsg2).split('\n');
+            const fsz = 10, fh = fsz * ASCENT_FUDGE;
+            ctx.font = fontSansSerif(fsz);
+            ctx.fillStyle = 'black';
+            let ty = 0.5 * (height - fh * (lines.length - 1));
+            for (let txt of lines) {
+                let metrics = ctx.measureText(txt);
+                ctx.fillText(txt, 0.5 * (width - metrics.width), ty);
+                ty += fh;
+            }
+        }
+        ctx.restore();
+    }
+    mouseEnter(which) {
+        if (this.highlight != which) {
+            this.highlight = which;
+            this.updateLayers();
+        }
+    }
+    mouseLeave(which) {
+        if (this.highlight == which) {
+            this.highlight = 0;
+            this.pressed = 0;
+            this.updateLayers();
+        }
+    }
+    mouseDown(which) {
+        if (this.pressed != which) {
+            this.pressed = which;
+            this.updateLayers();
+        }
+    }
+    mouseUp(which) {
+        if (this.pressed == which) {
+            this.pressed = 0;
+            this.updateLayers();
+        }
+    }
+    editMolecule(which) {
+        let dlg = new EditCompound(which == 1 ? this.mol1 : this.mol2);
+        this.isSketching = true;
+        dlg.onSave(() => { if (which == 1)
+            this.saveMolecule1(dlg);
+        else
+            this.saveMolecule2(dlg); });
+        dlg.onClose(() => this.isSketching = false);
+        dlg.open();
+    }
+    editMapping() {
+        if (this.mol1.numAtoms == 0 || this.mol2.numAtoms == 0) {
+            alert('Draw structures on both sides of the arrow before mapping.');
+            return;
+        }
+        let dlg = new MapReaction(this.mol1, this.mol2);
+        dlg.callbackSave = (source) => this.saveMapping(source);
+        dlg.open();
+    }
+    saveMolecule1(dlg) {
+        this.mol1 = dlg.getMolecule();
+        dlg.close();
+        this.renderMolecule(1);
+        let cookies = new Cookies();
+        if (cookies.numMolecules() > 0)
+            cookies.stashMolecule(this.mol1);
+    }
+    saveMolecule2(dlg) {
+        this.mol2 = dlg.getMolecule();
+        dlg.close();
+        this.renderMolecule(2);
+        let cookies = new Cookies();
+        if (cookies.numMolecules() > 0)
+            cookies.stashMolecule(this.mol2);
+    }
+    saveMapping(dlg) {
+        this.mol1 = dlg.getMolecule1();
+        this.mol2 = dlg.getMolecule2();
+        dlg.close();
+        this.renderMolecule(1);
+        this.renderMolecule(2);
+    }
+    dropInto(which, transfer) {
+        let items = transfer.items, files = transfer.files;
+        const SUFFIXES = ['.el', '.mol'];
+        const MIMES = ['text/plain', 'chemical/x-sketchel', 'x-mdl-molfile'];
+        for (let n = 0; n < items.length; n++) {
+            if (items[n].kind == 'string' && MIMES.indexOf(items[n].type) >= 0) {
+                items[n].getAsString((str) => {
+                    let mol = Molecule.fromString(str);
+                    if (mol != null) {
+                        if (which == 1)
+                            this.setMolecule1(mol);
+                        else
+                            this.setMolecule2(mol);
+                    }
+                    else
+                        console.log('Dragged data is not a SketchEl molecule: ' + str);
+                });
+                return;
+            }
+        }
+        for (let n = 0; n < files.length; n++) {
+            for (let sfx of SUFFIXES)
+                if (files[n].name.endsWith(sfx)) {
+                    let reader = new FileReader();
+                    reader.onload = (event) => {
+                        let str = reader.result;
+                        let mol = MoleculeStream.readUnknown(str);
+                        if (mol != null) {
+                            if (which == 1)
+                                this.setMolecule1(mol);
+                            else
+                                this.setMolecule2(mol);
+                        }
+                        else
+                            console.log('Dragged file is not a recognised molecule: ' + str);
+                    };
+                    reader.readAsText(files[n]);
+                    return;
+                }
+        }
+    }
+}
+SearchPanel.TYPE_MOLECULE = 'molecule';
+SearchPanel.TYPE_REACTION = 'reaction';
+class SearchReactions extends Widget {
+    constructor(tokenID) {
+        super();
+        this.tokenID = tokenID;
+        this.rxnsearchToken = null;
+        this.cancelled = false;
+        this.started = false;
+        this.finished = false;
+        this.progress = 0;
+        this.count = 0;
+        this.results = [];
+        this.callbackStop = null;
+        this.callbackProgress = null;
+        this.callbackRxn = null;
+        this.callbackDS = null;
+    }
+    render(parent) {
+        super.render(parent);
+        let tableStyle = 'border-collapse: collapse;';
+        this.table = $('<table></table>').appendTo(this.content);
+        this.table.attr('style', tableStyle);
+    }
+    startSearch(origin, mol1, mol2, type, maxResults = 100) {
+        this.cancelled = false;
+        this.results = [];
+        this.table.empty();
+        this.placeholder = $('<tr><td>Starting search...</td></tr>').appendTo(this.table);
+        let molstr1 = mol1 == null ? null : mol1.toString();
+        let molstr2 = mol2 == null ? null : mol2.toString();
+        let param = { 'origin': origin, 'molNative1': molstr1, 'molNative2': molstr2, 'type': type, 'maxResults': maxResults };
+        Search.startRxnSearch(param, (result, error) => {
+            if (error != null)
+                throw 'molsync.ui.SearchReactions: failed to initiate search: ' + error.message;
+            this.rxnsearchToken = result.rxnsearchToken;
+            this.started = true;
+            this.finished = false;
+            Search.pollRxnSearch({ 'rxnsearchToken': this.rxnsearchToken }, (result, error) => this.batchSearch(result, error));
+        });
+    }
+    stopSearch() {
+        if (this.placeholder) {
+            this.placeholder.remove();
+            this.placeholder = null;
+        }
+        this.cancelled = true;
+        this.finished = true;
+        if (this.callbackStop)
+            this.callbackStop(this);
+    }
+    isRunning() {
+        return this.started && !this.finished;
+    }
+    batchSearch(result, error) {
+        if (error != null)
+            throw 'molsync.ui.SearchReactions: failed to obtain next batch: ' + error.message;
+        if (this.cancelled)
+            return;
+        this.finished = result.finished;
+        this.progress = result.progress;
+        this.count = result.count;
+        if (result.modified) {
+            if (this.placeholder) {
+                this.placeholder.remove();
+                this.placeholder = null;
+            }
+            this.updateResults(result.results);
+        }
+        if (!this.finished) {
+            Search.pollRxnSearch({ 'rxnsearchToken': this.rxnsearchToken }, (result, error) => this.batchSearch(result, error));
+            if (this.callbackProgress)
+                this.callbackProgress(this.progress, this.count, this);
+        }
+        else {
+            if (this.placeholder) {
+                this.placeholder.remove();
+                this.placeholder = null;
+            }
+            if (this.callbackStop)
+                this.callbackStop(this);
+        }
+    }
+    updateResults(results) {
+        for (let n = 0; n < results.length; n++) {
+            let res = results[n];
+            res.tr = $('<tr></tr>').appendTo(this.table);
+            res.td = $('<td></td>').appendTo(res.tr);
+            if (n > 0)
+                res.td.css('border-top', '1px solid #80C080');
+            if (n < results.length - 1)
+                res.td.css('border-bottom', '1px solid #80C080');
+            let table = $('<table></table>').appendTo(res.td), tr = $('<tr></tr>').appendTo(table);
+            if (res.similarity) {
+                let td = $('<td></td>').appendTo(tr);
+                let txt = res.similarity == 1 ? '100%' : (res.similarity * 100).toFixed(1) + '%';
+                td.text(txt);
+            }
+            if (res.dataXML) {
+                let td = $('<td></td>').appendTo(tr);
+                let vs = this.grabSketch(td, res.dataXML, res.datasheetID, res.row, res.batchID);
+                res.viewRxn = vs;
+            }
+            let td = $('<td></td>').appendTo(tr);
+            let link = $('<a href="#' + res.datasheetID + '"></a>').appendTo(td);
+            link.mouseenter((e) => e.target.style.backgroundColor = '#D0D0D0');
+            link.mouseleave((e) => e.target.style.backgroundColor = 'transparent');
+            let title = res.subTitle ? res.subTitle : res.title ? res.title : 'DataSheet#' + res.datasheetID;
+            link.text(title);
+            let body = '';
+            if (res.title && res.title != title)
+                body += '<div>Title: <i>' + escapeHTML(res.title) + '</i></div>';
+            if (res.descr)
+                body += '<div>Description: <i>' + escapeHTML(res.descr) + '</i></div>';
+            addTooltip(link, body, escapeHTML(title));
+            link.click(() => { if (this.callbackDS)
+                this.callbackDS(res.datasheetID, this); });
+            td.append(' ');
+        }
+        for (let res of this.results)
+            res.tr.remove();
+        this.results = results;
+    }
+    grabSketch(parent, dataXML, datasheetID, row, batchID) {
+        for (let res of this.results)
+            if (res.batchID == batchID) {
+                res.viewRxn.content.appendTo(parent);
+                return res.viewRxn;
+            }
+        const vs = new ViewStructure(this.tokenID);
+        vs.content = parent;
+        vs.defineDataSheetString(dataXML, 0);
+        vs.borderCol = -1;
+        vs.backgroundCol1 = 0xF8F8F8;
+        vs.backgroundCol2 = 0xE0E0E0;
+        vs.padding = 4;
+        vs.setup(() => {
+            vs.render(parent);
+            vs.content.css('cursor', 'pointer');
+            vs.content.click(() => {
+                if (this.callbackRxn)
+                    this.callbackRxn(dataXML, datasheetID, row, this);
+            });
+        });
+        return vs;
+    }
+}
+SearchReactions.TYPE_COMPONENT = 'component';
+SearchReactions.TYPE_TRANSFORM = 'transform';
+SearchReactions.TYPE_SIMILARITY = 'similarity';
+SearchReactions.TYPE_RANDOM = 'random';
 //# sourceMappingURL=sketchel2.js.map
