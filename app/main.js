@@ -15,11 +15,8 @@ let argv = process.argv.slice(0);
 //let cwd = process.cwd();
 let files = [];
 
-while (argv.length > 0)
-{
-	let arg = argv.shift();
-	if (arg == 'app/main.js') break; // anything after this is fair game
-}
+for (let n = 0; n < argv.length; n++) if (argv[n] == 'app/main.js') argv.splice(0, n);
+argv.shift();
 for (let n = 0; n < argv.length; n++)
 {
 	if (argv[n].startsWith('-')) {}

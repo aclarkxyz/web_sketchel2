@@ -1,11 +1,14 @@
 {
   "name": "placeholder",
   "version": "0.0.0",
-  "devDependencies": {
+  "devDependencies": 
+  {
     "electron": "^1.6.11",
-    "electron-packager": "^8.1.0"
+    "electron-packager": "^8.1.0",
+    "typescript": "^2.6.0"
   },
-  "build": {
+  "build": 
+  {
     "appId": "com.mmi.sketchel.SketchEl",
     "mac": {
       "category": "public.app-category.productivity"
