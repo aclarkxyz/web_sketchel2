@@ -22,11 +22,13 @@
 
 ///<reference path='./MainPanel.ts'/>
 
+namespace WebMolKit /* BOF */ {
+
 /*
 	Drawing window: dedicated entirely to the sketching of a molecular structure.
 */
 
-class DrawPanel extends MainPanel
+export class DrawPanel extends MainPanel
 {
 	private sketcher = new Sketcher();
 	private filename:string = null;
@@ -99,6 +101,7 @@ class DrawPanel extends MainPanel
 		else if (cmd == 'open') this.actionFileOpen();
 		else if (cmd == 'save') this.actionFileSave();
 		else if (cmd == 'saveAs') this.actionFileSaveAs();
+		else if (cmd == 'exportSVG') this.actionFileExportSVG();
 		else if (cmd == 'undo') this.sketcher.performUndo();
 		else if (cmd == 'redo') this.sketcher.performRedo();
 		else if (cmd == 'cut') this.actionCopy(true);
@@ -167,12 +170,17 @@ class DrawPanel extends MainPanel
 				{'name': 'MDL Molfile', 'extensions': ['mol']}
 			]
 		};
-		dialog.showSaveDialog((filename:string):void =>
+		dialog.showSaveDialog(params, (filename:string):void =>
 		{
 			this.saveFile(filename);
 			this.filename = filename;
 			this.updateTitle();
 		});
+	}
+
+	private actionFileExportSVG():void
+	{
+		// !!
 	}
 
 	private actionCopy(andCut:boolean):void
@@ -219,3 +227,5 @@ class DrawPanel extends MainPanel
 		document.title = 'SketchEl - ' + this.filename.substring(slash + 1);
 	}
 }
+
+/* EOF */ }

@@ -18,13 +18,15 @@
 
 ///<reference path='./DrawPanel.ts'/>
 
+namespace WebMolKit /* BOF */ {
+
 /*
 	Startup: gets the ball rolling, and provide some high level window handling.
 */
 
 let BASE_APP = ''; // base URL location for the app's program files (could be URL or filename)
 
-function runSketchEl(root:JQuery):void
+export function runSketchEl(root:JQuery):void
 {
 	// node/electron imports; note these are defined inside the function so as not to perturb normal web-access, which does not
 	// include these libraries
@@ -46,7 +48,7 @@ function runSketchEl(root:JQuery):void
 		let eq = p.indexOf('=');
 		if (eq < 0) continue;
 		let key = p.substring(0, eq), val = decodeURIComponent(p.substring(eq + 1));
-		if (key == 'panel') panelClass= val;
+		if (key == 'panel') panelClass = 'WebMolKit.' + val;
 		else if (key == 'fn') filename = val;
 	}	
 
@@ -64,7 +66,7 @@ function runSketchEl(root:JQuery):void
 }
 
 // high level functionality for opening a window, with a given panel as content
-function openNewWindow(panelClass:string, filename?:string):void
+export function openNewWindow(panelClass:string, filename?:string):void
 {
 	const electron = require('electron');
 	let bw = new electron.remote.BrowserWindow({'width':800, 'height':700, 'icon': 'app/img/icon.png'});
@@ -73,3 +75,5 @@ function openNewWindow(panelClass:string, filename?:string):void
 	bw.loadURL(url);
 	/*bw.on('closed', function() {bw = null;});*/
 }
+
+/* EOF */ }

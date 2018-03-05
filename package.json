@@ -10,7 +10,8 @@
   "build": 
   {
     "appId": "com.mmi.sketchel.SketchEl",
-    "mac": {
+    "mac": 
+    {
       "category": "public.app-category.productivity"
     }
   },
