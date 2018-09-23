@@ -10,15 +10,16 @@
 	[PKG=sketchel2]
 */
 
-///<reference path='../decl/node.d.ts'/>
-///<reference path='../decl/electron.d.ts'/>
-
 ///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
 ///<reference path='../../../WebMolKit/src/decl/jquery.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 ///<reference path='../../../WebMolKit/src/sketcher/Sketcher.ts'/>
 ///<reference path='../../../WebMolKit/src/data/Molecule.ts'/>
 ///<reference path='../../../WebMolKit/src/data/MoleculeStream.ts'/>
+///<reference path='../../../WebMolKit/src/data/MDLWriter.ts'/>
+
+///<reference path='../decl/node.d.ts'/>
+///<reference path='../decl/electron.d.ts'/>
 
 ///<reference path='./MainPanel.ts'/>
 
@@ -106,9 +107,10 @@ export class DrawPanel extends MainPanel
 		else if (cmd == 'redo') this.sketcher.performRedo();
 		else if (cmd == 'cut') this.actionCopy(true);
 		else if (cmd == 'copy') this.actionCopy(false);
+		else if (cmd == 'copyMDL') this.actionCopyMDL();
 		else if (cmd == 'paste') this.actionPaste();
-		else if (cmd == 'delete') new MoleculeActivity(this.sketcher, ActivityType.Delete, {});
-		else if (cmd == 'selectAll') new MoleculeActivity(this.sketcher, ActivityType.SelectAll, {});
+		else if (cmd == 'delete') new MoleculeActivity(this.sketcher, ActivityType.Delete, {}).execute();
+		else if (cmd == 'selectAll') new MoleculeActivity(this.sketcher, ActivityType.SelectAll, {}).execute();
 		else if (cmd == 'zoomFull') this.sketcher.autoScale();
 		else if (cmd == 'zoomIn') this.sketcher.zoom(1.25);
 		else if (cmd == 'zoomOut') this.sketcher.zoom(0.8);
@@ -204,6 +206,18 @@ export class DrawPanel extends MainPanel
 		clipboard.writeText(copyMol.toString());
 
 		this.sketcher.showMessage('Molecule with ' + copyMol.numAtoms + ' atom' + (copyMol.numAtoms == 1 ? '' : 's') + ' copied to clipboard.');
+	}
+
+	private actionCopyMDL():void
+	{
+		let mol = this.sketcher.getMolecule();
+		if (MolUtil.isBlank(mol)) {this.sketcher.showMessage('Draw a molecule first.'); return;}
+
+		const {clipboard} = require('electron');
+		let mdl = new MDLMOLWriter(mol);
+		clipboard.writeText(mdl.write());
+
+		this.sketcher.showMessage('Molfile with ' + mol.numAtoms + ' atom' + (mol.numAtoms == 1 ? '' : 's') + ' copied to clipboard.');
 	}
 
 	private actionPaste():void

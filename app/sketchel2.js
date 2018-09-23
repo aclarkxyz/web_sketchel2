@@ -15835,12 +15835,14 @@ var WebMolKit;
                 this.actionCopy(true);
             else if (cmd == 'copy')
                 this.actionCopy(false);
+            else if (cmd == 'copyMDL')
+                this.actionCopyMDL();
             else if (cmd == 'paste')
                 this.actionPaste();
             else if (cmd == 'delete')
-                new WebMolKit.MoleculeActivity(this.sketcher, WebMolKit.ActivityType.Delete, {});
+                new WebMolKit.MoleculeActivity(this.sketcher, WebMolKit.ActivityType.Delete, {}).execute();
             else if (cmd == 'selectAll')
-                new WebMolKit.MoleculeActivity(this.sketcher, WebMolKit.ActivityType.SelectAll, {});
+                new WebMolKit.MoleculeActivity(this.sketcher, WebMolKit.ActivityType.SelectAll, {}).execute();
             else if (cmd == 'zoomFull')
                 this.sketcher.autoScale();
             else if (cmd == 'zoomIn')
@@ -15923,6 +15925,17 @@ var WebMolKit;
             const { clipboard } = require('electron');
             clipboard.writeText(copyMol.toString());
             this.sketcher.showMessage('Molecule with ' + copyMol.numAtoms + ' atom' + (copyMol.numAtoms == 1 ? '' : 's') + ' copied to clipboard.');
+        }
+        actionCopyMDL() {
+            let mol = this.sketcher.getMolecule();
+            if (WebMolKit.MolUtil.isBlank(mol)) {
+                this.sketcher.showMessage('Draw a molecule first.');
+                return;
+            }
+            const { clipboard } = require('electron');
+            let mdl = new WebMolKit.MDLMOLWriter(mol);
+            clipboard.writeText(mdl.write());
+            this.sketcher.showMessage('Molfile with ' + mol.numAtoms + ' atom' + (mol.numAtoms == 1 ? '' : 's') + ' copied to clipboard.');
         }
         actionPaste() {
             const { clipboard } = require('electron');

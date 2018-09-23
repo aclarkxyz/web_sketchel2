@@ -10,12 +10,11 @@
 	[PKG=sketchel2]
 */
 
-///<reference path='../decl/node.d.ts'/>
-
 ///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
 ///<reference path='../../../WebMolKit/src/decl/jquery.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 
+///<reference path='../decl/node.d.ts'/>
 ///<reference path='./DrawPanel.ts'/>
 
 namespace WebMolKit /* BOF */ {
