@@ -14,6 +14,7 @@
 ///<reference path='../../../WebMolKit/src/decl/jquery.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 ///<reference path='../../../WebMolKit/src/sketcher/Sketcher.ts'/>
+///<reference path='../../../WebMolKit/src/ui/ClipboardProxy.ts'/>
 ///<reference path='../../../WebMolKit/src/data/Molecule.ts'/>
 ///<reference path='../../../WebMolKit/src/data/MoleculeStream.ts'/>
 ///<reference path='../../../WebMolKit/src/data/MDLWriter.ts'/>
@@ -33,6 +34,8 @@ export class DrawPanel extends MainPanel
 {
 	private sketcher = new Sketcher();
 	private filename:string = null;
+
+	private proxyClip = new ClipboardProxy();
 	
 	// ------------ public methods ------------
 
@@ -40,8 +43,14 @@ export class DrawPanel extends MainPanel
 	{
 		super(root);
 
+		const {clipboard} = require('electron');
+		this.proxyClip.getString = ():string => clipboard.readText();
+		this.proxyClip.setString = (str:string):void => clipboard.writeText(str);
+		this.proxyClip.canAlwaysGet = ():boolean => true;
+
 		let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
 		this.sketcher.setSize(w, h);
+		this.sketcher.defineClipboard(this.proxyClip);
 		this.sketcher.setup(() => this.sketcher.render(root));
 	}
 

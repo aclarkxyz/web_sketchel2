@@ -809,6 +809,13 @@ var WebMolKit;
     WebMolKit.escapeHTML = escapeHTML;
     function orBlank(str) { return str == null ? '' : str; }
     WebMolKit.orBlank = orBlank;
+    function dictValues(dict) {
+        let list = [];
+        for (let key in dict)
+            list.push(dict[key]);
+        return list;
+    }
+    WebMolKit.dictValues = dictValues;
     function toUTF8(str) {
         let data = [], stripe = '';
         const sz = str.length;
@@ -1534,11 +1541,10 @@ var WebMolKit;
             prevLeave(e); });
     }
     WebMolKit.addTooltip = addTooltip;
-    function raiseToolTip(parent, avoid, bodyHTML, titleHTML) {
+    function raiseToolTip(widget, avoid, bodyHTML, titleHTML) {
         clearTooltip();
         Tooltip.ensureGlobal();
-        let widget = $(parent);
-        new Tooltip(widget, bodyHTML, titleHTML, 0).raise(avoid);
+        new Tooltip($(widget), bodyHTML, titleHTML, 0).raise(avoid);
     }
     WebMolKit.raiseToolTip = raiseToolTip;
     function clearTooltip() {
@@ -5029,6 +5035,8 @@ var WebMolKit;
                     style = WebMolKit.Molecule.BONDTYPE_INCLINED;
                 else if (stereo == 6)
                     style = WebMolKit.Molecule.BONDTYPE_DECLINED;
+                else if (stereo == 4)
+                    style = WebMolKit.Molecule.BONDTYPE_UNKNOWN;
                 let b = this.mol.addBond(bfr, bto, order, style);
                 if (type == 4) {
                     let src = { 'row': this.pos - 1, 'col': 6, 'len': 3 };
@@ -5140,33 +5148,27 @@ var WebMolKit;
                     mol.setAtomElement(n, 'H');
                     mol.setAtomIsotope(n, 3);
                 }
-                let options = WebMolKit.MDLMOL_VALENCE[el], atno = WebMolKit.Molecule.elementAtomicNumber(el);
-                if (options || WebMolKit.Chemistry.ELEMENT_BLOCKS[atno] == 2) {
-                    let valence = explicitValence[n - 1], importedH = 0;
-                    if (valence == 0) {
-                        let chg = mol.atomCharge(n);
-                        let chgmod = (el == 'C' || el == 'H') ? Math.abs(chg) : el == 'B' ? -Math.abs(chg) : -chg;
-                        let usedValence = chgmod + mol.atomUnpaired(n);
-                        for (let b of mol.atomAdjBonds(n))
-                            usedValence += mol.bondOrder(b);
-                        if (!options)
-                            options = [WebMolKit.Chemistry.ELEMENT_VALENCE[atno]];
-                        for (let v of options)
-                            if (usedValence <= v) {
-                                importedH = v - usedValence;
-                                break;
-                            }
-                    }
-                    else if (valence > 0 && valence <= 14) {
-                        importedH = valence;
-                        for (let b of mol.atomAdjBonds(n))
-                            importedH -= mol.bondOrder(b);
-                    }
-                    if (importedH > 0) {
-                        let nativeH = mol.atomHydrogens(n);
-                        if (importedH != nativeH)
-                            mol.setAtomHExplicit(n, importedH);
-                    }
+                let valence = explicitValence[n - 1], options = WebMolKit.MDLMOL_VALENCE[el];
+                if (valence != 0) {
+                    let hcount = valence < 0 || valence > 14 ? 0 : valence;
+                    for (let b of mol.atomAdjBonds(n))
+                        hcount -= mol.bondOrder(b);
+                    if (hcount != mol.atomHydrogens(n))
+                        mol.setAtomHExplicit(n, hcount);
+                }
+                else if (options) {
+                    let chg = mol.atomCharge(n);
+                    let chgmod = (el == 'C' || el == 'H') ? Math.abs(chg) : el == 'B' ? -Math.abs(chg) : -chg;
+                    let usedValence = chgmod + mol.atomUnpaired(n);
+                    for (let b of mol.atomAdjBonds(n))
+                        usedValence += mol.bondOrder(b);
+                    for (let v of options)
+                        if (usedValence <= v) {
+                            let hcount = v - usedValence;
+                            if (hcount != mol.atomHydrogens(n))
+                                mol.setAtomHExplicit(n, hcount);
+                            break;
+                        }
                 }
             }
             if (this.considerRescale)
@@ -6256,20 +6258,7 @@ var WebMolKit;
                     chg = 4 - chg;
                 else
                     chg = 0;
-                let val = 0, hyd = mol.atomHydrogens(n);
-                if (hyd > 0) {
-                    let chg = mol.atomCharge(n);
-                    let chgmod = (el == 'C' || el == 'H') ? Math.abs(chg) : el == 'B' ? -Math.abs(chg) : -chg;
-                    let nativeVal = chgmod + mol.atomUnpaired(n) + hyd;
-                    for (let b of mol.atomAdjBonds(n))
-                        nativeVal += mol.bondOrder(b);
-                    let options = WebMolKit.MDLMOL_VALENCE[el];
-                    if (!options || options.indexOf(nativeVal) < 0) {
-                        val = nativeVal - chgmod;
-                        if (val <= 0 || val > 14)
-                            val = 15;
-                    }
-                }
+                let val = this.mdlValence(mol, n, 15);
                 line += this.intrpad(chg, 3) + '  0  0  0' + this.intrpad(val, 3) + '  0  0  0' + this.intrpad(mapnum, 3) + '  0  0';
                 this.lines.push(line);
                 if (mol.atomCharge(n) != 0) {
@@ -6292,7 +6281,7 @@ var WebMolKit;
                 }
             }
             for (let n = 1; n <= mol.numBonds; n++) {
-                let order = mol.bondOrder(n), type = order;
+                let order = mol.bondOrder(n), type = Math.max(1, Math.min(3, order));
                 let stereo = mol.bondType(n);
                 if (stereo == WebMolKit.Molecule.BONDTYPE_NORMAL) { }
                 else if (stereo == WebMolKit.Molecule.BONDTYPE_INCLINED) {
@@ -6371,6 +6360,22 @@ var WebMolKit;
             while (str.length < sz)
                 str = ' ' + str;
             return str;
+        }
+        mdlValence(mol, atom, zeroVal) {
+            let hyd = mol.atomHydrogens(atom), el = mol.atomElement(atom);
+            let options = WebMolKit.MDLMOL_VALENCE[el];
+            if (options == null && hyd == 0)
+                return 0;
+            if (options && options.length == 1 && options[0] == hyd)
+                return 0;
+            let chg = mol.atomCharge(atom);
+            let chgmod = (el == 'C' || el == 'H') ? Math.abs(chg) : el == 'B' ? -Math.abs(chg) : -chg;
+            let bondSum = 0;
+            for (let b of mol.atomAdjBonds(atom))
+                bondSum += mol.bondOrder(b);
+            let nativeVal = chgmod + mol.atomUnpaired(atom) + hyd + bondSum;
+            let val = nativeVal - chgmod;
+            return val <= 0 || val > 14 ? zeroVal : val;
         }
     }
     WebMolKit.MDLMOLWriter = MDLMOLWriter;
@@ -7599,10 +7604,8 @@ var WebMolKit;
                 let overCol = this.effects.colAtom[n];
                 if (overCol)
                     a.col = overCol;
-                let explicit = mol.atomExplicit(n);
-                if (explicit && mol.atomElement(n) == 'C' && !this.atomIsWeirdLinear(n))
-                    explicit = !artmask[n - 1];
-                a.text = explicit ? mol.atomElement(n) : null;
+                if (artmask[n - 1] && mol.atomElement(n) == 'C')
+                    a.text = null;
                 if (a.text != null) {
                     let wad = this.measure.measureText(a.text, a.fsz);
                     const PADDING = 1.1;
@@ -9604,7 +9607,7 @@ var WebMolKit;
                 ctrl[j + 1] = true;
                 ctrl[j + 2] = false;
             }
-            this.vg.drawPath(x, y, ctrl, true, col, size, WebMolKit.MetaVector.NOCOLOUR, false);
+            this.vg.drawPath(x, y, ctrl, false, col, size, WebMolKit.MetaVector.NOCOLOUR, false);
         }
         drawBondDotted(b) {
             let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
@@ -10204,7 +10207,7 @@ var WebMolKit;
             pb.css('position', 'absolute');
             pb.css('left', (50 - 0.5 * this.minPortionWidth) + '%');
             pb.css('top', (document.body.scrollTop + 50) + 'px');
-            pb.css('min-height', '50%');
+            pb.css('min-height', '20%');
             pb.css('z-index', 10000);
             this.panelBoundary = pb;
             let tdiv = $('<div></div>').appendTo(pb);
@@ -13736,48 +13739,48 @@ var WebMolKit;
 (function (WebMolKit) {
     class DataSheetStream {
         static readXML(strXML) {
-            var xmlDoc = jQuery.parseXML(strXML);
+            let xmlDoc = new DOMParser().parseFromString(strXML, 'application/xml');
             if (xmlDoc == null)
                 return null;
-            var root = xmlDoc.documentElement;
+            let root = xmlDoc.documentElement;
             if (root == null)
                 return null;
-            var ds = new WebMolKit.DataSheet();
-            var summary = WebMolKit.findNode(root, 'Summary');
+            let ds = new WebMolKit.DataSheet();
+            let summary = WebMolKit.findNode(root, 'Summary');
             if (summary == null)
                 return null;
             ds.setTitle(WebMolKit.nodeText(WebMolKit.findNode(summary, 'Title')));
             ds.setDescription(WebMolKit.nodeText(WebMolKit.findNode(summary, 'Description')));
-            var extRoot = WebMolKit.findNode(root, 'Extension');
+            let extRoot = WebMolKit.findNode(root, 'Extension');
             if (extRoot != null) {
-                var extList = WebMolKit.findNodes(extRoot, 'Ext');
-                for (var n = 0; n < extList.length; n++) {
-                    var ext = extList[n];
+                let extList = WebMolKit.findNodes(extRoot, 'Ext');
+                for (let n = 0; n < extList.length; n++) {
+                    let ext = extList[n];
                     ds.appendExtension(ext.getAttribute("name"), ext.getAttribute("type"), WebMolKit.nodeText(ext));
                 }
             }
-            var header = WebMolKit.findNode(root, 'Header');
-            var numCols = parseInt(header.getAttribute("ncols")), numRows = parseInt(header.getAttribute("nrows"));
-            var colList = WebMolKit.findNodes(header, 'Column');
+            let header = WebMolKit.findNode(root, 'Header');
+            let numCols = parseInt(header.getAttribute("ncols")), numRows = parseInt(header.getAttribute("nrows"));
+            let colList = WebMolKit.findNodes(header, 'Column');
             if (colList.length != numCols)
                 return null;
-            for (var n = 0; n < numCols; n++) {
-                var col = colList[n];
-                var id = parseInt(col.getAttribute("id"));
+            for (let n = 0; n < numCols; n++) {
+                let col = colList[n];
+                let id = parseInt(col.getAttribute("id"));
                 if (id != n + 1)
                     return null;
                 ds.appendColumn(col.getAttribute("name"), col.getAttribute("type"), WebMolKit.nodeText(col));
             }
-            var row = WebMolKit.findNode(root, 'Content').firstElementChild;
-            var rowidx = 0;
+            let row = WebMolKit.findNode(root, 'Content').firstElementChild;
+            let rowidx = 0;
             while (row) {
                 if (parseInt(row.getAttribute("id")) != rowidx + 1)
                     return null;
                 ds.appendRow();
-                var col = row.firstElementChild;
+                let col = row.firstElementChild;
                 while (col) {
-                    var colidx = parseInt(col.getAttribute("id")) - 1;
-                    var ct = ds.colType(colidx), val = WebMolKit.nodeText(col);
+                    let colidx = parseInt(col.getAttribute("id")) - 1;
+                    let ct = ds.colType(colidx), val = WebMolKit.nodeText(col);
                     if (val == '') { }
                     else if (ct == WebMolKit.DataSheet.COLTYPE_MOLECULE)
                         ds.setObject(rowidx, colidx, val);
@@ -13800,47 +13803,47 @@ var WebMolKit;
             return ds;
         }
         static writeXML(ds) {
-            var xml = new DOMParser().parseFromString('<DataSheet/>', 'text/xml');
-            var summary = xml.createElement('Summary');
+            let xml = new DOMParser().parseFromString('<DataSheet/>', 'text/xml');
+            let summary = xml.createElement('Summary');
             xml.documentElement.appendChild(summary);
-            var title = xml.createElement('Title'), descr = xml.createElement('Description');
+            let title = xml.createElement('Title'), descr = xml.createElement('Description');
             summary.appendChild(title);
             title.appendChild(xml.createTextNode(ds.getTitle()));
             summary.appendChild(descr);
             descr.appendChild(xml.createCDATASection(ds.getDescription()));
-            var extension = xml.createElement('Extension');
+            let extension = xml.createElement('Extension');
             xml.documentElement.appendChild(extension);
-            for (var n = 0; n < ds.numExtensions; n++) {
-                var ext = xml.createElement('Ext');
+            for (let n = 0; n < ds.numExtensions; n++) {
+                let ext = xml.createElement('Ext');
                 extension.appendChild(ext);
                 ext.setAttribute('name', ds.getExtName(n));
                 ext.setAttribute('type', ds.getExtType(n));
                 ext.appendChild(xml.createCDATASection(ds.getExtData(n)));
             }
-            var header = xml.createElement('Header');
+            let header = xml.createElement('Header');
             xml.documentElement.appendChild(header);
             header.setAttribute('nrows', ds.numRows.toString());
             header.setAttribute('ncols', ds.numCols.toString());
-            for (var n = 0; n < ds.numCols; n++) {
-                var column = xml.createElement('Column');
+            for (let n = 0; n < ds.numCols; n++) {
+                let column = xml.createElement('Column');
                 header.appendChild(column);
                 column.setAttribute('id', (n + 1).toString());
                 column.setAttribute('name', ds.colName(n));
                 column.setAttribute('type', ds.colType(n));
                 column.appendChild(xml.createTextNode(ds.colDescr(n)));
             }
-            var content = xml.createElement('Content');
+            let content = xml.createElement('Content');
             xml.documentElement.appendChild(content);
-            for (var r = 0; r < ds.numRows; r++) {
-                var row = xml.createElement('Row');
+            for (let r = 0; r < ds.numRows; r++) {
+                let row = xml.createElement('Row');
                 row.setAttribute('id', (r + 1).toString());
                 content.appendChild(row);
-                for (var c = 0; c < ds.numCols; c++) {
-                    var cell = xml.createElement('Cell');
+                for (let c = 0; c < ds.numCols; c++) {
+                    let cell = xml.createElement('Cell');
                     cell.setAttribute('id', (c + 1).toString());
                     row.appendChild(cell);
-                    var ct = ds.colType(c);
-                    var txtNode = null;
+                    let ct = ds.colType(c);
+                    let txtNode = null;
                     if (ds.isNull(r, c)) { }
                     else if (ct == WebMolKit.DataSheet.COLTYPE_MOLECULE) {
                         let obj = ds.getObject(r, c);
@@ -14140,6 +14143,455 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    class TabBar extends WebMolKit.Widget {
+        constructor(options) {
+            super();
+            this.options = options;
+            this.selidx = 0;
+            this.buttonDiv = [];
+            this.panelDiv = [];
+            this.padding = 6;
+            this.callbackSelect = null;
+            if (!WebMolKit.hasInlineCSS('tabbar'))
+                WebMolKit.installInlineCSS('tabbar', this.composeCSS());
+        }
+        getSelectedIndex() {
+            return this.selidx;
+        }
+        getSelectedValue() {
+            return this.options[this.selidx];
+        }
+        getPanel(idxOrName) {
+            let idx = typeof idxOrName == 'number' ? idxOrName : this.options.indexOf(idxOrName);
+            if (idx < 0)
+                return null;
+            return this.panelDiv[idx];
+        }
+        render(parent) {
+            super.render(parent);
+            let grid = $('<div></div>').appendTo(this.content);
+            grid.css('display', 'grid');
+            grid.css('align-items', 'center');
+            grid.css('justify-content', 'start');
+            grid.css('grid-row-gap', '0.5em');
+            let columns = '[start] 1fr ';
+            for (let n = 0; n < this.options.length; n++)
+                columns += '[btn' + n + '] auto ';
+            columns += '[btnX] 1fr [end]';
+            grid.css('grid-template-columns', columns);
+            let underline = $('<div></div>').appendTo(grid);
+            underline.css('grid-column', 'start / end');
+            underline.css('grid-row', '1');
+            underline.css('border-bottom', '1px solid #C0C0C0');
+            underline.css('height', '100%');
+            for (let n = 0; n < this.options.length; n++) {
+                let outline = $('<div class="wmk-tabbar-cell"></div>').appendTo(grid);
+                outline.css('grid-column', 'btn' + n);
+                outline.css('grid-row', '1');
+                let btn = $('<div class="wmk-tabbar"></div>').appendTo(outline);
+                btn.css('padding', this.padding + 'px');
+                this.buttonDiv.push(btn);
+                let panel = $('<div></div>').appendTo(grid);
+                panel.css('grid-column', 'start / end');
+                panel.css('grid-row', '2');
+                panel.css('align-self', 'start');
+                panel.css('justify-self', 'center');
+                this.panelDiv.push(panel);
+            }
+            this.updateButtons();
+        }
+        clickButton(idx) {
+            if (idx == this.selidx)
+                return;
+            this.setSelectedIndex(idx);
+            if (this.callbackSelect)
+                this.callbackSelect(idx, this);
+        }
+        setSelectedIndex(idx) {
+            if (this.selidx == idx)
+                return;
+            this.selidx = idx;
+            this.updateButtons();
+        }
+        setSelectedValue(val) {
+            let idx = this.options.indexOf(val);
+            if (idx >= 0)
+                this.setSelectedIndex(idx);
+        }
+        updateButtons() {
+            for (let n = 0; n < this.options.length && n < this.buttonDiv.length; n++) {
+                let div = this.buttonDiv[n];
+                let txt = this.options[n];
+                if (txt.length == 0 && n == this.selidx)
+                    div.text('\u00A0\u2716\u00A0');
+                else if (txt.length == 0)
+                    div.text('\u00A0\u00A0\u00A0');
+                else
+                    div.text(txt);
+                div.off('mouseover');
+                div.off('mouseout');
+                div.off('mousedown');
+                div.off('mouseup');
+                div.off('mouseleave');
+                div.off('mousemove');
+                div.off('click');
+                div.removeClass('wmk-tabbar-hover wmk-tabbar-active wmk-tabbar-unselected wmk-tabbar-selected');
+                if (n != this.selidx) {
+                    div.addClass('wmk-tabbar-unselected');
+                    div.mouseover(() => div.addClass('wmk-tabbar-hover'));
+                    div.mouseout(() => div.removeClass('wmk-tabbar-hover wmk-tabbar-active'));
+                    div.mousedown(() => div.addClass('wmk-tabbar-active'));
+                    div.mouseup(() => div.removeClass('wmk-tabbar-active'));
+                    div.mouseleave(() => div.removeClass('wmk-tabbar-hover wmk-tabbar-active'));
+                    div.mousemove(() => { return false; });
+                    div.click(() => this.clickButton(n));
+                }
+                else
+                    div.addClass('wmk-tabbar-selected');
+                this.panelDiv[n].css('visibility', n == this.selidx ? 'visible' : 'hidden');
+            }
+        }
+        composeCSS() {
+            let lowlight = WebMolKit.colourCode(WebMolKit.Theme.lowlight), lowlightEdge1 = WebMolKit.colourCode(WebMolKit.Theme.lowlightEdge1), lowlightEdge2 = WebMolKit.colourCode(WebMolKit.Theme.lowlightEdge2);
+            let highlight = WebMolKit.colourCode(WebMolKit.Theme.highlight), highlightEdge1 = WebMolKit.colourCode(WebMolKit.Theme.highlightEdge1), highlightEdge2 = WebMolKit.colourCode(WebMolKit.Theme.highlightEdge2);
+            return `
+			.wmk-tabbar
+			{
+				margin-bottom: 0;
+				font-family: 'Open Sans', sans-serif;
+				font-size: 14px;
+				font-weight: normal;
+				text-align: center;
+				white-space: nowrap;
+				vertical-align: middle;
+				-ms-touch-action: manipulation; touch-action: manipulation;
+				cursor: pointer;
+				-webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+			}
+			.wmk-tabbar-selected
+			{
+				color: white;
+				background-color: #008FD2;
+				background-image: linear-gradient(to right bottom, ${lowlightEdge1}, ${lowlightEdge2});
+			}
+			.wmk-tabbar-unselected
+			{
+				color: #333;
+				background-color: white;
+				background-image: linear-gradient(to right bottom, #FFFFFF, #E0E0E0);
+			}
+			.wmk-tabbar-table
+			{
+				margin: 1px;
+				padding: 0;
+				border-width: 0;
+				border-collapse: collapse;
+			}
+			.wmk-tabbar-cell
+			{
+				margin: 0 -1px -1px 0;
+				padding: 0;
+				border-width: 0;
+				border-width: 1px;
+				border-style: solid;
+				border-color: #808080;
+			}
+			.wmk-tabbar-hover
+			{
+				background-color: #808080;
+				background-image: linear-gradient(to right bottom, #F0F0F0, #D0D0D0);
+			}
+			.wmk-tabbar-active
+			{
+				background-color: #00C000;
+				background-image: linear-gradient(to right bottom, ${highlightEdge1}, ${highlightEdge2});
+			}
+		`;
+        }
+    }
+    WebMolKit.TabBar = TabBar;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class OptionList extends WebMolKit.Widget {
+        constructor(options, isVertical = false) {
+            super();
+            this.options = options;
+            this.isVertical = isVertical;
+            this.selidx = 0;
+            this.buttonDiv = [];
+            this.auxCell = [];
+            this.padding = 6;
+            this.callbackSelect = null;
+            if (options.length == 0)
+                throw 'molsync.ui.OptionList: must provide a list of option labels.';
+            if (!WebMolKit.hasInlineCSS('option'))
+                WebMolKit.installInlineCSS('option', this.composeCSS());
+        }
+        getSelectedIndex() {
+            return this.selidx;
+        }
+        getSelectedValue() {
+            return this.options[this.selidx];
+        }
+        getAuxiliaryCell(idx) {
+            return this.auxCell[idx];
+        }
+        render(parent) {
+            super.render(parent);
+            this.buttonDiv = [];
+            this.auxCell = [];
+            let table = $('<table class="wmk-option-table"></table>').appendTo(this.content);
+            let tr = this.isVertical ? null : $('<tr></tr>').appendTo(table);
+            for (let n = 0; n < this.options.length; n++) {
+                if (this.isVertical)
+                    tr = $('<tr></tr>').appendTo(table);
+                let td = $('<td class="wmk-option-cell"></td>').appendTo(tr);
+                let div = $('<div class="wmk-option"></div>').appendTo(td);
+                div.css('padding', this.padding + 'px');
+                this.buttonDiv.push(div);
+                if (this.isVertical) {
+                    td = $('<td style="vertical-align: middle;"></td>').appendTo(tr);
+                    this.auxCell.push(td);
+                }
+            }
+            this.updateButtons();
+        }
+        clickButton(idx) {
+            if (idx == this.selidx)
+                return;
+            this.setSelectedIndex(idx);
+            if (this.callbackSelect)
+                this.callbackSelect(idx, this);
+        }
+        setSelectedIndex(idx) {
+            if (this.selidx == idx)
+                return;
+            this.selidx = idx;
+            this.updateButtons();
+        }
+        setSelectedValue(val) {
+            let idx = this.options.indexOf(val);
+            if (idx >= 0)
+                this.setSelectedIndex(idx);
+        }
+        updateButtons() {
+            for (let n = 0; n < this.options.length && n < this.buttonDiv.length; n++) {
+                let div = this.buttonDiv[n];
+                let txt = this.options[n];
+                if (txt.length == 0 && n == this.selidx)
+                    div.text('\u00A0\u2716\u00A0');
+                else if (txt.length == 0)
+                    div.text('\u00A0\u00A0\u00A0');
+                else
+                    div.text(txt);
+                div.off('mouseover');
+                div.off('mouseout');
+                div.off('mousedown');
+                div.off('mouseup');
+                div.off('mouseleave');
+                div.off('mousemove');
+                div.off('click');
+                div.removeClass('wmk-option-hover wmk-option-active wmk-option-unselected wmk-option-selected');
+                if (n != this.selidx) {
+                    div.addClass('wmk-option-unselected');
+                    div.mouseover(() => div.addClass('wmk-option-hover'));
+                    div.mouseout(() => div.removeClass('wmk-option-hover wmk-option-active'));
+                    div.mousedown(() => div.addClass('wmk-option-active'));
+                    div.mouseup(() => div.removeClass('wmk-option-active'));
+                    div.mouseleave(() => div.removeClass('wmk-option-hover wmk-option-active'));
+                    div.mousemove(() => { return false; });
+                    div.click(() => this.clickButton(n));
+                }
+                else
+                    div.addClass('wmk-option-selected');
+            }
+        }
+        composeCSS() {
+            let lowlight = WebMolKit.colourCode(WebMolKit.Theme.lowlight), lowlightEdge1 = WebMolKit.colourCode(WebMolKit.Theme.lowlightEdge1), lowlightEdge2 = WebMolKit.colourCode(WebMolKit.Theme.lowlightEdge2);
+            let highlight = WebMolKit.colourCode(WebMolKit.Theme.highlight), highlightEdge1 = WebMolKit.colourCode(WebMolKit.Theme.highlightEdge1), highlightEdge2 = WebMolKit.colourCode(WebMolKit.Theme.highlightEdge2);
+            return `
+			.wmk-option
+			{
+				margin-bottom: 0;
+				font-family: 'Open Sans', sans-serif;
+				font-size: 14px;
+				font-weight: normal;
+				text-align: center;
+				white-space: nowrap;
+				vertical-align: middle;
+				-ms-touch-action: manipulation; touch-action: manipulation;
+				cursor: pointer;
+				-webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+			}
+			.wmk-option-selected
+			{
+				color: white;
+				background-color: #008FD2;
+				background-image: linear-gradient(to right bottom, ${lowlightEdge1}, ${lowlightEdge2});
+			}
+			.wmk-option-unselected
+			{
+				color: #333;
+				background-color: white;
+				background-image: linear-gradient(to right bottom, #FFFFFF, #E0E0E0);
+			}
+			.wmk-option-table
+			{
+				margin: 1px;
+				padding: 0;
+				border-width: 0;
+				border-collapse: collapse;
+			}
+			.wmk-option-cell
+			{
+				margin: 0;
+				padding: 0;
+				border-width: 0;
+				border-width: 1px;
+				border-style: solid;
+				border-color: #808080;
+			}
+			.wmk-option-hover
+			{
+				background-color: #808080;
+				background-image: linear-gradient(to right bottom, #F0F0F0, #D0D0D0);
+			}
+			.wmk-option-active
+			{
+				background-color: #00C000;
+				background-image: linear-gradient(to right bottom, ${highlightEdge1}, ${highlightEdge2});
+			}
+		`;
+        }
+    }
+    WebMolKit.OptionList = OptionList;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class EditAtom extends WebMolKit.Dialog {
+        constructor(mol, atom, callbackApply) {
+            super();
+            this.atom = atom;
+            this.callbackApply = callbackApply;
+            this.initMol = mol;
+            this.mol = mol.clone();
+            this.title = 'Edit Atom';
+            this.minPortionWidth = 20;
+            this.maxPortionWidth = 95;
+        }
+        populate() {
+            let buttons = this.buttons(), body = this.body();
+            buttons.append(this.btnClose);
+            buttons.append(' ');
+            this.btnApply = $('<button class="wmk-button wmk-button-primary">Save</button>').appendTo(buttons);
+            this.btnApply.click(() => {
+                this.updateMolecule();
+                if (this.callbackApply)
+                    this.callbackApply(this);
+            });
+            this.tabs = new WebMolKit.TabBar(['Atom', 'Abbreviation', 'Geometry', 'Query', 'Extra']);
+            this.tabs.render(body);
+            this.populateAtom(this.tabs.getPanel('Atom'));
+            this.populateAbbreviation(this.tabs.getPanel('Abbreviation'));
+            this.populateGeometry(this.tabs.getPanel('Geometry'));
+            this.populateQuery(this.tabs.getPanel('Query'));
+            this.populateExtra(this.tabs.getPanel('Extra'));
+        }
+        populateAtom(panel) {
+            let grid = $('<div></div>').appendTo(panel);
+            grid.css('display', 'grid');
+            grid.css('align-items', 'center');
+            grid.css('justify-content', 'start');
+            grid.css('grid-row-gap', '0.5em');
+            grid.css('grid-column-gap', '0.5em');
+            grid.css('grid-template-columns', '[start col0] auto [col1] auto [col2] auto [col3] auto [col4 end]');
+            grid.append('<div style="grid-area: 1 / col0;">Symbol</div>');
+            this.inputSymbol = $('<input size="20"></input>').appendTo(grid);
+            this.inputSymbol.css('grid-area', '1 / col1 / auto / col4');
+            grid.append('<div style="grid-area: 2 / col0;">Charge</div>');
+            this.inputCharge = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputCharge.css('grid-area', '2 / col1');
+            grid.append('<div style="grid-area: 2 / col2;">Unpaired</div>');
+            this.inputUnpaired = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputUnpaired.css('grid-area', '2 / col3');
+            grid.append('<div style="grid-area: 3 / col0;">Hydrogens</div>');
+            this.optionHydrogen = new WebMolKit.OptionList(['Auto', 'Explicit']);
+            this.optionHydrogen.render($('<div style="grid-area: 3 / col1 / auto / col3"></div>').appendTo(grid));
+            this.inputHydrogen = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputHydrogen.css('grid-area', '3 / col3');
+            grid.append('<div style="grid-area: 4 / col0;">Isotope</div>');
+            this.optionIsotope = new WebMolKit.OptionList(['Natural', 'Enriched']);
+            this.optionIsotope.render($('<div style="grid-area: 4 / col1 / auto / col3"></div>').appendTo(grid));
+            this.inputIsotope = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputIsotope.css('grid-area', '4 / col3');
+            grid.append('<div style="grid-area: 5 / col0;">Mapping</div>');
+            this.inputMapping = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputMapping.css('grid-area', '5 / col1');
+            grid.append('<div style="grid-area: 5 / col2;">Index</div>');
+            this.inputIndex = $('<input type="number" size="6" readonly="readonly"></input>').appendTo(grid);
+            this.inputIndex.css('grid-area', '5 / col3');
+            grid.find('input').css('font', 'inherit');
+            const mol = this.mol, atom = this.atom;
+            this.inputSymbol.val(mol.atomElement(atom));
+            this.inputCharge.val(mol.atomCharge(atom).toString());
+            this.inputUnpaired.val(mol.atomUnpaired(atom).toString());
+            this.optionHydrogen.setSelectedIndex(mol.atomHExplicit(atom) == WebMolKit.Molecule.HEXPLICIT_UNKNOWN ? 0 : 1);
+            if (mol.atomHExplicit(atom) != WebMolKit.Molecule.HEXPLICIT_UNKNOWN)
+                this.inputHydrogen.val(mol.atomHExplicit(atom).toString());
+            this.optionIsotope.setSelectedIndex(mol.atomIsotope(atom) == WebMolKit.Molecule.ISOTOPE_NATURAL ? 0 : 1);
+            if (mol.atomIsotope(atom) == WebMolKit.Molecule.ISOTOPE_NATURAL)
+                this.inputIsotope.val(mol.atomIsotope(atom).toString());
+            this.inputMapping.val(mol.atomMapNum(atom).toString());
+            this.inputIndex.val(atom.toString());
+            this.inputSymbol.focus();
+        }
+        populateAbbreviation(panel) {
+            panel.append('Abbreviations: TODO');
+        }
+        populateGeometry(panel) {
+            panel.append('Geometry: TODO');
+        }
+        populateQuery(panel) {
+            panel.append('Query: TODO');
+        }
+        populateExtra(panel) {
+            panel.append('Extra: TODO');
+        }
+        updateMolecule() {
+            const mol = this.mol, atom = this.atom;
+            let sym = this.inputSymbol.val();
+            if (sym != '')
+                mol.setAtomElement(atom, sym);
+            let chg = parseInt(this.inputCharge.val());
+            if (chg > -20 && chg < 20)
+                mol.setAtomCharge(atom, chg);
+            let unp = parseInt(this.inputUnpaired.val());
+            if (unp >= 0 && unp < 20)
+                mol.setAtomUnpaired(atom, unp);
+            if (this.optionHydrogen.getSelectedIndex() == 1) {
+                let hyd = parseInt(this.inputHydrogen.val());
+                if (hyd >= 0 && hyd < 20)
+                    mol.setAtomHExplicit(atom, hyd);
+            }
+            else
+                mol.setAtomHExplicit(atom, WebMolKit.Molecule.HEXPLICIT_UNKNOWN);
+            if (this.optionIsotope.getSelectedIndex() == 1) {
+                let iso = parseInt(this.inputIsotope.val());
+                if (iso >= 0 && iso < 300)
+                    mol.setAtomIsotope(atom, iso);
+            }
+            else
+                mol.setAtomIsotope(atom, WebMolKit.Molecule.ISOTOPE_NATURAL);
+            let map = parseInt(this.inputMapping.val());
+            if (!isNaN(map))
+                mol.setAtomMapNum(atom, map);
+        }
+    }
+    WebMolKit.EditAtom = EditAtom;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
     let DraggingTool;
     (function (DraggingTool) {
         DraggingTool[DraggingTool["None"] = 0] = "None";
@@ -14221,8 +14673,7 @@ var WebMolKit;
             this.templatePerms = null;
             this.currentPerm = 0;
             this.fusionBank = null;
-            this.copyBusy = false;
-            this.fakeTextArea = null;
+            this.proxyClip = null;
         }
         setSize(width, height) {
             this.width = width;
@@ -14254,6 +14705,18 @@ var WebMolKit;
             }
             else
                 this.autoScale();
+        }
+        defineClipboard(proxy) {
+            this.proxyClip = proxy;
+            proxy.copyEvent = () => {
+                return '!fnord';
+            };
+            proxy.pasteEvent = (proxy) => {
+                this.pasteText(proxy.getString());
+                return true;
+            };
+            if (this.container)
+                proxy.install(this.container);
         }
         defineMoleculeString(molsk, withAutoScale, withStashUndo) {
             this.defineMolecule(WebMolKit.Molecule.fromString(molsk), withAutoScale, withStashUndo);
@@ -14356,34 +14819,8 @@ var WebMolKit;
                 event.preventDefault();
                 this.dropInto(event.dataTransfer);
             });
-            let pasteFunc = (e) => {
-                if (!$.contains(document.documentElement, this.container[0])) {
-                    document.removeEventListener('paste', pasteFunc);
-                    return false;
-                }
-                let wnd = window;
-                if (wnd.clipboardData && wnd.clipboardData.getData)
-                    this.pasteText(wnd.clipboardData.getData('Text'));
-                else if (e.clipboardData && e.clipboardData.getData)
-                    this.pasteText(e.clipboardData.getData('text/plain'));
-                e.preventDefault();
-                return false;
-            };
-            document.addEventListener('paste', pasteFunc);
-            let copyFunc = (e) => {
-                if (this.copyBusy)
-                    return;
-                if (!$.contains(document.documentElement, this.container[0])) {
-                    document.removeEventListener('copy', copyFunc);
-                    return false;
-                }
-                document.removeEventListener('copy', copyFunc);
-                this.performCopy();
-                document.addEventListener('copy', copyFunc);
-                e.preventDefault();
-                return false;
-            };
-            document.addEventListener('copy', copyFunc);
+            if (this.proxyClip)
+                this.proxyClip.install(this.container);
         }
         changeSize(width, height) {
             if (width == this.width && height == this.height)
@@ -14557,28 +14994,20 @@ var WebMolKit;
             let cookies = new WebMolKit.Cookies();
             if (cookies.numMolecules() > 0)
                 cookies.stashMolecule(mol);
-            this.performCopyText(mol.toString());
-        }
-        performCopyText(txt) {
-            if (this.fakeTextArea == null) {
-                this.fakeTextArea = document.createElement('textarea');
-                this.fakeTextArea.style.fontSize = '12pt';
-                this.fakeTextArea.style.border = '0';
-                this.fakeTextArea.style.padding = '0';
-                this.fakeTextArea.style.margin = '0';
-                this.fakeTextArea.style.position = 'fixed';
-                this.fakeTextArea.style['left'] = '-9999px';
-                this.fakeTextArea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + 'px';
-                this.fakeTextArea.setAttribute('readonly', '');
-                document.body.appendChild(this.fakeTextArea);
-            }
-            this.fakeTextArea.value = txt;
-            this.fakeTextArea.select();
-            this.copyBusy = true;
-            document.execCommand('copy');
-            this.copyBusy = false;
+            if (this.proxyClip)
+                this.proxyClip.setString(mol.toString());
         }
         performPaste() {
+            if (this.proxyClip && this.proxyClip.canAlwaysGet()) {
+                let txt = this.proxyClip.getString();
+                if (txt != null) {
+                    let mol = WebMolKit.MoleculeStream.readUnknown(txt);
+                    if (mol) {
+                        this.pasteMolecule(mol);
+                        return;
+                    }
+                }
+            }
             let cookies = new WebMolKit.Cookies();
             if (cookies.numMolecules() == 0) {
                 if (WebMolKit.MolUtil.notBlank(globalMoleculeClipboard))
@@ -15288,7 +15717,21 @@ var WebMolKit;
             this.container.focus();
         }
         mouseDoubleClick(event) {
-            event.stopImmediatePropagation();
+            event.preventDefault();
+            let xy = WebMolKit.eventCoords(event, this.container);
+            let clickObj = this.pickObject(xy[0], xy[1]);
+            if (clickObj > 0) {
+                let atom = clickObj;
+                let dlg = new WebMolKit.EditAtom(this.mol, this.opAtom, () => {
+                    if (this.mol.compareTo(dlg.mol) != 0)
+                        this.defineMolecule(dlg.mol);
+                    dlg.close();
+                });
+                dlg.open();
+            }
+            else {
+                let bond = -clickObj;
+            }
         }
         mouseDown(event) {
             event.preventDefault();
@@ -15426,9 +15869,14 @@ var WebMolKit;
                 else if (this.dragType == DraggingTool.Atom) {
                     let element = this.toolAtomSymbol;
                     if (element == 'A') {
-                        element = window.prompt('Enter element symbol:', this.opAtom == 0 ? '' : this.mol.atomElement(this.opAtom));
+                        let dlg = new WebMolKit.EditAtom(this.mol, this.opAtom, () => {
+                            if (this.mol.compareTo(dlg.mol) != 0)
+                                this.defineMolecule(dlg.mol);
+                            dlg.close();
+                        });
+                        dlg.open();
                     }
-                    if (element) {
+                    else if (element) {
                         let param = { 'element': element, 'keepAbbrev': true };
                         if (this.opAtom == 0) {
                             let x = this.xToAng(this.clickX), y = this.yToAng(this.clickY);
@@ -15675,7 +16123,8 @@ var WebMolKit;
                         return;
                     }
             }
-            if (key == 37) { }
+            if (key == 13) { }
+            else if (key == 37) { }
             else if (key == 39) { }
             else if (key == 38) { }
             else if (key == 40) { }
@@ -15746,6 +16195,105 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    class ClipboardProxy {
+        constructor() {
+            this.copyEvent = null;
+            this.pasteEvent = null;
+        }
+        install(container) { }
+        uninstall() { }
+        getString() { return null; }
+        setString(str) { }
+        canAlwaysGet() { return false; }
+    }
+    WebMolKit.ClipboardProxy = ClipboardProxy;
+    class ClipboardProxyWeb extends ClipboardProxy {
+        constructor() {
+            super(...arguments);
+            this.lastContent = null;
+            this.busy = false;
+            this.copyFunc = null;
+            this.pasteFunc = null;
+            this.fakeTextArea = null;
+        }
+        install(container) {
+            if (!container)
+                throw 'ClipboardProxy: need a container to install to';
+            this.copyFunc = (e) => {
+                if (this.busy)
+                    return;
+                let content = this.copyEvent();
+                if (content == null)
+                    return;
+                if (!$.contains(document.documentElement, container[0])) {
+                    this.uninstall();
+                    return false;
+                }
+                document.removeEventListener('copy', this.copyFunc);
+                this.performCopy(content);
+                document.addEventListener('copy', this.copyFunc);
+                e.preventDefault();
+                return false;
+            };
+            document.addEventListener('copy', this.copyFunc);
+            this.pasteFunc = (e) => {
+                if (!$.contains(document.documentElement, container[0])) {
+                    this.uninstall();
+                    return false;
+                }
+                let wnd = window;
+                this.lastContent = null;
+                if (wnd.clipboardData && wnd.clipboardData.getData)
+                    this.lastContent = wnd.clipboardData.getData('Text');
+                else if (e.clipboardData && e.clipboardData.getData)
+                    this.lastContent = e.clipboardData.getData('text/plain');
+                this.pasteEvent(this);
+                this.lastContent = null;
+                e.preventDefault();
+                return false;
+            };
+            document.addEventListener('paste', this.pasteFunc);
+        }
+        uninstall() {
+            if (this.copyFunc) {
+                document.removeEventListener('copy', this.copyFunc);
+                this.copyFunc = null;
+            }
+            if (this.pasteFunc) {
+                document.removeEventListener('paste', this.pasteFunc);
+                this.pasteFunc = null;
+            }
+        }
+        getString() {
+            return this.lastContent;
+        }
+        setString(str) {
+            this.performCopy(str);
+        }
+        performCopy(content) {
+            if (this.fakeTextArea == null) {
+                this.fakeTextArea = document.createElement('textarea');
+                this.fakeTextArea.style.fontSize = '12pt';
+                this.fakeTextArea.style.border = '0';
+                this.fakeTextArea.style.padding = '0';
+                this.fakeTextArea.style.margin = '0';
+                this.fakeTextArea.style.position = 'fixed';
+                this.fakeTextArea.style['left'] = '-9999px';
+                this.fakeTextArea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + 'px';
+                this.fakeTextArea.setAttribute('readonly', '');
+                document.body.appendChild(this.fakeTextArea);
+            }
+            this.fakeTextArea.value = content;
+            this.fakeTextArea.select();
+            this.busy = true;
+            document.execCommand('copy');
+            this.busy = false;
+        }
+    }
+    WebMolKit.ClipboardProxyWeb = ClipboardProxyWeb;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
     class MainPanel {
         constructor(root) {
             this.root = root;
@@ -15772,8 +16320,14 @@ var WebMolKit;
             super(root);
             this.sketcher = new WebMolKit.Sketcher();
             this.filename = null;
+            this.proxyClip = new WebMolKit.ClipboardProxy();
+            const { clipboard } = require('electron');
+            this.proxyClip.getString = () => clipboard.readText();
+            this.proxyClip.setString = (str) => clipboard.writeText(str);
+            this.proxyClip.canAlwaysGet = () => true;
             let w = document.documentElement.clientWidth, h = document.documentElement.clientHeight;
             this.sketcher.setSize(w, h);
+            this.sketcher.defineClipboard(this.proxyClip);
             this.sketcher.setup(() => this.sketcher.render(root));
         }
         setMolecule(mol) {
@@ -15973,7 +16527,7 @@ var WebMolKit;
         const process = require('process');
         BASE_APP = path.normalize('file:/' + __dirname);
         var url = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-        WebMolKit.RPC.RESOURCE_URL = path.normalize(url + '/res');
+        WebMolKit.initWebMolKit(path.normalize(url + '/res'));
         let params = window.location.search.substring(1).split('&');
         let panelClass = null;
         let filename = null;
@@ -20085,162 +20639,6 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
-    class OptionList extends WebMolKit.Widget {
-        constructor(options, isVertical = false) {
-            super();
-            this.options = options;
-            this.isVertical = isVertical;
-            this.selidx = 0;
-            this.buttonDiv = [];
-            this.auxCell = [];
-            this.padding = 6;
-            this.callbackSelect = null;
-            if (options.length == 0)
-                throw 'molsync.ui.OptionList: must provide a list of option labels.';
-            if (!WebMolKit.hasInlineCSS('option'))
-                WebMolKit.installInlineCSS('option', this.composeCSS());
-        }
-        getSelectedIndex() {
-            return this.selidx;
-        }
-        getSelectedValue() {
-            return this.options[this.selidx];
-        }
-        getAuxiliaryCell(idx) {
-            return this.auxCell[idx];
-        }
-        render(parent) {
-            super.render(parent);
-            this.buttonDiv = [];
-            this.auxCell = [];
-            let table = $('<table class="wmk-option-table"></table>').appendTo(this.content);
-            let tr = this.isVertical ? null : $('<tr></tr>').appendTo(table);
-            for (let n = 0; n < this.options.length; n++) {
-                if (this.isVertical)
-                    tr = $('<tr></tr>').appendTo(table);
-                let td = $('<td class="wmk-option-cell"></td>').appendTo(tr);
-                let div = $('<div class="wmk-option"></div>').appendTo(td);
-                div.css('padding', this.padding + 'px');
-                this.buttonDiv.push(div);
-                if (this.isVertical) {
-                    td = $('<td style="vertical-align: middle;"></td>').appendTo(tr);
-                    this.auxCell.push(td);
-                }
-            }
-            this.updateButtons();
-        }
-        clickButton(idx) {
-            if (idx == this.selidx)
-                return;
-            this.setSelectedIndex(idx);
-            if (this.callbackSelect)
-                this.callbackSelect(idx, this);
-        }
-        setSelectedIndex(idx) {
-            if (this.selidx == idx)
-                return;
-            this.selidx = idx;
-            this.updateButtons();
-        }
-        setSelectedValue(val) {
-            let idx = this.options.indexOf(val);
-            if (idx >= 0)
-                this.setSelectedIndex(idx);
-        }
-        updateButtons() {
-            for (let n = 0; n < this.options.length && n < this.buttonDiv.length; n++) {
-                let div = this.buttonDiv[n];
-                let txt = this.options[n];
-                if (txt.length == 0 && n == this.selidx)
-                    div.text('\u00A0\u2716\u00A0');
-                else if (txt.length == 0)
-                    div.text('\u00A0\u00A0\u00A0');
-                else
-                    div.text(txt);
-                div.off('mouseover');
-                div.off('mouseout');
-                div.off('mousedown');
-                div.off('mouseup');
-                div.off('mouseleave');
-                div.off('mousemove');
-                div.off('click');
-                div.removeClass('wmk-option-hover wmk-option-active wmk-option-unselected wmk-option-selected');
-                if (n != this.selidx) {
-                    div.addClass('wmk-option-unselected');
-                    div.mouseover(() => div.addClass('wmk-option-hover'));
-                    div.mouseout(() => div.removeClass('wmk-option-hover wmk-option-active'));
-                    div.mousedown(() => div.addClass('wmk-option-active'));
-                    div.mouseup(() => div.removeClass('wmk-option-active'));
-                    div.mouseleave(() => div.removeClass('wmk-option-hover wmk-option-active'));
-                    div.mousemove(() => { return false; });
-                    div.click(() => this.clickButton(n));
-                }
-                else
-                    div.addClass('wmk-option-selected');
-            }
-        }
-        composeCSS() {
-            let lowlight = WebMolKit.colourCode(WebMolKit.Theme.lowlight), lowlightEdge1 = WebMolKit.colourCode(WebMolKit.Theme.lowlightEdge1), lowlightEdge2 = WebMolKit.colourCode(WebMolKit.Theme.lowlightEdge2);
-            let highlight = WebMolKit.colourCode(WebMolKit.Theme.highlight), highlightEdge1 = WebMolKit.colourCode(WebMolKit.Theme.highlightEdge1), highlightEdge2 = WebMolKit.colourCode(WebMolKit.Theme.highlightEdge2);
-            return `
-			.wmk-option
-			{
-				margin-bottom: 0;
-				font-family: 'Open Sans', sans-serif;
-				font-size: 14px;
-				font-weight: normal;
-				text-align: center;
-				white-space: nowrap;
-				vertical-align: middle;
-				-ms-touch-action: manipulation; touch-action: manipulation;
-				cursor: pointer;
-				-webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-			}
-			.wmk-option-selected
-			{
-				color: white;
-				background-color: #008FD2;
-				background-image: linear-gradient(to right bottom, ${lowlightEdge1}, ${lowlightEdge2});
-			}
-			.wmk-option-unselected
-			{
-				color: #333;
-				background-color: white;
-				background-image: linear-gradient(to right bottom, #FFFFFF, #E0E0E0);
-			}
-			.wmk-option-table
-			{
-				margin: 1px;
-				padding: 0;
-				border-width: 0;
-				border-collapse: collapse;
-			}
-			.wmk-option-cell
-			{
-				margin: 0;
-				padding: 0;
-				border-width: 0;
-				border-width: 1px;
-				border-style: solid;
-				border-color: #808080;
-			}
-			.wmk-option-hover
-			{
-				background-color: #808080;
-				background-image: linear-gradient(to right bottom, #F0F0F0, #D0D0D0);
-			}
-			.wmk-option-active
-			{
-				background-color: #00C000;
-				background-image: linear-gradient(to right bottom, ${highlightEdge1}, ${highlightEdge2});
-			}
-		`;
-        }
-    }
-    WebMolKit.OptionList = OptionList;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
     class Download extends WebMolKit.Dialog {
         constructor(tokenID) {
             super();
@@ -22809,6 +23207,96 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    const CSS_POPUP = `
+    *.wmk-popup
+    {
+        font-family: 'Open Sans', sans-serif;
+    }
+`;
+    class Popup {
+        constructor(parent) {
+            this.parent = parent;
+            this.callbackClose = null;
+            this.callbackPopulate = null;
+            WebMolKit.installInlineCSS('popup', CSS_POPUP);
+        }
+        onClose(callback) {
+            this.callbackClose = callback;
+        }
+        open() {
+            let body = $(document.documentElement);
+            let bg = this.obscureBackground = $('<div></div>').appendTo(body);
+            bg.css('width', '100%');
+            bg.css('height', document.documentElement.clientHeight + 'px');
+            bg.css('background-color', 'black');
+            bg.css('opacity', 0.2);
+            bg.css('position', 'absolute');
+            bg.css('left', 0);
+            bg.css('top', 0);
+            bg.css('z-index', 9999);
+            bg.click(() => this.close());
+            this.obscureBackground = bg;
+            let pb = this.panelBoundary = $('<div class="wmk-popup"></div>').appendTo(body);
+            pb.click((event) => event.stopPropagation());
+            pb.css('background-color', 'white');
+            pb.css('border', '1px solid black');
+            pb.css('position', 'absolute');
+            pb.css('z-index', 10000);
+            let bd = this.bodyDiv = $('<div></div>').appendTo(pb);
+            bd.css('padding', '0.5em');
+            bg.show();
+            this.populate();
+            this.positionAndShow();
+        }
+        close() {
+            this.panelBoundary.remove();
+            this.obscureBackground.remove();
+            if (this.callbackClose)
+                this.callbackClose(this);
+        }
+        bump() {
+            this.positionAndShow();
+        }
+        body() { return this.bodyDiv; }
+        populate() {
+            if (this.callbackPopulate)
+                this.callbackPopulate(this);
+            else
+                this.body().text('Empty popup.');
+        }
+        positionAndShow() {
+            let winW = $(window).width(), winH = $(window).height();
+            const GAP = 2;
+            let wx1 = this.parent.offset().left, wy1 = this.parent.offset().top;
+            let wx2 = wx1 + this.parent.width(), wy2 = wy1 + this.parent.height();
+            let pb = this.panelBoundary;
+            let maxW = Math.max(wx1, winW - wx2) - 4;
+            pb.css('max-width', maxW + '.px');
+            let setPosition = () => {
+                let popW = pb.width(), popH = pb.height();
+                let posX = 0, posY = 0;
+                if (wx1 + popW < winW)
+                    posX = wx1;
+                else if (popW < wx2)
+                    posX = wx2 - popW;
+                if (wy2 + GAP + popH < winH)
+                    posY = wy2 + GAP;
+                else if (wy1 - GAP - popH > 0)
+                    posY = wy1 - GAP - popH;
+                else
+                    posY = wy2 + GAP;
+                pb.css('left', `${posX}px`);
+                pb.css('top', `${posY}px`);
+            };
+            setPosition();
+            pb.show();
+            window.setTimeout(setPosition());
+        }
+    }
+    WebMolKit.Popup = Popup;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
     class RowView extends WebMolKit.Widget {
         constructor(tokenID) {
             super();
@@ -23119,6 +23607,7 @@ var WebMolKit;
         constructor(type) {
             super();
             this.type = type;
+            this.onChange = null;
             this.highlight = 0;
             this.pressed = 0;
             this.mol1 = new WebMolKit.Molecule();
@@ -23129,7 +23618,6 @@ var WebMolKit;
             this.arrowWidth = 30;
             this.HPADDING = 4;
             this.VPADDING = 2;
-            this.COLCYCLE = ['#89A54E', '#71588F', '#4198AF', '#DB843D', '#93A9CF', '#D19392', '#4572A7', '#AA4643'];
             this.emptyMsg1 = null;
             this.emptyMsg2 = null;
         }
@@ -23163,7 +23651,7 @@ var WebMolKit;
                 div.css('width', (2 * molw + arrow + 4 * hpad) + 'px');
             div.css('height', (height + 2 * vpad) + 'px');
             div.css('position', 'relative');
-            function renderSolid(col1, col2, style) {
+            let renderSolid = (col1, col2, style) => {
                 let node = WebMolKit.newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': style });
                 node.style.width = molw + 'px';
                 node.style.height = height + 'px';
@@ -23175,8 +23663,8 @@ var WebMolKit;
                 ctx.fillStyle = grad;
                 ctx.fillRect(0, 0, molw, height);
                 return node;
-            }
-            function renderBorder(lw, style) {
+            };
+            let renderBorder = (lw, style) => {
                 let node = WebMolKit.newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': style });
                 node.style.width = molw + 'px';
                 node.style.height = height + 'px';
@@ -23186,8 +23674,8 @@ var WebMolKit;
                 ctx.lineWidth = lw;
                 ctx.strokeRect(0.5 * lw, 0.5 * lw, molw - lw, height - lw);
                 return node;
-            }
-            function renderArrow(style) {
+            };
+            let renderArrow = (style) => {
                 let node = WebMolKit.newElement(div, 'canvas', { 'width': arrow * density, 'height': height * density, 'style': style });
                 node.style.width = arrow + 'px';
                 node.style.height = height + 'px';
@@ -23207,8 +23695,8 @@ var WebMolKit;
                 ctx.fillStyle = 'black';
                 ctx.fill();
                 return node;
-            }
-            function renderOutlineArrow(style, col) {
+            };
+            let renderOutlineArrow = (style, col) => {
                 let node = WebMolKit.newElement(div, 'canvas', { 'width': arrow * density, 'height': height * density, 'style': style });
                 node.style.width = arrow + 'px';
                 node.style.height = height + 'px';
@@ -23219,7 +23707,7 @@ var WebMolKit;
                 ctx.fillStyle = col;
                 ctx.fill(path);
                 return node;
-            }
+            };
             let styleMol1Pos = 'position: absolute; left: ' + hpad + 'px; top: ' + vpad + 'px;';
             let styleMol1 = styleMol1Pos + 'pointer-events: none;';
             this.normalMol1 = renderSolid('#FFFFFF', '#D0D0D0', styleMol1);
@@ -23293,6 +23781,8 @@ var WebMolKit;
                 else
                     this.setMolecule2(mol);
                 e.preventDefault();
+                if (this.onChange)
+                    this.onChange(this);
                 return false;
             });
             this.drawnMol1.addEventListener('dragover', (event) => {
@@ -23423,6 +23913,8 @@ var WebMolKit;
             let cookies = new WebMolKit.Cookies();
             if (cookies.numMolecules() > 0)
                 cookies.stashMolecule(this.mol1);
+            if (this.onChange)
+                this.onChange(this);
         }
         saveMolecule2(dlg) {
             this.mol2 = dlg.getMolecule();
@@ -23431,6 +23923,8 @@ var WebMolKit;
             let cookies = new WebMolKit.Cookies();
             if (cookies.numMolecules() > 0)
                 cookies.stashMolecule(this.mol2);
+            if (this.onChange)
+                this.onChange(this);
         }
         saveMapping(dlg) {
             this.mol1 = dlg.getMolecule1();
@@ -23452,6 +23946,8 @@ var WebMolKit;
                                 this.setMolecule1(mol);
                             else
                                 this.setMolecule2(mol);
+                            if (this.onChange)
+                                this.onChange(this);
                         }
                         else
                             console.log('Dragged data is not a SketchEl molecule: ' + str);
@@ -23471,6 +23967,8 @@ var WebMolKit;
                                     this.setMolecule1(mol);
                                 else
                                     this.setMolecule2(mol);
+                                if (this.onChange)
+                                    this.onChange(this);
                             }
                             else
                                 console.log('Dragged file is not a recognised molecule: ' + str);
