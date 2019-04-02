@@ -47,7 +47,7 @@ export class DrawPanel extends MainPanel
 
 	public setMolecule(mol:Molecule):void
 	{
-        this.sketcher.defineMolecule(mol);
+		this.sketcher.defineMolecule(mol);
 	}
 
 	public loadFile(filename:string):void
@@ -114,7 +114,7 @@ export class DrawPanel extends MainPanel
 		else if (cmd == 'zoomFull') this.sketcher.autoScale();
 		else if (cmd == 'zoomIn') this.sketcher.zoom(1.25);
 		else if (cmd == 'zoomOut') this.sketcher.zoom(0.8);
-		else console.log('MENU:'+cmd);
+		else console.log('MENU:' + cmd);
 	}
 
 	// ------------ private methods ------------

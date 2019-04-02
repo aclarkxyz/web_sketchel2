@@ -35,7 +35,7 @@ export function runSketchEl(root:JQuery):void
 
 	BASE_APP = path.normalize('file:/' + __dirname);
 
-	var url = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+	let url = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
 	RPC.RESOURCE_URL = path.normalize(url + '/res');
 
 	// unpack web params: if present, they determine where to go from here
