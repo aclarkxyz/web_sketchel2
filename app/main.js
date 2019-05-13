@@ -5,6 +5,8 @@
 const electron = require('electron');
 const {app, BrowserWindow} = electron;
 
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = true;
+
 app.on('window-all-closed', function() 
 {
 	if (process.platform != 'darwin') app.quit();
@@ -25,7 +27,8 @@ for (let n = 0; n < argv.length; n++)
 }
 if (files.length == 0) files.push(null);
 
-const BROWSER_PARAMS = {'width': 800, 'height': 700, 'icon': 'app/img/icon.png'};
+const WEBPREF = {'nodeIntegration': true};
+const BROWSER_PARAMS = {'width': 800, 'height': 700, 'icon': 'app/img/icon.png', 'webPreferences': WEBPREF};
 const INIT_URL = 'file://' + __dirname + '/index.html';
 
 let mainWindows = [];

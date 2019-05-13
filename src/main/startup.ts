@@ -19,14 +19,18 @@
 
 namespace WebMolKit /* BOF */ {
 
+$ = require('./jquery.js');
+
 /*
 	Startup: gets the ball rolling, and provide some high level window handling.
 */
 
 let BASE_APP = ''; // base URL location for the app's program files (could be URL or filename)
 
-export function runSketchEl(root:JQuery):void
+export function runSketchEl(rootID:string):void
 {
+	let root = $('#' + rootID);
+
 	// node/electron imports; note these are defined inside the function so as not to perturb normal web-access, which does not
 	// include these libraries
 	const path = require('path');
@@ -68,7 +72,8 @@ export function runSketchEl(root:JQuery):void
 export function openNewWindow(panelClass:string, filename?:string):void
 {
 	const electron = require('electron');
-	let bw = new electron.remote.BrowserWindow({'width':800, 'height':700, 'icon': 'app/img/icon.png'});
+	const WEBPREF = {'nodeIntegration': true};
+	let bw = new electron.remote.BrowserWindow({'width':800, 'height':700, 'icon': 'app/img/icon.png', 'webPreferences': WEBPREF});
 	let url = BASE_APP + '/index.html?panel=' + panelClass;
 	if (filename) url += '&fn=' + encodeURIComponent(filename);
 	bw.loadURL(url);

@@ -883,6 +883,29 @@ var WebMolKit;
         return data.join('');
     }
     WebMolKit.fromUTF8 = fromUTF8;
+    function jsonPrettyPrint(json) {
+        let lines = JSON.stringify(json, null, 1).split(/\n/);
+        for (let n = 0; n < lines.length; n++) {
+            lines[n] = lines[n].trim();
+            if (lines[n].length > 1 && lines[n].endsWith('{') || lines[n].endsWith('[')) {
+                let ch = lines[n].charAt(lines[n].length - 1);
+                lines[n] = lines[n].substring(0, lines[n].length - 1);
+                lines.splice(n + 1, 0, ch);
+                n--;
+            }
+        }
+        let indent = 0;
+        for (let n = 0; n < lines.length; n++) {
+            let orig = lines[n];
+            if (orig == ']' || orig == '}')
+                indent--;
+            lines[n] = '\t'.repeat(indent) + orig;
+            if (orig == '[' || orig == '{')
+                indent++;
+        }
+        return lines.join('\n');
+    }
+    WebMolKit.jsonPrettyPrint = jsonPrettyPrint;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -1654,6 +1677,11 @@ var WebMolKit;
         render(parent) {
             let tag = this.tagType;
             this.content = $(`<${tag}></${tag}>`).appendTo($(parent));
+        }
+        remove() {
+            if (this.content)
+                this.content.remove();
+            this.content = null;
         }
         addTooltip(bodyHTML, titleHTML) {
             WebMolKit.addTooltip(this.content, bodyHTML, titleHTML);
@@ -10521,10 +10549,14 @@ var WebMolKit;
             this.maximumHeight = 0;
             this.title = 'Dialog';
             this.callbackClose = null;
+            this.callbackShown = null;
             WebMolKit.installInlineCSS('dialog', CSS_DIALOG);
         }
         onClose(callback) {
             this.callbackClose = callback;
+        }
+        onShown(callback) {
+            this.callbackShown = callback;
         }
         open() {
             let body = $(document.documentElement);
@@ -10584,6 +10616,8 @@ var WebMolKit;
             this.repositionSize();
             bg.show();
             pb.show();
+            if (this.callbackShown)
+                this.callbackShown(this);
         }
         close() {
             this.panelBoundary.remove();
@@ -10709,23 +10743,6 @@ var WebMolKit;
             this.x = 0;
             this.y = 0;
         }
-        static prepare(callback) {
-            if (WebMolKit.RPC.BASE_URL == null && WebMolKit.RPC.RESOURCE_URL != null)
-                ButtonView.ACTION_ICONS = {};
-            if (ButtonView.ACTION_ICONS != null) {
-                callback();
-                return;
-            }
-            let fcn = (result, error) => {
-                if (!result.actions) {
-                    alert('Fetching action icons failed: ' + error.message);
-                    return;
-                }
-                ButtonView.ACTION_ICONS = result.actions;
-                callback();
-            };
-            WebMolKit.Func.getActionIcons({}, fcn);
-        }
         setParentSize(width, height) {
             this.parentWidth = width;
             this.parentHeight = height;
@@ -10850,6 +10867,9 @@ var WebMolKit;
                 return y > gh || (x > mx - hg && x < mx + hg);
             }
             return true;
+        }
+        gripSize() {
+            return this.gripHeight;
         }
         layoutButtons() {
             if (this.content == null)
@@ -11481,7 +11501,7 @@ var WebMolKit;
             return svg;
         }
     }
-    ButtonView.ACTION_ICONS = null;
+    ButtonView.ACTION_ICONS = {};
     WebMolKit.ButtonView = ButtonView;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
@@ -14911,6 +14931,8 @@ var WebMolKit;
             super();
             this.atom = atom;
             this.callbackApply = callbackApply;
+            this.newX = 0;
+            this.newY = 0;
             this.initMol = mol;
             this.mol = mol.clone();
             this.title = 'Edit Atom';
@@ -14934,6 +14956,7 @@ var WebMolKit;
             this.populateGeometry(this.tabs.getPanel('Geometry'));
             this.populateQuery(this.tabs.getPanel('Query'));
             this.populateExtra(this.tabs.getPanel('Extra'));
+            setTimeout(() => this.inputSymbol.focus(), 1);
         }
         populateAtom(panel) {
             let grid = $('<div></div>').appendTo(panel);
@@ -14970,17 +14993,19 @@ var WebMolKit;
             this.inputIndex.css('grid-area', '5 / col3');
             grid.find('input').css('font', 'inherit');
             const mol = this.mol, atom = this.atom;
-            this.inputSymbol.val(mol.atomElement(atom));
-            this.inputCharge.val(mol.atomCharge(atom).toString());
-            this.inputUnpaired.val(mol.atomUnpaired(atom).toString());
-            this.optionHydrogen.setSelectedIndex(mol.atomHExplicit(atom) == WebMolKit.Molecule.HEXPLICIT_UNKNOWN ? 0 : 1);
-            if (mol.atomHExplicit(atom) != WebMolKit.Molecule.HEXPLICIT_UNKNOWN)
-                this.inputHydrogen.val(mol.atomHExplicit(atom).toString());
-            this.optionIsotope.setSelectedIndex(mol.atomIsotope(atom) == WebMolKit.Molecule.ISOTOPE_NATURAL ? 0 : 1);
-            if (mol.atomIsotope(atom) == WebMolKit.Molecule.ISOTOPE_NATURAL)
-                this.inputIsotope.val(mol.atomIsotope(atom).toString());
-            this.inputMapping.val(mol.atomMapNum(atom).toString());
-            this.inputIndex.val(atom.toString());
+            if (atom > 0) {
+                this.inputSymbol.val(mol.atomElement(atom));
+                this.inputCharge.val(mol.atomCharge(atom).toString());
+                this.inputUnpaired.val(mol.atomUnpaired(atom).toString());
+                this.optionHydrogen.setSelectedIndex(mol.atomHExplicit(atom) == WebMolKit.Molecule.HEXPLICIT_UNKNOWN ? 0 : 1);
+                if (mol.atomHExplicit(atom) != WebMolKit.Molecule.HEXPLICIT_UNKNOWN)
+                    this.inputHydrogen.val(mol.atomHExplicit(atom).toString());
+                this.optionIsotope.setSelectedIndex(mol.atomIsotope(atom) == WebMolKit.Molecule.ISOTOPE_NATURAL ? 0 : 1);
+                if (mol.atomIsotope(atom) == WebMolKit.Molecule.ISOTOPE_NATURAL)
+                    this.inputIsotope.val(mol.atomIsotope(atom).toString());
+                this.inputMapping.val(mol.atomMapNum(atom).toString());
+                this.inputIndex.val(atom.toString());
+            }
             this.inputSymbol.focus();
         }
         populateAbbreviation(panel) {
@@ -14996,7 +15021,9 @@ var WebMolKit;
             panel.append('Extra: TODO');
         }
         updateMolecule() {
-            const mol = this.mol, atom = this.atom;
+            let mol = this.mol, atom = this.atom;
+            if (atom == 0)
+                atom = mol.addAtom('C', this.newX, this.newY);
             let sym = this.inputSymbol.val();
             if (sym != '')
                 mol.setAtomElement(atom, sym);
@@ -15165,23 +15192,21 @@ var WebMolKit;
         clearMolecule() { this.defineMolecule(new WebMolKit.Molecule(), true, true); }
         getMolecule() { return this.mol.clone(); }
         setup(callback) {
-            WebMolKit.ButtonView.prepare(() => {
-                this.beenSetup = true;
-                if (this.mol == null)
-                    this.mol = new WebMolKit.Molecule();
-                if (this.policy == null) {
-                    this.policy = WebMolKit.RenderPolicy.defaultColourOnWhite();
-                    this.pointScale = this.policy.data.pointScale;
-                }
-                let effects = this.sketchEffects();
-                this.layout = new WebMolKit.ArrangeMolecule(this.mol, this, this.policy, effects);
-                this.layout.arrange();
-                this.centreAndShrink();
-                this.metavec = new WebMolKit.MetaVector();
-                new WebMolKit.DrawMolecule(this.layout, this.metavec).draw();
-                if (callback)
-                    callback();
-            });
+            this.beenSetup = true;
+            if (this.mol == null)
+                this.mol = new WebMolKit.Molecule();
+            if (this.policy == null) {
+                this.policy = WebMolKit.RenderPolicy.defaultColourOnWhite();
+                this.pointScale = this.policy.data.pointScale;
+            }
+            let effects = this.sketchEffects();
+            this.layout = new WebMolKit.ArrangeMolecule(this.mol, this, this.policy, effects);
+            this.layout.arrange();
+            this.centreAndShrink();
+            this.metavec = new WebMolKit.MetaVector();
+            new WebMolKit.DrawMolecule(this.layout, this.metavec).draw();
+            if (callback)
+                callback();
         }
         render(parent) {
             if (!this.width || !this.height)
@@ -16298,10 +16323,15 @@ var WebMolKit;
                     let element = this.toolAtomSymbol;
                     if (element == 'A') {
                         let dlg = new WebMolKit.EditAtom(this.mol, this.opAtom, () => {
+                            let autoscale = this.mol.numAtoms == 0;
                             if (this.mol.compareTo(dlg.mol) != 0)
-                                this.defineMolecule(dlg.mol);
+                                this.defineMolecule(dlg.mol, autoscale);
                             dlg.close();
                         });
+                        if (this.opAtom == 0) {
+                            dlg.newX = this.xToAng(this.clickX);
+                            dlg.newY = this.yToAng(this.clickY);
+                        }
                         dlg.open();
                     }
                     else if (element) {
@@ -16849,8 +16879,10 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    $ = require('./jquery.js');
     let BASE_APP = '';
-    function runSketchEl(root) {
+    function runSketchEl(rootID) {
+        let root = $('#' + rootID);
         const path = require('path');
         const electron = require('electron');
         const process = require('process');
@@ -16885,7 +16917,8 @@ var WebMolKit;
     WebMolKit.runSketchEl = runSketchEl;
     function openNewWindow(panelClass, filename) {
         const electron = require('electron');
-        let bw = new electron.remote.BrowserWindow({ 'width': 800, 'height': 700, 'icon': 'app/img/icon.png' });
+        const WEBPREF = { 'nodeIntegration': true };
+        let bw = new electron.remote.BrowserWindow({ 'width': 800, 'height': 700, 'icon': 'app/img/icon.png', 'webPreferences': WEBPREF });
         let url = BASE_APP + '/index.html?panel=' + panelClass;
         if (filename)
             url += '&fn=' + encodeURIComponent(filename);
@@ -17791,9 +17824,24 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    let ArrangeComponentType;
+    (function (ArrangeComponentType) {
+        ArrangeComponentType[ArrangeComponentType["Arrow"] = 1] = "Arrow";
+        ArrangeComponentType[ArrangeComponentType["Plus"] = 2] = "Plus";
+        ArrangeComponentType[ArrangeComponentType["Reactant"] = 3] = "Reactant";
+        ArrangeComponentType[ArrangeComponentType["Reagent"] = 4] = "Reagent";
+        ArrangeComponentType[ArrangeComponentType["Product"] = 5] = "Product";
+    })(ArrangeComponentType = WebMolKit.ArrangeComponentType || (WebMolKit.ArrangeComponentType = {}));
+    let ArrangeComponentAnnot;
+    (function (ArrangeComponentAnnot) {
+        ArrangeComponentAnnot[ArrangeComponentAnnot["None"] = 0] = "None";
+        ArrangeComponentAnnot[ArrangeComponentAnnot["Primary"] = 1] = "Primary";
+        ArrangeComponentAnnot[ArrangeComponentAnnot["Waste"] = 2] = "Waste";
+        ArrangeComponentAnnot[ArrangeComponentAnnot["Implied"] = 3] = "Implied";
+    })(ArrangeComponentAnnot = WebMolKit.ArrangeComponentAnnot || (WebMolKit.ArrangeComponentAnnot = {}));
     class ArrangeComponent {
         constructor() {
-            this.annot = ArrangeExperiment.COMP_ANNOT_NONE;
+            this.annot = ArrangeComponentAnnot.None;
             this.box = new WebMolKit.Box();
         }
         clone() {
@@ -17833,6 +17881,7 @@ var WebMolKit;
             this.includeStoich = true;
             this.includeAnnot = false;
             this.includeBlank = false;
+            this.padding = 0;
             this.PADDING = 0.25;
             this.PLUSSZ = 0.5;
             this.ARROW_W = 2;
@@ -17842,20 +17891,20 @@ var WebMolKit;
             this.PLACEHOLDER_H = 2;
             this.scale = policy.data.pointScale;
             this.limitStructW = this.limitStructH = this.scale * 10;
+            this.padding = this.PADDING * this.scale;
         }
         arrange() {
             this.createComponents();
             let fszText = this.scale * this.policy.data.fontSize, fszLeft = this.scale * this.policy.data.fontSize * 1.5;
-            let padding = this.PADDING * this.scale;
             for (let xc of this.components) {
-                if (xc.type == ArrangeExperiment.COMP_PLUS)
+                if (xc.type == ArrangeComponentType.Plus)
                     xc.box = new WebMolKit.Box(0, 0, this.scale * this.PLUSSZ, this.scale * this.PLUSSZ);
-                else if (xc.type == ArrangeExperiment.COMP_ARROW) { }
+                else if (xc.type == ArrangeComponentType.Arrow) { }
                 else {
                     let w = 0, h = 0;
                     if (WebMolKit.MolUtil.notBlank(xc.mol)) {
                         let sz = WebMolKit.Size.fromArray(WebMolKit.ArrangeMolecule.guestimateSize(xc.mol, this.policy));
-                        if (xc.type == ArrangeExperiment.COMP_REAGENT)
+                        if (xc.type == ArrangeComponentType.Reagent)
                             sz.scaleBy(this.REAGENT_SCALE);
                         if (xc.leftNumer) {
                             xc.fszLeft = fszLeft;
@@ -17884,8 +17933,8 @@ var WebMolKit;
                     }
                     xc.box = new WebMolKit.Box(0, 0, w, h);
                 }
-                xc.padding = padding;
-                xc.box = new WebMolKit.Box(0, 0, xc.box.w + 2 * padding, xc.box.h + 2 * padding);
+                xc.padding = this.padding;
+                xc.box = new WebMolKit.Box(0, 0, xc.box.w + 2 * this.padding, xc.box.h + 2 * this.padding);
             }
             let best = null;
             let bestScore = 0;
@@ -17927,13 +17976,13 @@ var WebMolKit;
         createComponents() {
             for (let n = 0; n < this.entry.steps[0].reactants.length; n++) {
                 if (n > 0)
-                    this.createSegregator(ArrangeExperiment.COMP_PLUS, 0, -1);
+                    this.createSegregator(ArrangeComponentType.Plus, 0, -1);
                 this.createReactant(n, 0);
             }
             if (this.components.length == 0 && this.includeBlank)
-                this.createBlank(ArrangeExperiment.COMP_REACTANT, 0);
+                this.createBlank(ArrangeComponentType.Reactant, 0);
             for (let s = 0; s < this.entry.steps.length; s++) {
-                this.createSegregator(ArrangeExperiment.COMP_ARROW, s, 0);
+                this.createSegregator(ArrangeComponentType.Arrow, s, 0);
                 if (this.includeReagents) {
                     let any = false;
                     for (let n = 0; n < this.entry.steps[s].reagents.length; n++) {
@@ -17941,23 +17990,23 @@ var WebMolKit;
                         any = true;
                     }
                     if (!any && this.includeBlank)
-                        this.createBlank(ArrangeExperiment.COMP_REAGENT, s);
+                        this.createBlank(ArrangeComponentType.Reagent, s);
                 }
                 let any = false;
                 for (let n = 0; n < this.entry.steps[s].products.length; n++) {
                     if (n > 0)
-                        this.createSegregator(ArrangeExperiment.COMP_PLUS, s, 1);
+                        this.createSegregator(ArrangeComponentType.Plus, s, 1);
                     this.createProduct(n, s);
                     any = true;
                 }
                 if (!any && this.includeBlank)
-                    this.createBlank(ArrangeExperiment.COMP_PRODUCT, s);
+                    this.createBlank(ArrangeComponentType.Product, s);
             }
         }
         createReactant(idx, step) {
             let comp = this.entry.steps[step].reactants[idx];
             let xc = new ArrangeComponent();
-            xc.type = ArrangeExperiment.COMP_REACTANT;
+            xc.type = ArrangeComponentType.Reactant;
             xc.srcIdx = idx;
             xc.step = step;
             xc.side = -1;
@@ -17965,8 +18014,6 @@ var WebMolKit;
                 xc.mol = comp.mol;
             if (name && (this.includeNames || WebMolKit.MolUtil.isBlank(comp.mol)))
                 xc.text = name;
-            if (WebMolKit.MolUtil.isBlank(xc.mol) && !xc.text)
-                xc.text = '?';
             if (this.includeStoich && !WebMolKit.QuantityCalc.isStoichZero(comp.stoich) && !WebMolKit.QuantityCalc.isStoichUnity(comp.stoich)) {
                 let slash = comp.stoich.indexOf('/');
                 if (slash >= 0) {
@@ -17977,13 +18024,13 @@ var WebMolKit;
                     xc.leftNumer = comp.stoich;
             }
             if (this.includeAnnot && WebMolKit.MolUtil.notBlank(comp.mol) && comp.primary)
-                xc.annot = ArrangeExperiment.COMP_ANNOT_PRIMARY;
+                xc.annot = ArrangeComponentAnnot.Primary;
             this.components.push(xc);
         }
         createReagent(idx, step) {
             let comp = this.entry.steps[step].reagents[idx];
             let xc = new ArrangeComponent();
-            xc.type = ArrangeExperiment.COMP_REAGENT;
+            xc.type = ArrangeComponentType.Reagent;
             xc.srcIdx = idx;
             xc.step = step;
             xc.side = 0;
@@ -17991,12 +18038,10 @@ var WebMolKit;
                 xc.mol = comp.mol;
             if (name && (this.includeNames || WebMolKit.MolUtil.isBlank(comp.mol)))
                 xc.text = name;
-            if (WebMolKit.MolUtil.isBlank(xc.mol) && !xc.text)
-                xc.text = '?';
             if (this.includeAnnot) {
                 let stoich = WebMolKit.QuantityCalc.impliedReagentStoich(comp, this.entry.steps[step].products);
                 if (stoich > 0)
-                    xc.annot = ArrangeExperiment.COMP_ANNOT_IMPLIED;
+                    xc.annot = ArrangeComponentAnnot.Implied;
                 if (stoich > 0 && stoich != 1) {
                     if (WebMolKit.realEqual(stoich, Math.round(stoich)))
                         xc.leftNumer = Math.round(stoich).toString();
@@ -18009,7 +18054,7 @@ var WebMolKit;
         createProduct(idx, step) {
             let comp = this.entry.steps[step].products[idx];
             let xc = new ArrangeComponent();
-            xc.type = ArrangeExperiment.COMP_PRODUCT;
+            xc.type = ArrangeComponentType.Product;
             xc.srcIdx = idx;
             xc.step = step;
             xc.side = 1;
@@ -18017,8 +18062,6 @@ var WebMolKit;
                 xc.mol = comp.mol;
             if (name && (this.includeNames || WebMolKit.MolUtil.isBlank(comp.mol)))
                 xc.text = comp.name;
-            if (WebMolKit.MolUtil.isBlank(xc.mol) && !xc.text)
-                xc.text = '?';
             if (this.includeStoich && !WebMolKit.QuantityCalc.isStoichZero(comp.stoich) && !WebMolKit.QuantityCalc.isStoichUnity(comp.stoich)) {
                 let slash = comp.stoich.indexOf('/');
                 if (slash >= 0) {
@@ -18029,7 +18072,7 @@ var WebMolKit;
                     xc.leftNumer = comp.stoich;
             }
             if (this.includeAnnot && WebMolKit.MolUtil.notBlank(comp.mol) && comp.waste)
-                xc.annot = ArrangeExperiment.COMP_ANNOT_WASTE;
+                xc.annot = ArrangeComponentAnnot.Waste;
             this.components.push(xc);
         }
         createSegregator(type, step, side) {
@@ -18043,7 +18086,7 @@ var WebMolKit;
             let xc = new ArrangeComponent();
             xc.type = type;
             xc.step = step;
-            xc.side = type == ArrangeExperiment.COMP_REACTANT ? -1 : type == ArrangeExperiment.COMP_PRODUCT ? 1 : 0;
+            xc.side = type == ArrangeComponentType.Reactant ? -1 : type == ArrangeComponentType.Product ? 1 : 0;
             xc.srcIdx = -1;
             this.components.push(xc);
         }
@@ -18154,7 +18197,7 @@ var WebMolKit;
         arrangeHorizontalArrowBlock(block) {
             let arrow = null;
             for (let xc of block)
-                if (xc.type == ArrangeExperiment.COMP_ARROW) {
+                if (xc.type == ArrangeComponentType.Arrow) {
                     arrow = xc;
                     xc.box.w = this.ARROW_W * this.scale + 2 * xc.padding;
                     xc.box.h = this.ARROW_H * this.scale + 2 * xc.padding;
@@ -18167,7 +18210,7 @@ var WebMolKit;
             let y = 0;
             let arrowPlaced = false;
             for (let xc of block)
-                if (xc.type != ArrangeExperiment.COMP_ARROW) {
+                if (xc.type != ArrangeComponentType.Arrow) {
                     xc.box.x = 0.5 * (arrow.box.w - xc.box.w);
                     xc.box.y = y;
                     y += xc.box.h;
@@ -18191,7 +18234,7 @@ var WebMolKit;
         arrangeVerticalArrowBlock(block) {
             let arrow = null;
             for (let xc of block)
-                if (xc.type == ArrangeExperiment.COMP_ARROW) {
+                if (xc.type == ArrangeComponentType.Arrow) {
                     arrow = xc;
                     xc.box.w = this.ARROW_H * this.scale + 2 * xc.padding;
                     xc.box.h = this.ARROW_W * this.scale + 2 * xc.padding;
@@ -18200,7 +18243,7 @@ var WebMolKit;
             let sz1 = WebMolKit.Size.zero(), sz2 = WebMolKit.Size.zero();
             let n = 0;
             for (let xc of block)
-                if (xc.type != ArrangeExperiment.COMP_ARROW) {
+                if (xc.type != ArrangeComponentType.Arrow) {
                     if (n < mid) {
                         sz1.w = Math.max(sz1.w, xc.box.w);
                         sz1.h += xc.box.h;
@@ -18216,7 +18259,7 @@ var WebMolKit;
             let y1 = 0.5 * (sz.h - sz1.h), y2 = 0.5 * (sz.h - sz2.h);
             n = 0;
             for (let xc of block)
-                if (xc.type != ArrangeExperiment.COMP_ARROW) {
+                if (xc.type != ArrangeComponentType.Arrow) {
                     if (n < mid) {
                         xc.box.x = sz1.w - xc.box.w;
                         xc.box.y = y1;
@@ -18235,7 +18278,7 @@ var WebMolKit;
             let count = 0;
             let mid = WebMolKit.Pos.zero();
             for (let xc of block)
-                if (xc.type == ArrangeExperiment.COMP_PLUS || xc.type == ArrangeExperiment.COMP_ARROW) {
+                if (xc.type == ArrangeComponentType.Plus || xc.type == ArrangeComponentType.Arrow) {
                     mid.x += xc.box.midX();
                     mid.y += xc.box.midY();
                     count++;
@@ -18266,15 +18309,6 @@ var WebMolKit;
             }
         }
     }
-    ArrangeExperiment.COMP_ARROW = 1;
-    ArrangeExperiment.COMP_PLUS = 2;
-    ArrangeExperiment.COMP_REACTANT = 3;
-    ArrangeExperiment.COMP_REAGENT = 4;
-    ArrangeExperiment.COMP_PRODUCT = 5;
-    ArrangeExperiment.COMP_ANNOT_NONE = 0;
-    ArrangeExperiment.COMP_ANNOT_PRIMARY = 1;
-    ArrangeExperiment.COMP_ANNOT_WASTE = 2;
-    ArrangeExperiment.COMP_ANNOT_IMPLIED = 3;
     ArrangeExperiment.COMP_GAP_LEFT = 0.5;
     ArrangeExperiment.COMP_ANNOT_SIZE = 1;
     WebMolKit.ArrangeExperiment = ArrangeExperiment;
@@ -18296,9 +18330,9 @@ var WebMolKit;
         draw() {
             for (let n = 0; n < this.layout.components.length; n++) {
                 let xc = this.layout.components[n];
-                if (xc.type == WebMolKit.ArrangeExperiment.COMP_ARROW)
+                if (xc.type == WebMolKit.ArrangeComponentType.Arrow)
                     this.drawSymbolArrow(xc);
-                else if (xc.type == WebMolKit.ArrangeExperiment.COMP_PLUS)
+                else if (xc.type == WebMolKit.ArrangeComponentType.Plus)
                     this.drawSymbolPlus(xc);
                 else
                     this.drawComponent(n, xc);
@@ -18308,6 +18342,11 @@ var WebMolKit;
             let vg = this.vg, policy = this.policy;
             let bx = xc.box.x + xc.padding, by = xc.box.y + xc.padding;
             let bw = xc.box.w - 2 * xc.padding, bh = xc.box.h - 2 * xc.padding;
+            if (xc.srcIdx < 0 || (WebMolKit.MolUtil.isBlank(xc.mol) && !xc.text)) {
+                let fsz = 0.5 * bh;
+                vg.drawText(bx + 0.5 * bw, by + 0.5 * bh, '?', fsz, policy.data.foreground, WebMolKit.TextAlign.Centre | WebMolKit.TextAlign.Middle);
+                return;
+            }
             if (xc.text) {
                 let wad = this.measure.measureText(xc.text, xc.fszText);
                 vg.drawText(bx + 0.5 * bw, by + bh, xc.text, xc.fszText, policy.data.foreground, WebMolKit.TextAlign.Bottom | WebMolKit.TextAlign.Centre);
@@ -18349,10 +18388,6 @@ var WebMolKit;
                 if (this.postDrawMolecule)
                     this.postDrawMolecule(vg, idx, xc, arrmol);
             }
-            if (xc.srcIdx < 0) {
-                let fsz = 0.5 * bh;
-                vg.drawText(bx + 0.5 * bw, by + 0.5 * bh, '?', fsz, policy.data.foreground, WebMolKit.TextAlign.Centre | WebMolKit.TextAlign.Middle);
-            }
         }
         drawSymbolArrow(xc) {
             let bx = xc.box.x + xc.padding, by = xc.box.y + xc.padding;
@@ -18374,11 +18409,11 @@ var WebMolKit;
         drawAnnotation(annot, bx, by, bw, bh) {
             let vg = this.vg, policy = this.policy;
             let sz = bw, x2 = bx + bw, y2 = by + bh, x1 = x2 - sz, y1 = by;
-            if (annot == WebMolKit.ArrangeExperiment.COMP_ANNOT_PRIMARY)
+            if (annot == WebMolKit.ArrangeComponentAnnot.Primary)
                 y2 = y1 + sz;
-            else if (annot == WebMolKit.ArrangeExperiment.COMP_ANNOT_WASTE)
+            else if (annot == WebMolKit.ArrangeComponentAnnot.Waste)
                 y1 = y2 - sz;
-            if (annot == WebMolKit.ArrangeExperiment.COMP_ANNOT_PRIMARY) {
+            if (annot == WebMolKit.ArrangeComponentAnnot.Primary) {
                 let cx = 0.5 * (x1 + x2), cy = 0.5 * (y1 + y2), ext = 0.25 * sz;
                 let px = [cx, cx + 0.866 * ext, cx + 0.866 * ext, cx, cx - 0.866 * ext, cx - 0.866 * ext];
                 let py = [cy - ext, cy - 0.5 * ext, cy + 0.5 * ext, cy + ext, cy + 0.5 * ext, cy - 0.5 * ext];
@@ -18389,7 +18424,7 @@ var WebMolKit;
                 let inset = 0.1 * sz;
                 vg.drawOval(x1 + 0.5 * sz, y1 + 0.5 * sz, 0.5 * sz - inset, 0.5 * sz - inset, policy.data.foreground, lw, WebMolKit.MetaVector.NOCOLOUR);
             }
-            else if (annot == WebMolKit.ArrangeExperiment.COMP_ANNOT_WASTE) {
+            else if (annot == WebMolKit.ArrangeComponentAnnot.Waste) {
                 let cx = x1 + 0.7 * sz, cy = 0.5 * (y1 + y2), quart = 0.25 * sz;
                 let lw = 0.05 * this.scale;
                 let px = [x1 + 0.1 * sz, cx - quart, cx, cx, cx];
@@ -18401,7 +18436,7 @@ var WebMolKit;
                     vg.drawLine(cx - dw, y, cx + dw, y, policy.data.foreground, lw);
                 }
             }
-            else if (annot == WebMolKit.ArrangeExperiment.COMP_ANNOT_IMPLIED) {
+            else if (annot == WebMolKit.ArrangeComponentAnnot.Implied) {
                 let tw = 0.5 * sz, th = 0.75 * sz;
                 let cx = x2 - 0.5 * tw, cy = y1 + 0.5 * th;
                 let ty = y1 + 0.25 * th, dsz = sz * 0.1, hsz = 0.5 * dsz;
@@ -23965,12 +24000,16 @@ var WebMolKit;
             this.VPADDING = 2;
             this.emptyMsg1 = null;
             this.emptyMsg2 = null;
+            this.proxyClip = null;
         }
         configureDisplay(molWidth, height, emptyMsg1, emptyMsg2) {
             this.molWidth = molWidth;
             this.height = height;
             this.emptyMsg1 = emptyMsg1;
             this.emptyMsg2 = emptyMsg2;
+        }
+        defineClipboard(proxy) {
+            this.proxyClip = proxy;
         }
         getMolecule1() { return this.mol1; }
         getMolecule2() { return this.mol2; }
@@ -24234,6 +24273,8 @@ var WebMolKit;
         editMolecule(which) {
             let dlg = new WebMolKit.EditCompound(which == 1 ? this.mol1 : this.mol2);
             this.isSketching = true;
+            if (this.proxyClip)
+                dlg.defineClipboard(this.proxyClip);
             dlg.onSave(() => { if (which == 1)
                 this.saveMolecule1(dlg);
             else
@@ -24587,6 +24628,25 @@ var WebMolKit;
         }
         static toString(doc) {
             return new XMLSerializer().serializeToString(doc);
+        }
+        static toPrettyString(doc) {
+            let xslt = [
+                '<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">',
+                '  <xsl:strip-space elements="*"/>',
+                '  <xsl:template match="para[content-style][not(text())]">',
+                '    <xsl:value-of select="normalize-space(.)"/>',
+                '  </xsl:template>',
+                '  <xsl:template match="node()|@*">',
+                '    <xsl:copy><xsl:apply-templates select="node()|@*"/></xsl:copy>',
+                '  </xsl:template>',
+                '  <xsl:output indent="yes"/>',
+                '</xsl:stylesheet>',
+            ].join('\n');
+            let xsltDoc = new DOMParser().parseFromString(xslt, 'application/xml');
+            let xsltProc = new XSLTProcessor();
+            xsltProc.importStylesheet(xsltDoc);
+            let resultDoc = xsltProc.transformToDocument(doc);
+            return new XMLSerializer().serializeToString(resultDoc);
         }
         static nodeText(el) {
             let text = '';
