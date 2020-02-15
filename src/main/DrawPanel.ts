@@ -118,8 +118,8 @@ export class DrawPanel extends MainPanel
 		else if (cmd == 'copy') this.actionCopy(false);
 		else if (cmd == 'copyMDL') this.actionCopyMDL();
 		else if (cmd == 'paste') this.actionPaste();
-		else if (cmd == 'delete') new MoleculeActivity(this.sketcher, ActivityType.Delete, {}).execute();
-		else if (cmd == 'selectAll') new MoleculeActivity(this.sketcher, ActivityType.SelectAll, {}).execute();
+		else if (cmd == 'delete') new MoleculeActivity(this.sketcher.getState(), ActivityType.Delete, {}).execute();
+		else if (cmd == 'selectAll') new MoleculeActivity(this.sketcher.getState(), ActivityType.SelectAll, {}).execute();
 		else if (cmd == 'zoomFull') this.sketcher.autoScale();
 		else if (cmd == 'zoomIn') this.sketcher.zoom(1.25);
 		else if (cmd == 'zoomOut') this.sketcher.zoom(0.8);

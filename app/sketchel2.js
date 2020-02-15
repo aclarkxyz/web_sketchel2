@@ -1,3 +1,12 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var WebMolKit;
 (function (WebMolKit) {
     class Vec {
@@ -41,6 +50,9 @@ var WebMolKit;
             let v = arr[idx1];
             arr[idx1] = arr[idx2];
             arr[idx2] = v;
+        }
+        static duplicate(arr) {
+            return arr == null ? [] : arr.slice(0);
         }
         static append(arr, item) {
             if (arr == null || arr.length == 0)
@@ -93,28 +105,26 @@ var WebMolKit;
         }
         static booleanArray(val, sz) {
             let arr = new Array(sz);
-            for (let n = sz - 1; n >= 0; n--)
-                arr[n] = val;
+            arr.fill(val);
             return arr;
         }
         static numberArray(val, sz) {
             let arr = new Array(sz);
-            for (let n = sz - 1; n >= 0; n--)
-                arr[n] = val;
+            arr.fill(val);
             return arr;
         }
         static stringArray(val, sz) {
             let arr = new Array(sz);
-            for (let n = sz - 1; n >= 0; n--)
-                arr[n] = val;
+            arr.fill(val);
             return arr;
         }
         static anyArray(val, sz) {
             let arr = new Array(sz);
-            for (let n = sz - 1; n >= 0; n--)
-                arr[n] = val;
+            arr.fill(val);
             return arr;
         }
+        static first(arr) { return arr == null || arr.length == 0 ? null : arr[0]; }
+        static last(arr) { return arr == null || arr.length == 0 ? null : arr[arr.length - 1]; }
         static min(arr) {
             if (arr == null || arr.length == 0)
                 return Number.MAX_VALUE;
@@ -192,6 +202,8 @@ var WebMolKit;
             return ret;
         }
         static maskCount(mask) {
+            if (!mask)
+                return 0;
             let c = 0;
             for (let n = mask.length - 1; n >= 0; n--)
                 if (mask[n])
@@ -319,6 +331,16 @@ var WebMolKit;
             this.sort(arr);
             return arr;
         }
+        static sortedUnique(arr) {
+            if (arr == null || arr.length == 0)
+                return [];
+            let unique = Vec.uniqueUnstable(arr);
+            if (typeof arr[0] == 'number')
+                this.sort(unique);
+            else
+                unique.sort();
+            return unique;
+        }
         static uniqueUnstable(arr) {
             return Array.from(new Set(arr));
         }
@@ -348,6 +370,21 @@ var WebMolKit;
                     set.delete(arr[n]);
                 }
             return ret;
+        }
+        static exclude(arr, excl) {
+            const sz = Vec.arrayLength(arr);
+            if (sz == 0)
+                return [];
+            let mask = new Array(sz);
+            let count = 0;
+            for (let n = 0; n < arr.length; n++) {
+                mask[n] = excl.indexOf(arr[n]) < 0;
+                if (mask[n])
+                    count++;
+            }
+            if (count == sz)
+                return arr;
+            return Vec.maskGet(arr, mask);
         }
     }
     WebMolKit.Vec = Vec;
@@ -615,6 +652,10 @@ var WebMolKit;
         return [relX, relY];
     }
     WebMolKit.eventCoords = eventCoords;
+    function setBoundaryPixels(dom, x, y, w, h) {
+        dom.css({ 'left': x + 'px', 'top': y + 'px', 'width': w + 'px', 'height': h + 'px' });
+    }
+    WebMolKit.setBoundaryPixels = setBoundaryPixels;
     function norm_xy(dx, dy) {
         return Math.sqrt(dx * dx + dy * dy);
     }
@@ -727,7 +768,7 @@ var WebMolKit;
             return null;
         let node = parent.firstChild;
         while (node) {
-            if (node.nodeType == Node.ELEMENT_NODE && node.nodeName == name)
+            if (node.nodeName == name)
                 return node;
             node = node.nextSibling;
         }
@@ -740,7 +781,7 @@ var WebMolKit;
         let node = parent.firstChild;
         let list = [];
         while (node) {
-            if (node.nodeType == Node.ELEMENT_NODE && node.nodeName == name)
+            if (node.nodeName == name)
                 list.push(node);
             node = node.nextSibling;
         }
@@ -906,6 +947,42 @@ var WebMolKit;
         return lines.join('\n');
     }
     WebMolKit.jsonPrettyPrint = jsonPrettyPrint;
+    function inputChanged(domInput, callback) {
+        domInput.keyup(callback);
+        domInput.change(callback);
+    }
+    WebMolKit.inputChanged = inputChanged;
+    let KeyCode;
+    (function (KeyCode) {
+        KeyCode["Backspace"] = "Backspace";
+        KeyCode["Tab"] = "Tab";
+        KeyCode["Enter"] = "Enter";
+        KeyCode["Escape"] = "Escape";
+        KeyCode["Space"] = " ";
+        KeyCode["PageUp"] = "PageUp";
+        KeyCode["PageDown"] = "PageDown";
+        KeyCode["End"] = "End";
+        KeyCode["Home"] = "Home";
+        KeyCode["Left"] = "ArrowLeft";
+        KeyCode["Right"] = "ArrowRight";
+        KeyCode["Up"] = "ArrowUp";
+        KeyCode["Down"] = "ArrowDown";
+        KeyCode["Delete"] = "Delete";
+        KeyCode["Insert"] = "Insert";
+    })(KeyCode = WebMolKit.KeyCode || (WebMolKit.KeyCode = {}));
+    function readTextURL(url) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve, reject) => {
+                let request = new XMLHttpRequest();
+                request.open('GET', url.toString(), true);
+                request.responseType = 'text';
+                request.onload = () => resolve(request.response.toString());
+                request.onerror = () => resolve(null);
+                request.send();
+            });
+        });
+    }
+    WebMolKit.readTextURL = readTextURL;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -1042,6 +1119,462 @@ var WebMolKit;
         }
     }
     WebMolKit.Cookies = Cookies;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    const EPSILON = Math.pow(2, -52);
+    class Triangulation2D {
+        constructor(px, py) {
+            this.px = px;
+            this.py = py;
+            this.numTriangles = 0;
+            this.edgeStack = WebMolKit.Vec.numberArray(0, 512);
+            this.hull = null;
+            this.px = px;
+            this.py = py;
+            this.sz = px.length;
+            let maxTriangles = Math.max(2 * this.sz - 5, 0);
+            this.triangles = new Array(maxTriangles * 3);
+            this.halfedges = new Array(maxTriangles * 3);
+            this.hashSize = Math.ceil(Math.sqrt(this.sz));
+            this.hullPrev = new Array(this.sz);
+            this.hullNext = new Array(this.sz);
+            this.hullTri = new Array(this.sz);
+            this.hullHash = WebMolKit.Vec.numberArray(-1, this.hashSize);
+            this.ids = new Array(this.sz);
+            this.dists = new Array(this.sz);
+            this.update();
+        }
+        trimConcave(threshold) {
+            const threshSq = WebMolKit.sqr(threshold);
+            const { sz, px, py } = this;
+            let tri = this.triangles.slice(0);
+            let edgeCount = new Map();
+            while (true) {
+                const ntri = tri.length / 3;
+                edgeCount.clear();
+                for (let n = 0, i = 0; n < ntri; n++, i += 3) {
+                    const e1 = sz * Math.min(tri[i + 0], tri[i + 1]) + Math.max(tri[i + 0], tri[i + 1]);
+                    const e2 = sz * Math.min(tri[i + 0], tri[i + 2]) + Math.max(tri[i + 0], tri[i + 2]);
+                    const e3 = sz * Math.min(tri[i + 1], tri[i + 2]) + Math.max(tri[i + 1], tri[i + 2]);
+                    edgeCount.set(e1, (edgeCount.get(e1) || 0) + 1);
+                    edgeCount.set(e2, (edgeCount.get(e2) || 0) + 1);
+                    edgeCount.set(e3, (edgeCount.get(e3) || 0) + 1);
+                }
+                let mask = WebMolKit.Vec.booleanArray(true, ntri);
+                for (let n = 0, i = 0; n < ntri; n++, i += 3) {
+                    const i1 = tri[i], i2 = tri[i + 1], i3 = tri[i + 2];
+                    const e1 = sz * Math.min(i1, i2) + Math.max(i1, i2);
+                    const e2 = sz * Math.min(i1, i3) + Math.max(i1, i3);
+                    const e3 = sz * Math.min(i2, i3) + Math.max(i2, i3);
+                    const c1 = edgeCount.get(e1), c2 = edgeCount.get(e2), c3 = edgeCount.get(e3);
+                    if (c1 == 1 && c2 != 1 && c3 != 1)
+                        mask[n] = WebMolKit.norm2_xy(px[i1] - px[i2], py[i1] - py[i2]) < threshSq;
+                    else if (c1 != 1 && c2 == 1 && c3 != 1)
+                        mask[n] = WebMolKit.norm2_xy(px[i1] - px[i3], py[i1] - py[i3]) < threshSq;
+                    else if (c1 != 1 && c2 != 1 && c3 == 1)
+                        mask[n] = WebMolKit.norm2_xy(px[i2] - px[i3], py[i2] - py[i3]) < threshSq;
+                }
+                if (WebMolKit.Vec.allTrue(mask))
+                    break;
+                let rep = new Array(WebMolKit.Vec.maskCount(mask) * 3);
+                for (let n = 0, i = 0, j = 0; n < ntri; n++, i += 3)
+                    if (mask[n]) {
+                        rep[j++] = tri[i];
+                        rep[j++] = tri[i + 1];
+                        rep[j++] = tri[i + 2];
+                    }
+                tri = rep;
+            }
+            return tri;
+        }
+        traceOutline(tri) {
+            const ntri = tri.length / 3;
+            const { sz, px, py } = this;
+            let edgeCount = new Map();
+            for (let n = 0, i = 0; n < ntri; n++, i += 3) {
+                const e1 = sz * Math.min(tri[i + 0], tri[i + 1]) + Math.max(tri[i + 0], tri[i + 1]);
+                const e2 = sz * Math.min(tri[i + 0], tri[i + 2]) + Math.max(tri[i + 0], tri[i + 2]);
+                const e3 = sz * Math.min(tri[i + 1], tri[i + 2]) + Math.max(tri[i + 1], tri[i + 2]);
+                edgeCount.set(e1, (edgeCount.get(e1) || 0) + 1);
+                edgeCount.set(e2, (edgeCount.get(e2) || 0) + 1);
+                edgeCount.set(e3, (edgeCount.get(e3) || 0) + 1);
+            }
+            let edges = [];
+            for (let entry of edgeCount.entries())
+                if (entry[1] == 1) {
+                    const e = entry[0];
+                    const i1 = Math.floor(e / sz), i2 = e % sz;
+                    edges.push(i1);
+                    edges.push(i2);
+                }
+            const idx = WebMolKit.Vec.uniqueUnstable(edges);
+            const isz = idx.length;
+            const idxMap = new Map();
+            for (let n = 0; n < isz; n++)
+                idxMap.set(idx[n], n);
+            let g1 = WebMolKit.Vec.numberArray(-1, isz), g2 = WebMolKit.Vec.numberArray(-1, isz);
+            for (let n = 0; n < edges.length; n += 2) {
+                const i1 = idxMap.get(edges[n]), i2 = idxMap.get(edges[n + 1]);
+                if (g1[i1] < 0)
+                    g1[i1] = i2;
+                else
+                    g2[i1] = i2;
+                if (g1[i2] < 0)
+                    g1[i2] = i1;
+                else
+                    g2[i2] = i1;
+            }
+            let mask = WebMolKit.Vec.booleanArray(false, isz);
+            let sequence = new Array(isz);
+            sequence[0] = 0;
+            mask[0] = true;
+            for (let n = 1; n < isz; n++) {
+                const i = sequence[n - 1];
+                if (!mask[g1[i]])
+                    sequence[n] = g1[i];
+                else
+                    sequence[n] = g2[i];
+                mask[sequence[n]] = true;
+            }
+            return WebMolKit.Vec.idxGet(idx, sequence);
+        }
+        update() {
+            const sz = this.sz;
+            let { px, py, ids, dists, triangles, halfedges } = this;
+            const minX = WebMolKit.Vec.min(px), minY = WebMolKit.Vec.min(py);
+            const maxX = WebMolKit.Vec.max(px), maxY = WebMolKit.Vec.max(py);
+            for (let n = 0; n < sz; n++)
+                ids[n] = n;
+            this.centreX = 0.5 * (minX + maxX);
+            this.centreY = 0.5 * (minY + maxY);
+            let i0 = 0, i1 = 0, i2 = 0;
+            let minDist = Number.POSITIVE_INFINITY;
+            for (let n = 0; n < sz; n++) {
+                const d = WebMolKit.norm_xy(this.centreX - px[n], this.centreY - py[n]);
+                if (d < minDist) {
+                    i0 = n;
+                    minDist = d;
+                }
+            }
+            const i0x = px[i0], i0y = py[i0];
+            minDist = Number.POSITIVE_INFINITY;
+            for (let n = 0; n < sz; n++) {
+                if (n == i0)
+                    continue;
+                const d = WebMolKit.norm_xy(i0x - px[n], i0y - py[n]);
+                if (d < minDist && d > 0) {
+                    i1 = n;
+                    minDist = d;
+                }
+            }
+            let i1x = px[i1], i1y = py[i1];
+            let minRadius = Number.POSITIVE_INFINITY;
+            for (let n = 0; n < sz; n++) {
+                if (n == i0 || n == i1)
+                    continue;
+                let r = this.circumRadius(i0x, i0y, i1x, i1y, px[n], py[n]);
+                if (r < minRadius) {
+                    i2 = n;
+                    minRadius = r;
+                }
+            }
+            let i2x = px[i2], i2y = py[i2];
+            if (!Number.isFinite(minRadius)) {
+                for (let n = 0; n < sz; n++) {
+                    dists[n] = px[n] - px[0];
+                    if (dists[n] == 0)
+                        dists[n] = py[n] - py[0];
+                }
+                this.quicksort(0, sz - 1);
+                let hull = new Array(sz);
+                let j = 0;
+                let d0 = Number.NEGATIVE_INFINITY;
+                for (let n = 0; n < sz; n++) {
+                    let id = ids[n];
+                    if (dists[id] > d0) {
+                        hull[j++] = id;
+                        d0 = dists[id];
+                    }
+                }
+                this.hull = hull.slice(0, j);
+                triangles = [];
+                halfedges = [];
+                return;
+            }
+            if (this.orient(i0x, i0y, i1x, i1y, i2x, i2y)) {
+                let i = i1;
+                let x = i1x, y = i1y;
+                i1 = i2;
+                i1x = i2x;
+                i1y = i2y;
+                i2 = i;
+                i2x = x;
+                i2y = y;
+            }
+            this.pickCircumCentre(i0x, i0y, i1x, i1y, i2x, i2y);
+            for (let n = 0; n < sz; n++)
+                dists[n] = WebMolKit.norm_xy(px[n] - this.centreX, py[n] - this.centreY);
+            this.quicksort(0, sz - 1);
+            this.hullStart = i0;
+            let hullSize = 3;
+            const { hullNext, hullPrev, hullTri, hullHash, hashSize } = this;
+            hullNext[i0] = hullPrev[i2] = i1;
+            hullNext[i1] = hullPrev[i0] = i2;
+            hullNext[i2] = hullPrev[i1] = i0;
+            hullTri[i0] = 0;
+            hullTri[i1] = 1;
+            hullTri[i2] = 2;
+            hullHash.fill(-1);
+            hullHash[this.hashKey(i0x, i0y)] = i0;
+            hullHash[this.hashKey(i1x, i1y)] = i1;
+            hullHash[this.hashKey(i2x, i2y)] = i2;
+            this.numTriangles = 0;
+            this.addTriangle(i0, i1, i2, -1, -1, -1);
+            let xp = 0, yp = 0;
+            for (let k = 0; k < ids.length; k++) {
+                let i = ids[k];
+                let x = px[i], y = py[i];
+                if (k > 0 && Math.abs(x - xp) <= EPSILON && Math.abs(y - yp) <= EPSILON)
+                    continue;
+                xp = x;
+                yp = y;
+                if (i == i0 || i == i1 || i == i2)
+                    continue;
+                let start = 0;
+                for (let j = 0, key = this.hashKey(x, y); j < hashSize; j++) {
+                    start = hullHash[(key + j) % hashSize];
+                    if (start >= 0 && start != hullNext[start])
+                        break;
+                }
+                start = hullPrev[start];
+                let e = start, q = hullNext[e];
+                while (!this.orient(x, y, px[e], py[e], px[q], py[q])) {
+                    e = q;
+                    if (e == start) {
+                        e = -1;
+                        break;
+                    }
+                    q = hullNext[e];
+                }
+                if (e < 0)
+                    continue;
+                let t = this.addTriangle(e, i, hullNext[e], -1, -1, hullTri[e]);
+                hullTri[i] = this.legalise(t + 2);
+                hullTri[e] = t;
+                hullSize++;
+                let n = hullNext[e];
+                q = hullNext[n];
+                while (this.orient(x, y, px[n], py[n], px[q], py[q])) {
+                    t = this.addTriangle(n, i, q, hullTri[i], -1, hullTri[n]);
+                    hullTri[i] = this.legalise(t + 2);
+                    hullNext[n] = n;
+                    hullSize--;
+                    n = q;
+                    q = hullNext[n];
+                }
+                if (e == start) {
+                    q = hullPrev[e];
+                    while (this.orient(x, y, px[q], py[q], px[e], py[e])) {
+                        t = this.addTriangle(q, i, e, -1, hullTri[e], hullTri[q]);
+                        this.legalise(t + 2);
+                        hullTri[q] = t;
+                        hullNext[e] = e;
+                        hullSize--;
+                        e = q;
+                        q = hullPrev[e];
+                    }
+                }
+                this.hullStart = hullPrev[i] = e;
+                hullNext[e] = hullPrev[n] = i;
+                hullNext[i] = n;
+                hullHash[this.hashKey(x, y)] = i;
+                hullHash[this.hashKey(px[e], py[e])] = e;
+            }
+            this.hull = new Array(hullSize);
+            for (let n = 0, e = this.hullStart; n < hullSize; n++) {
+                this.hull[n] = e;
+                e = hullNext[e];
+            }
+            this.triangles = triangles.slice(0, this.numTriangles);
+            this.halfedges = halfedges.slice(0, this.numTriangles);
+        }
+        hashKey(x, y) {
+            return Math.floor(this.pseudoAngle(x - this.centreX, y - this.centreY) * this.hashSize) % this.hashSize;
+        }
+        legalise(a) {
+            let i = 0;
+            let ar = 0;
+            while (true) {
+                let b = this.halfedges[a];
+                let a0 = a - a % 3;
+                ar = a0 + (a + 2) % 3;
+                if (b < 0) {
+                    if (i == 0)
+                        break;
+                    a = this.edgeStack[--i];
+                    continue;
+                }
+                const b0 = b - b % 3;
+                const al = a0 + (a + 1) % 3;
+                const bl = b0 + (b + 2) % 3;
+                const { px, py, triangles, halfedges } = this;
+                const p0 = triangles[ar];
+                const pr = triangles[a];
+                const pl = triangles[al];
+                const p1 = triangles[bl];
+                let illegal = this.inCircle(px[p0], py[p0], px[pr], py[pr], px[pl], py[pl], px[p1], py[p1]);
+                if (illegal) {
+                    this.triangles[a] = p1;
+                    this.triangles[b] = p0;
+                    const hbl = halfedges[bl];
+                    if (hbl < 0) {
+                        let e = this.hullStart;
+                        do {
+                            if (this.hullTri[e] == bl) {
+                                this.hullTri[e] = a;
+                                break;
+                            }
+                            e = this.hullPrev[e];
+                        } while (e != this.hullStart);
+                    }
+                    this.link(a, hbl);
+                    this.link(b, halfedges[ar]);
+                    this.link(ar, bl);
+                    const br = b0 + (b + 1) % 3;
+                    if (i < this.edgeStack.length)
+                        this.edgeStack[i++] = br;
+                }
+                else {
+                    if (i == 0)
+                        break;
+                    a = this.edgeStack[--i];
+                }
+            }
+            return ar;
+        }
+        link(a, b) {
+            this.halfedges[a] = b;
+            if (b >= 0)
+                this.halfedges[b] = a;
+        }
+        addTriangle(i0, i1, i2, a, b, c) {
+            const t = this.numTriangles;
+            this.triangles[t] = i0;
+            this.triangles[t + 1] = i1;
+            this.triangles[t + 2] = i2;
+            this.link(t, a);
+            this.link(t + 1, b);
+            this.link(t + 2, c);
+            this.numTriangles += 3;
+            return t;
+        }
+        pseudoAngle(dx, dy) {
+            const p = dx / (Math.abs(dx) + Math.abs(dy));
+            return (dy > 0 ? 3 - p : 1 + p) / 4;
+        }
+        orientIfSure(px, py, rx, ry, qx, qy) {
+            const l = (ry - py) * (qx - px);
+            const r = (rx - px) * (qy - py);
+            return Math.abs(l - r) >= 3.3306690738754716e-16 * Math.abs(l + r) ? l - r : 0;
+        }
+        orient(rx, ry, qx, qy, px, py) {
+            let o = this.orientIfSure(px, py, rx, ry, qx, qy);
+            if (o != 0)
+                return o < 0;
+            o = this.orientIfSure(rx, ry, qx, qy, px, py);
+            if (o != 0)
+                return o < 0;
+            o = this.orientIfSure(qx, qy, px, py, rx, ry);
+            return o < 0;
+        }
+        inCircle(ax, ay, bx, by, cx, cy, px, py) {
+            const dx = ax - px;
+            const dy = ay - py;
+            const ex = bx - px;
+            const ey = by - py;
+            const fx = cx - px;
+            const fy = cy - py;
+            const ap = dx * dx + dy * dy;
+            const bp = ex * ex + ey * ey;
+            const cp = fx * fx + fy * fy;
+            return dx * (ey * cp - bp * fy) -
+                dy * (ex * cp - bp * fx) +
+                ap * (ex * fy - ey * fx) < 0;
+        }
+        circumRadius(ax, ay, bx, by, cx, cy) {
+            const dx = bx - ax;
+            const dy = by - ay;
+            const ex = cx - ax;
+            const ey = cy - ay;
+            const bl = dx * dx + dy * dy;
+            const cl = ex * ex + ey * ey;
+            const d = 0.5 / (dx * ey - dy * ex);
+            const x = (ey * bl - dy * cl) * d;
+            const y = (dx * cl - ex * bl) * d;
+            return x * x + y * y;
+        }
+        pickCircumCentre(ax, ay, bx, by, cx, cy) {
+            const dx = bx - ax;
+            const dy = by - ay;
+            const ex = cx - ax;
+            const ey = cy - ay;
+            const bl = dx * dx + dy * dy;
+            const cl = ex * ex + ey * ey;
+            const d = 0.5 / (dx * ey - dy * ex);
+            this.centreX = ax + (ey * bl - dy * cl) * d;
+            this.centreY = ay + (dx * cl - ex * bl) * d;
+        }
+        quicksort(left, right) {
+            const { ids, dists } = this;
+            if (right - left <= 20) {
+                for (let i = left + 1; i <= right; i++) {
+                    const temp = ids[i];
+                    const tempDist = dists[temp];
+                    let j = i - 1;
+                    while (j >= left && dists[ids[j]] > tempDist)
+                        ids[j + 1] = ids[j--];
+                    ids[j + 1] = temp;
+                }
+            }
+            else {
+                let median = (left + right) >> 1;
+                let i = left + 1;
+                let j = right;
+                WebMolKit.Vec.swap(ids, median, i);
+                if (dists[ids[left]] > dists[ids[right]])
+                    WebMolKit.Vec.swap(ids, left, right);
+                if (dists[ids[i]] > dists[ids[right]])
+                    WebMolKit.Vec.swap(ids, i, right);
+                if (dists[ids[left]] > dists[ids[i]])
+                    WebMolKit.Vec.swap(ids, left, i);
+                let temp = ids[i];
+                const tempDist = dists[temp];
+                while (true) {
+                    do
+                        i++;
+                    while (dists[ids[i]] < tempDist);
+                    do
+                        j--;
+                    while (dists[ids[j]] > tempDist);
+                    if (j < i)
+                        break;
+                    WebMolKit.Vec.swap(ids, i, j);
+                }
+                ids[left + 1] = ids[j];
+                ids[j] = temp;
+                if (right - i + 1 >= j - left) {
+                    this.quicksort(i, right);
+                    this.quicksort(left, j - 1);
+                }
+                else {
+                    this.quicksort(left, j - 1);
+                    this.quicksort(i, right);
+                }
+            }
+        }
+    }
+    WebMolKit.Triangulation2D = Triangulation2D;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -1286,6 +1819,16 @@ var WebMolKit;
             }
             return [bestW, bestH];
         }
+        static convexHull(x, y, flatness) {
+            let algo = new QuickHull(x, y, WebMolKit.sqr(flatness * 0.1));
+            return [algo.hullX, algo.hullY];
+        }
+        static outlinePolygon(x, y, diameter) {
+            let del = new WebMolKit.Triangulation2D(x, y);
+            let concave = del.trimConcave(diameter);
+            let idx = del.traceOutline(concave);
+            return [WebMolKit.Vec.idxGet(x, idx), WebMolKit.Vec.idxGet(y, idx)];
+        }
     }
     WebMolKit.GeomUtil = GeomUtil;
     class QuickHull {
@@ -1375,6 +1918,71 @@ var WebMolKit;
         }
     }
     WebMolKit.QuickHull = QuickHull;
+    class RollingBall {
+        constructor(x, y, diameter) {
+            this.x = x;
+            this.y = y;
+            this.sequence = [];
+            const sz = x.length;
+            const threshSq = diameter * diameter;
+            let first = WebMolKit.Vec.idxMax(x), latest = first;
+            let direction = 0.0;
+            let visited = WebMolKit.Vec.booleanArray(false, sz);
+            this.sequence.push(first);
+            let roll = () => {
+                let bestIdx = -1;
+                let bestDelta = 0, bestTheta = 0;
+                for (let n = 0; n < sz; n++)
+                    if (n != latest && !visited[n]) {
+                        let dx = x[n] - x[latest], dy = y[n] - y[latest];
+                        let dsq = WebMolKit.norm2_xy(dx, dy);
+                        if (dsq == 0 || dsq > threshSq)
+                            continue;
+                        let theta = Math.atan2(dy, dx), delta = WebMolKit.angleDiffPos(theta, direction);
+                        if (bestIdx < 0 || delta < bestDelta) {
+                            bestIdx = n;
+                            bestDelta = delta;
+                            bestTheta = theta;
+                        }
+                    }
+                if (bestIdx < 0)
+                    return -1;
+                direction = WebMolKit.angleNorm(bestTheta - 0.5 * Math.PI);
+                visited[bestIdx] = true;
+                return bestIdx;
+            };
+            while (true) {
+                let next = roll();
+                if (next < 0) {
+                    this.sequence = null;
+                    return;
+                }
+                if (next == first)
+                    break;
+                this.sequence.push(next);
+                latest = next;
+            }
+        }
+        sequencePos() {
+            if (!this.sequence)
+                return null;
+            let posList = [];
+            for (let n of this.sequence)
+                posList.push(new Pos(this.x[n], this.y[n]));
+            return posList;
+        }
+        sequenceXY() {
+            if (!this.sequence)
+                return [null, null];
+            let px = [], py = [];
+            for (let n of this.sequence) {
+                px.push(this.x[n]);
+                py.push(this.y[n]);
+            }
+            return [px, py];
+        }
+    }
+    WebMolKit.RollingBall = RollingBall;
     class Pos {
         constructor(x, y) {
             this.x = x == null ? 0 : x;
@@ -1404,6 +2012,7 @@ var WebMolKit;
         static zero() { return new Size(); }
         static fromArray(src) { return new Size(src[0], src[1]); }
         clone() { return new Size(this.w, this.h); }
+        isZero() { return this.w == 0 && this.h == 0; }
         scaleBy(mag) {
             if (mag == 1)
                 return;
@@ -1434,14 +2043,17 @@ var WebMolKit;
         static fromOval(oval) { return new Box(oval.cx - oval.rw, oval.cy - oval.rh, 2 * oval.rw, 2 * oval.rh); }
         static fromArray(src) { return new Box(src[0], src[1], src[2], src[3]); }
         clone() { return new Box(this.x, this.y, this.w, this.h); }
+        getPos() { return new Pos(this.x, this.y); }
         setPos(pos) {
             this.x = pos.x;
             this.y = pos.y;
         }
+        getSize() { return new Size(this.w, this.h); }
         setSize(sz) {
             this.w = sz.w;
             this.h = sz.h;
         }
+        isZero() { return this.w == 0 && this.h == 0; }
         minX() { return this.x; }
         minY() { return this.y; }
         midX() { return this.x + 0.5 * this.w; }
@@ -1552,1658 +2164,6 @@ var WebMolKit;
         toString() { return '[' + this.x1 + ',' + this.y1 + ';' + this.x2 + ',' + this.y2 + ']'; }
     }
     WebMolKit.Line = Line;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    let globalPopover = null;
-    let globalTooltip = null;
-    let globalPopWatermark = 0;
-    function addTooltip(parent, bodyHTML, titleHTML, delay) {
-        Tooltip.ensureGlobal();
-        let widget = $(parent);
-        const tooltip = new Tooltip(widget, bodyHTML, titleHTML, delay == null ? 1000 : delay);
-        let prevEnter = widget.attr('onmouseenter'), prevLeave = widget.attr('onmouseleave');
-        widget.mouseenter((e) => { tooltip.start(); if (prevEnter)
-            prevEnter(e); });
-        widget.mouseleave((e) => { tooltip.stop(); if (prevLeave)
-            prevLeave(e); });
-    }
-    WebMolKit.addTooltip = addTooltip;
-    function raiseToolTip(widget, avoid, bodyHTML, titleHTML) {
-        clearTooltip();
-        Tooltip.ensureGlobal();
-        new Tooltip($(widget), bodyHTML, titleHTML, 0).raise(avoid);
-    }
-    WebMolKit.raiseToolTip = raiseToolTip;
-    function clearTooltip() {
-        if (globalTooltip == null)
-            return;
-        globalPopWatermark++;
-        globalTooltip.lower();
-    }
-    WebMolKit.clearTooltip = clearTooltip;
-    class Tooltip {
-        constructor(widget, bodyHTML, titleHTML, delay) {
-            this.widget = widget;
-            this.bodyHTML = bodyHTML;
-            this.titleHTML = titleHTML;
-            this.delay = delay;
-        }
-        static ensureGlobal() {
-            if (globalPopover == null) {
-                globalPopover = $(document.createElement('div'));
-                globalPopover.css('position', 'absolute');
-                globalPopover.css('background-color', '#F0F0FF');
-                globalPopover.css('background-image', 'linear-gradient(to right bottom, #FFFFFF, #D0D0FF)');
-                globalPopover.css('color', 'black');
-                globalPopover.css('border', '1px solid black');
-                globalPopover.css('z-index', 12000);
-                globalPopover.css('border-radius', '4px');
-                globalPopover.hide();
-                globalPopover.appendTo(document.body);
-            }
-        }
-        start() {
-            globalPopover.hide();
-            this.watermark = ++globalPopWatermark;
-            window.setTimeout(() => {
-                if (this.watermark == globalPopWatermark)
-                    this.raise();
-            }, this.delay);
-        }
-        stop() {
-            if (this.watermark == globalPopWatermark)
-                this.lower();
-            globalPopWatermark++;
-        }
-        raise(avoid) {
-            globalTooltip = this;
-            let pop = globalPopover;
-            pop.css('max-width', '20em');
-            pop.empty();
-            let div = $('<div></div>').appendTo(pop);
-            div.css('padding', '0.3em');
-            let hasTitle = this.titleHTML != null && this.titleHTML.length > 0, hasBody = this.bodyHTML != null && this.bodyHTML.length > 0;
-            if (hasTitle)
-                ($('<div></div>').appendTo(div)).html('<b>' + this.titleHTML + '</b>');
-            if (hasTitle && hasBody)
-                div.append('<hr>');
-            if (hasBody)
-                ($('<div></div>').appendTo(div)).html(this.bodyHTML);
-            let winW = $(window).width(), winH = $(window).height();
-            const GAP = 2;
-            let wx1 = this.widget.offset().left, wy1 = this.widget.offset().top;
-            let wx2 = wx1 + this.widget.width(), wy2 = wy1 + this.widget.height();
-            if (avoid) {
-                wx1 += avoid.x;
-                wy1 += avoid.y;
-                wx2 = wx1 + avoid.w;
-                wy2 = wy1 + avoid.h;
-            }
-            let setPosition = () => {
-                let popW = pop.width(), popH = pop.height();
-                let posX = 0, posY = 0;
-                if (wx1 + popW < winW)
-                    posX = wx1;
-                else if (popW < wx2)
-                    posX = wx2 - popW;
-                if (wy2 + GAP + popH < winH)
-                    posY = wy2 + GAP;
-                else if (wy1 - GAP - popH > 0)
-                    posY = wy1 - GAP - popH;
-                else
-                    posY = wy2 + GAP;
-                pop.css('left', `${posX}px`);
-                pop.css('top', `${posY}px`);
-            };
-            setPosition();
-            pop.show();
-            window.setTimeout(() => setPosition(), 1);
-        }
-        lower() {
-            let pop = globalPopover;
-            pop.hide();
-        }
-    }
-    WebMolKit.Tooltip = Tooltip;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class Widget {
-        constructor() {
-            this.tagType = 'div';
-            this.content = null;
-        }
-        render(parent) {
-            let tag = this.tagType;
-            this.content = $(`<${tag}></${tag}>`).appendTo($(parent));
-        }
-        remove() {
-            if (this.content)
-                this.content.remove();
-            this.content = null;
-        }
-        addTooltip(bodyHTML, titleHTML) {
-            WebMolKit.addTooltip(this.content, bodyHTML, titleHTML);
-        }
-    }
-    WebMolKit.Widget = Widget;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class RenderPolicy {
-        constructor(data) {
-            if (!data) {
-                data =
-                    {
-                        'name': 'default',
-                        'pointScale': 20,
-                        'resolutionDPI': 100,
-                        'fontSize': 0.65,
-                        'lineSize': 0.075,
-                        'bondSep': 0.2,
-                        'defaultPadding': 0.2,
-                        'foreground': 0x000000,
-                        'background': 0xFFFFFF,
-                        'atomCols': new Array(112)
-                    };
-                for (let n = 0; n <= 111; n++)
-                    data.atomCols[n] = 0x000000;
-                this.data = data;
-            }
-            else {
-                this.data = WebMolKit.clone(data);
-            }
-        }
-        static defaultBlackOnWhite() {
-            let policy = new RenderPolicy();
-            return policy;
-        }
-        static defaultWhiteOnBlack() {
-            let policy = new RenderPolicy();
-            policy.data.foreground = 0xFFFFFF;
-            policy.data.background = 0x000000;
-            for (let n = 0; n <= 111; n++)
-                policy.data.atomCols[n] = 0xFFFFFF;
-            return policy;
-        }
-        static defaultColourOnWhite() {
-            let policy = RenderPolicy.defaultBlackOnWhite();
-            policy.data.atomCols[0] = 0x404040;
-            policy.data.atomCols[1] = 0x808080;
-            policy.data.atomCols[6] = 0x000000;
-            policy.data.atomCols[7] = 0x0000FF;
-            policy.data.atomCols[8] = 0xFF0000;
-            policy.data.atomCols[9] = 0xFF8080;
-            policy.data.atomCols[15] = 0xFF8000;
-            policy.data.atomCols[16] = 0x808000;
-            policy.data.atomCols[17] = 0x00C000;
-            policy.data.atomCols[35] = 0xC04000;
-            return policy;
-        }
-        static defaultColourOnBlack() {
-            let policy = RenderPolicy.defaultWhiteOnBlack();
-            policy.data.atomCols[0] = 0xA0A0A0;
-            policy.data.atomCols[1] = 0x808080;
-            policy.data.atomCols[6] = 0xFFFFFF;
-            policy.data.atomCols[7] = 0x4040FF;
-            policy.data.atomCols[8] = 0xFF4040;
-            policy.data.atomCols[9] = 0xFF8080;
-            policy.data.atomCols[15] = 0xFF8000;
-            policy.data.atomCols[16] = 0xFFFF00;
-            policy.data.atomCols[17] = 0x40FF40;
-            policy.data.atomCols[35] = 0xFF8040;
-            return policy;
-        }
-        static defaultPrintedPublication() {
-            let policy = RenderPolicy.defaultBlackOnWhite();
-            policy.data.pointScale = 9.6;
-            policy.data.resolutionDPI = 600;
-            policy.data.fontSize = 0.80;
-            policy.data.bondSep = 0.27;
-            policy.data.lineSize = 0.0625;
-            return policy;
-        }
-    }
-    WebMolKit.RenderPolicy = RenderPolicy;
-    class RenderEffects {
-        constructor() {
-            this.colAtom = {};
-            this.colBond = {};
-            this.dottedRectOutline = {};
-            this.dottedBondCross = {};
-            this.hideAtoms = new Set();
-            this.hideBonds = new Set();
-            this.atomFrameDotSz = [];
-            this.atomFrameCol = [];
-            this.atomCircleSz = [];
-            this.atomCircleCol = [];
-            this.atomDecoText = [];
-            this.atomDecoCol = [];
-            this.atomDecoSize = [];
-            this.bondDecoText = [];
-            this.bondDecoCol = [];
-            this.bondDecoSize = [];
-            this.overlapAtoms = [];
-        }
-    }
-    WebMolKit.RenderEffects = RenderEffects;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class FontData {
-        constructor() {
-            this.UNITS_PER_EM = 2048;
-            this.INV_UNITS_PER_EM = 1.0 / this.UNITS_PER_EM;
-            this.PANOSE_1 = '2 11 6 4 3 5 4 4 2 4';
-            this.ASCENT = 1638;
-            this.DESCENT = -410;
-            this.MISSING_HORZ = 2048;
-            this.MISSING_DATA = 'M256 0v1536h1536v-1536h-1536zM384 128h1280v1280h-1280v-1280z';
-            this.ASCENT_FUDGE = 0.9;
-            this.UNICODE = [
-                ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<',
-                '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-                '[', '\\', ']', '^', '_', '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
-                'x', 'y', 'z', '{', '|', '}', '~', '\u00A0', '\u00A1', '\u00A2', '\u00A3', '\u00A4', '\u00A5', '\u00A6', '\u00A7', '\u00A8', '\u00A9', '\u00AA',
-                '\u00AB', '\u00AC', '\u00AD', '\u00AE', '\u00AF', '\u00B0', '\u00B1', '\u00B2', '\u00B3', '\u00B4', '\u00B5', '\u00B6', '\u00B7', '\u00B8', '\u00B9',
-                '\u00BA', '\u00BB', '\u00BC', '\u00BD', '\u00BE', '\u00BF', '\u00C0', '\u00C1', '\u00C2', '\u00C3', '\u00C4', '\u00C5', '\u00C6', '\u00C7', '\u00C8',
-                '\u00C9', '\u00CA', '\u00CB', '\u00CC', '\u00CD', '\u00CE', '\u00CF', '\u00D0', '\u00D1', '\u00D2', '\u00D3', '\u00D4', '\u00D5', '\u00D6', '\u00D7',
-                '\u00D8', '\u00D9', '\u00DA', '\u00DB', '\u00DC', '\u00DD', '\u00DE', '\u00DF', '\u00E0', '\u00E1', '\u00E2', '\u00E3', '\u00E4', '\u00E5', '\u00E6',
-                '\u00E7', '\u00E8', '\u00E9', '\u00EA', '\u00EB', '\u00EC', '\u00ED', '\u00EE', '\u00EF', '\u00F0', '\u00F1', '\u00F2', '\u00F3', '\u00F4', '\u00F5',
-                '\u00F6', '\u00F7', '\u00F8', '\u00F9', '\u00FA', '\u00FB', '\u00FC', '\u00FD', '\u00FE', '\u037E', '\u0384', '\u0385', '\u0386', '\u0387', '\u0388',
-                '\u0389', '\u038A', '\u038C', '\u038E', '\u038F', '\u0390', '\u0391', '\u0392', '\u0393', '\u0394', '\u0395', '\u0396', '\u0397', '\u0398', '\u0399',
-                '\u039A', '\u039B', '\u039C', '\u039D', '\u039E', '\u039F', '\u03A0', '\u03A1', '\u03A3', '\u03A4', '\u03A5', '\u03A6', '\u03A7', '\u03A8', '\u03A9',
-                '\u03AA', '\u03AB', '\u03AC', '\u03AD', '\u03AE', '\u03AF', '\u03B0', '\u03B1', '\u03B2', '\u03B3', '\u03B4', '\u03B5', '\u03B6', '\u03B7', '\u03B8',
-                '\u03B9', '\u03BA', '\u03BB', '\u03BC', '\u03BD', '\u03BE', '\u03BF', '\u03C0', '\u03C1', '\u03C2', '\u03C3', '\u03C4', '\u03C5', '\u03C6', '\u03C7',
-                '\u03C8', '\u03C9', '\u03CA', '\u03CB', '\u03CC', '\u03CD', '\u03CE', '\u2202', '\u2206', '\u220F', '\u2211', '\u2212', '\u2215', '\u2219', '\u221A',
-                '\u221E', '\u222B', '\u2248', '\u2260', '\u2264', '\u2265'
-            ];
-            this.HORIZ_ADV_X = [
-                720, 806, 940, 1676, 1302, 2204, 1488, 550, 930, 930, 1302, 1676, 745, 930, 745, 930, 1302, 1302, 1302, 1302, 1302, 1302, 1302, 1302, 1302, 1302,
-                930, 930, 1676, 1676, 1676, 1117, 2048, 1400, 1404, 1430, 1578, 1295, 1177, 1588, 1539, 862, 931, 1419, 1140, 1726, 1532, 1612, 1235, 1612, 1424,
-                1400, 1262, 1499, 1400, 2025, 1403, 1260, 1403, 930, 930, 930, 1676, 1302, 1302, 1230, 1276, 1067, 1276, 1220, 720, 1276, 1296, 562, 705, 1212, 562,
-                1992, 1296, 1243, 1276, 1276, 874, 1067, 807, 1296, 1212, 1676, 1212, 1212, 1076, 1300, 930, 1300, 1676, 720, 806, 1302, 1302, 1302, 1302, 930, 1302,
-                1302, 2048, 1117, 1320, 1676, 930, 2048, 1302, 1110, 1676, 1110, 1110, 1302, 1314, 1302, 745, 1302, 1110, 1117, 1320, 2048, 2048, 2048, 1117, 1400,
-                1400, 1400, 1400, 1400, 1400, 2016, 1430, 1295, 1295, 1295, 1295, 862, 862, 862, 862, 1588, 1532, 1612, 1612, 1612, 1612, 1612, 1676, 1612, 1499,
-                1499, 1499, 1499, 1260, 1240, 1270, 1230, 1230, 1230, 1230, 1230, 1230, 1956, 1067, 1220, 1220, 1220, 1220, 562, 562, 562, 562, 1253, 1296, 1243,
-                1243, 1243, 1243, 1243, 1676, 1243, 1296, 1296, 1296, 1296, 1212, 1276, 930, 1302, 1302, 1400, 930, 1538, 1782, 1105, 1804, 1543, 1859, 562, 1400,
-                1404, 1160, 1440, 1295, 1403, 1539, 1612, 862, 1419, 1404, 1726, 1532, 1329, 1612, 1539, 1235, 1377, 1262, 1260, 1677, 1403, 1783, 1676, 862, 1260,
-                1276, 1050, 1296, 562, 1293, 1276, 1270, 1212, 1245, 1050, 937, 1296, 1278, 562, 1212, 1212, 1310, 1212, 1030, 1243, 1305, 1280, 1040, 1291, 1016,
-                1293, 1618, 1208, 1683, 1666, 562, 1293, 1243, 1293, 1666, 1302, 1489, 1676, 1489, 1676, 740, 745, 1676, 2048, 1302, 1676, 1676, 1676, 1676
-            ];
-            this.GLYPH_DATA = [
-                '',
-                'M515 1489l-26 -1079h-170l-28 1079h224zM505 0h-204v211h204v-211z',
-                'M772 1556l-43 -579h-132l-43 579h218zM386 1556l-43 -579h-132l-43 579h218z',
-                'M1481 932h-333l-92 -376h308v-135h-343l-104 -421h-129l104 421h-270l-104 -421h-129l104 421h-298v135h333l92 376h-308v135h343l105 422h129l-105 -422h270l105 422h129l-105 -422h298v-135zM1022 934h-274l-94 -380h274z',
-                'M1160 380q0 -155 -121 -257.5t-317 -121.5v-362h-118v357q-132 1 -248 25.5t-201 63.5v198h16q19 -14 68 -40.5t95 -43.5q52 -19 121.5 -35.5t148.5 -19.5v433q-40 8 -74 15.5t-63 15.5q-163 41 -234 123.5t-71 203.5q0 148 116.5 250t325.5 119v272h118v-270 q101 -2 207 -24t178 -51v-196h-14q-75 46 -156.5 81.5t-214.5 44.5v-431q30 -5 65 -13.5t61 -13.5q149 -32 230.5 -110t81.5 -213zM604 747v413q-107 -8 -180 -58.5t-73 -140.5q0 -91 54 -137t199 -77zM971 354q0 94 -58.5 137.5t-190.5 68.5v-414q120 12 184.5 61t64.5 147 z',
-                'M884 1076q0 -224 -94.5 -333t-272.5 -109q-182 0 -275 109t-93 332q0 224 95 333t273 109q181 0 274 -110t93 -331zM1575 1489l-780 -1489h-165l780 1489h165zM2055 413q0 -224 -95 -333t-273 -109q-181 0 -274 110t-93 331q0 224 94.5 333t272.5 109q182 0 275 -109 t93 -332zM706 1076q0 172 -44.5 240t-144.5 68q-102 0 -146 -68t-44 -241t44 -240.5t146 -67.5q100 0 144.5 67.5t44.5 241.5zM1877 413q0 172 -44.5 240t-144.5 68q-102 0 -146 -68t-44 -241t44 -240.5t146 -67.5q100 0 144.5 67.5t44.5 241.5z',
-                'M792 1191q0 95 -56.5 149.5t-144.5 54.5q-92 0 -150 -61.5t-58 -150.5q0 -75 39.5 -133t170.5 -137q98 35 148.5 102.5t50.5 175.5zM986 315l-478 466q-31 -15 -62 -39.5t-62 -66.5q-28 -39 -46 -94t-18 -124q0 -146 85.5 -235.5t242.5 -89.5q93 0 184.5 45.5 t153.5 137.5zM1287 909v-96q0 -96 -25 -216t-85 -229l378 -368h-246l-229 224q-115 -142 -235 -198.5t-247 -56.5q-208 0 -345.5 121.5t-137.5 318.5q0 92 26 159t61 116q35 47 87 88.5t105 72.5q-110 72 -158.5 145t-48.5 184q0 67 26.5 127.5t79.5 110.5q50 48 130.5 78 t177.5 30q173 0 280 -87.5t107 -221.5q0 -44 -12 -99.5t-41 -99.5q-32 -49 -91 -94t-153 -77l371 -362q14 40 21 88t8 100q2 56 1.5 125t-0.5 117h195z',
-                'M386 1556l-43 -579h-136l-43 579h222z',
-                'M783 -412h-229q-177 203 -275 443t-98 541t98 541t275 443h229v-10q-81 -73 -154.5 -168.5t-136.5 -222.5q-60 -123 -97.5 -271t-37.5 -312q0 -171 36.5 -313t98.5 -270q60 -123 137 -222.5t154 -168.5v-10z',
-                'M749 572q0 -301 -98 -541t-275 -443h-229v10q77 69 154.5 168.5t136.5 222.5q62 128 98.5 270t36.5 313q0 164 -37 312t-98 271q-63 127 -136.5 222.5t-154.5 168.5v10h229q177 -203 275 -443t98 -541z',
-                'M1137 887l-64 -110l-362 213l6 -360h-129l5 360l-361 -214l-65 110l381 207l-381 207l65 110l362 -213l-6 359h129l-7 -359l363 212l64 -110l-380 -205z',
-                'M1466 572h-545v-545h-166v545h-545v160h545v545h166v-545h545v-160z',
-                'M575 285l-282 -655h-146l174 655h254z',
-                'M777 561h-624v181h624v-181z',
-                'M492 0h-239v285h239v-285z',
-                'M860 1556l-717 -1860h-173l714 1860h176z',
-                'M1167 745q0 -401 -125.5 -588.5t-389.5 -187.5q-268 0 -391.5 190t-123.5 584q0 397 125 586.5t390 189.5q268 0 391.5 -192.5t123.5 -581.5zM904 291q35 81 47.5 190.5t12.5 263.5q0 152 -12.5 264t-48.5 190q-35 77 -95.5 116t-155.5 39q-94 0 -155.5 -39t-97.5 -118 q-34 -74 -46.5 -193t-12.5 -261q0 -156 11 -261t47 -188q33 -78 93.5 -119t160.5 -41q94 0 156 39t96 118z',
-                'M1084 0h-806v152h310v998h-310v136q63 0 135 10.5t109 30.5q46 25 72.5 63.5t30.5 103.5h155v-1342h304v-152z',
-                'M1169 0h-1008v209q105 90 210.5 180t196.5 179q192 186 263 295.5t71 236.5q0 116 -76.5 181.5t-213.5 65.5q-91 0 -197 -32t-207 -98h-10v210q71 35 189.5 64t229.5 29q229 0 359 -110.5t130 -299.5q0 -85 -21.5 -158.5t-63.5 -139.5q-39 -62 -91.5 -122t-127.5 -133 q-107 -105 -221 -203.5t-213 -182.5h801v-171z',
-                'M1038 717q48 -43 79 -108t31 -168q0 -102 -37 -187t-104 -148q-75 -70 -176.5 -103.5t-222.5 -33.5q-124 0 -244 29.5t-197 64.5v209h15q85 -56 200 -93t222 -37q63 0 134 21t115 62q46 44 68.5 97t22.5 134q0 80 -25.5 132.5t-70.5 82.5q-45 31 -109 42.5t-138 11.5h-90 v166h70q152 0 242.5 63.5t90.5 185.5q0 54 -23 94.5t-64 66.5q-43 26 -92 36t-111 10q-95 0 -202 -34t-202 -96h-10v209q71 35 189.5 64.5t229.5 29.5q109 0 192 -20t150 -64q72 -48 109 -116t37 -159q0 -124 -87.5 -216.5t-206.5 -116.5v-14q48 -8 110 -33.5t105 -63.5z ',
-                'M1203 419h-221v-419h-192v419h-713v230l721 840h184v-910h221v-160zM790 579v672l-577 -672h577z',
-                'M1157 473q0 -104 -38 -199t-104 -160q-72 -70 -171.5 -107.5t-230.5 -37.5q-122 0 -235 25.5t-191 61.5v211h14q82 -52 192 -88.5t216 -36.5q71 0 137.5 20t118.5 70q44 43 66.5 103t22.5 139q0 77 -26.5 130t-73.5 85q-52 38 -126.5 53.5t-166.5 15.5q-88 0 -169.5 -12 t-140.5 -24v767h896v-175h-703v-396q43 4 88 6t78 2q121 0 212 -20.5t167 -72.5q80 -55 124 -142t44 -218z',
-                'M1191 483q0 -227 -149.5 -370.5t-366.5 -143.5q-110 0 -200 34t-159 101q-86 83 -132.5 220t-46.5 330q0 198 42.5 351t135.5 272q88 113 227 176.5t324 63.5q59 0 99 -5t81 -18v-191h-10q-28 15 -84.5 28.5t-115.5 13.5q-215 0 -343 -134.5t-149 -363.5 q84 51 165.5 77.5t188.5 26.5q95 0 167.5 -17.5t148.5 -70.5q88 -61 132.5 -154t44.5 -226zM988 475q0 93 -27.5 154t-90.5 106q-46 32 -102 42t-117 10q-85 0 -158 -20t-150 -62q-2 -22 -3 -42.5t-1 -51.5q0 -158 32.5 -249.5t89.5 -144.5q46 -44 99.5 -64.5t116.5 -20.5 q145 0 228 88.5t83 254.5z',
-                'M1173 1266l-674 -1266h-214l717 1314h-848v175h1019v-223z',
-                'M1180 415q0 -193 -150.5 -321t-378.5 -128q-242 0 -385.5 125t-143.5 320q0 124 72 224.5t203 159.5v6q-120 64 -177.5 140t-57.5 190q0 168 138 280t351 112q223 0 356 -107t133 -272q0 -101 -63 -198.5t-185 -152.5v-6q140 -60 214 -148t74 -224zM943 1142 q0 107 -82.5 170.5t-210.5 63.5q-126 0 -206.5 -60t-80.5 -162q0 -72 40.5 -124.5t122.5 -93.5q37 -18 106.5 -47t135.5 -48q99 66 137 137t38 164zM974 396q0 92 -40.5 147.5t-158.5 111.5q-47 22 -103 41t-149 53q-90 -49 -144.5 -133t-54.5 -190q0 -135 93 -223t236 -88 q146 0 233.5 75t87.5 206z',
-                'M1167 834q0 -195 -44.5 -354t-134.5 -271q-91 -114 -228 -176t-322 -62q-52 0 -98 5.5t-82 17.5v191h10q29 -15 82 -28.5t118 -13.5q221 0 346.5 132.5t145.5 365.5q-93 -56 -175 -80t-179 -24q-92 0 -166.5 18t-149.5 70q-88 61 -132.5 155t-44.5 225q0 228 150 371 t366 143q108 0 200 -33.5t161 -100.5q85 -83 131 -213.5t46 -337.5zM965 877q0 155 -32 249t-88 146q-47 45 -101 64.5t-117 19.5q-144 0 -227.5 -90t-83.5 -253q0 -95 27 -155t91 -105q45 -31 99 -41.5t120 -10.5q78 0 158 21t150 61q1 21 2.5 41.5t1.5 52.5z',
-                'M585 832h-239v285h239v-285zM585 0h-239v285h239v-285z',
-                'M585 832h-239v285h239v-285zM658 285l-282 -655h-146l174 655h254z',
-                'M1408 77l-1154 513v124l1154 513v-180l-910 -395l910 -395v-180z',
-                'M1431 782h-1186v160h1186v-160zM1431 362h-1186v160h1186v-160z',
-                'M1422 590l-1154 -513v180l910 395l-910 395v180l1154 -513v-124z',
-                'M1005 1139q0 -98 -35 -174.5t-92 -135.5q-56 -57 -129 -107t-155 -97v-225h-179v305q65 37 140.5 81t123.5 89q58 52 90 107.5t32 141.5q0 113 -76.5 168.5t-197.5 55.5q-108 0 -204.5 -34t-152.5 -69h-10v204q70 27 177.5 48.5t203.5 21.5q215 0 339.5 -104.5 t124.5 -275.5zM610 0h-204v211h204v-211z',
-                'M1870 663q0 -139 -40.5 -269t-115.5 -237h-440l-27 116q-74 -60 -142 -92t-156 -32q-168 0 -268.5 127t-100.5 355q0 227 123 362t294 135q73 0 129 -16.5t121 -49.5v48h159v-842h243q42 75 63.5 187.5t21.5 201.5q0 164 -45.5 298t-133.5 230t-218 147.5t-295 51.5 q-160 0 -292.5 -58t-227.5 -156q-96 -98 -150.5 -234.5t-54.5 -290.5q0 -165 52 -301.5t147 -233.5q99 -101 232 -152.5t290 -51.5q86 0 177.5 11t175.5 35v-142q-97 -21 -181 -28.5t-173 -7.5q-186 0 -345 63.5t-273 177.5q-115 115 -179 276t-64 356q0 185 67 344.5 t183 276.5t275 184t340 67q196 0 350 -62t260 -174t162.5 -269.5t56.5 -350.5zM1245 408v518q-63 29 -113 41.5t-107 12.5q-129 0 -202 -90t-73 -256q0 -163 58 -246.5t181 -83.5q67 0 134 31t122 73z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523z',
-                'M1323 458q0 -111 -42 -196t-113 -140q-84 -66 -184.5 -94t-255.5 -28h-528v1489h441q163 0 244 -12t155 -50q82 -43 119 -110.5t37 -161.5q0 -106 -54 -180.5t-144 -119.5v-8q151 -31 238 -132.5t87 -256.5zM990 1129q0 54 -18 91t-58 60q-47 27 -114 33.5t-166 6.5h-236 v-430h256q93 0 148 9.5t102 39.5t66.5 77.5t19.5 112.5zM1117 450q0 90 -27 143t-98 90q-48 25 -116.5 32.5t-166.5 7.5h-311v-554h262q130 0 213 13.5t136 49.5q56 39 82 89t26 129z',
-                'M1350 108q-55 -24 -99.5 -45t-116.5 -44q-61 -19 -132.5 -32.5t-157.5 -13.5q-162 0 -294.5 45.5t-230.5 142.5q-96 95 -150 241.5t-54 340.5q0 184 52 329t150 245q95 97 229.5 148t298.5 51q120 0 239.5 -29t265.5 -102v-235h-15q-123 103 -244 150t-259 47 q-113 0 -203.5 -36.5t-161.5 -113.5q-69 -75 -107.5 -189.5t-38.5 -264.5q0 -157 42.5 -270t109.5 -184q70 -74 163.5 -109.5t197.5 -35.5q143 0 268 49t234 147h14v-232z',
-                'M1458 743q0 -203 -88.5 -368t-235.5 -256q-102 -63 -227.5 -91t-330.5 -28h-376v1489h372q218 0 346.5 -31.5t217.5 -86.5q152 -95 237 -253t85 -375zM1251 746q0 175 -61 295t-182 189q-88 50 -187 69.5t-237 19.5h-186v-1149h186q143 0 249.5 21t195.5 78 q111 71 166.5 187t55.5 290z',
-                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176z',
-                'M1151 1313h-753v-420h647v-176h-647v-717h-198v1489h951v-176z',
-                'M1442 110q-122 -56 -266.5 -97.5t-279.5 -41.5q-174 0 -319 48t-247 144q-103 97 -159 242.5t-56 340.5q0 357 208.5 563.5t572.5 206.5q127 0 259.5 -30.5t285.5 -103.5v-235h-18q-31 24 -90 63t-116 65q-69 31 -156.5 51.5t-198.5 20.5q-250 0 -395.5 -160.5 t-145.5 -434.5q0 -289 152 -449.5t414 -160.5q96 0 191.5 19t167.5 49v365h-399v174h595v-639z',
-                'M1339 0h-198v729h-743v-729h-198v1489h198v-584h743v584h198v-1489z',
-                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152z',
-                'M746 387q0 -196 -119.5 -302t-320.5 -106q-48 0 -128 8.5t-134 20.5v185h11q41 -14 101 -29t123 -15q92 0 146.5 21t80.5 60q27 40 34.5 98t7.5 134v869h-315v158h513v-1102z',
-                'M1397 0h-257l-589 663l-148 -158v-505h-198v1489h198v-777l723 777h240l-665 -700z',
-                'M1142 0h-942v1489h198v-1313h744v-176z',
-                'M1526 0h-198v1283l-414 -873h-118l-411 873v-1283h-185v1489h270l397 -829l384 829h275v-1489z',
-                'M1336 0h-245l-706 1332v-1332h-185v1489h307l644 -1216v1216h185v-1489z',
-                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5z',
-                'M1174 1039q0 -99 -34.5 -183.5t-96.5 -146.5q-77 -77 -182 -115.5t-265 -38.5h-198v-555h-198v1489h404q134 0 227 -22.5t165 -70.5q85 -57 131.5 -142t46.5 -215zM968 1034q0 77 -27 134t-82 93q-48 31 -109.5 44.5t-155.5 13.5h-196v-595h167q120 0 195 21.5t122 68.5 q47 48 66.5 101t19.5 119z',
-                'M1528 -365q-60 -15 -118.5 -21.5t-119.5 -6.5q-174 0 -279.5 95.5t-114.5 273.5q-24 -4 -46.5 -5.5t-43.5 -1.5q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5 q91 -100 139.5 -245t48.5 -329q0 -273 -111.5 -460t-299.5 -262q4 -114 54 -177t182 -63q41 0 97.5 12.5t80.5 22.5h27v-182zM1292 744q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5z',
-                'M1432 0h-257l-498 592h-279v-592h-198v1489h417q135 0 225 -17.5t162 -62.5q81 -51 126.5 -128.5t45.5 -196.5q0 -161 -81 -269.5t-223 -163.5zM969 1070q0 64 -22.5 113.5t-74.5 83.5q-43 29 -102 40.5t-139 11.5h-233v-562h200q94 0 164 16.5t119 61.5q45 42 66.5 96.5 t21.5 138.5z',
-                'M1282 425q0 -87 -40.5 -172t-113.5 -144q-80 -64 -186.5 -100t-256.5 -36q-161 0 -289.5 30t-261.5 89v248h14q113 -94 261 -145t278 -51q184 0 286.5 69t102.5 184q0 99 -48.5 146t-147.5 73q-75 20 -162.5 33t-185.5 33q-198 42 -293.5 143.5t-95.5 264.5 q0 187 158 306.5t401 119.5q157 0 288 -30t232 -74v-234h-14q-85 72 -223.5 119.5t-283.5 47.5q-159 0 -255.5 -66t-96.5 -170q0 -93 48 -146t169 -81q64 -14 182 -34t200 -41q166 -44 250 -133t84 -249z',
-                'M1262 1313h-532v-1313h-198v1313h-532v176h1262v-176z',
-                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891z',
-                'M1374 1489l-542 -1489h-264l-542 1489h212l467 -1310l467 1310h202z',
-                'M1933 1489l-387 -1489h-223l-313 1236l-306 -1236h-218l-394 1489h203l313 -1238l308 1238h201l311 -1250l311 1250h194z',
-                'M1336 1489l-514 -736l513 -753h-229l-406 613l-416 -613h-216l519 744l-507 745h228l401 -605l410 605h217z',
-                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211z',
-                'M1288 0h-1162v184l913 1129h-879v176h1106v-179l-922 -1134h944v-176z',
-                'M759 -392h-520v1948h520v-143h-346v-1662h346v-143z',
-                'M960 -304h-173l-717 1860h176z',
-                'M691 -392h-520v143h346v1662h-346v143h520v-1948z',
-                'M1490 684h-198l-455 627l-454 -629h-197l589 807h126z',
-                'M1306 -300h-1310v120h1310v-120z',
-                'M762 1302h-149l-273 374h243z',
-                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5z',
-                'M1168 567q0 -140 -39.5 -252t-106.5 -188q-71 -79 -156 -118.5t-187 -39.5q-95 0 -166 22.5t-140 60.5l-12 -52h-176v1556h188v-556q79 65 168 106.5t200 41.5q198 0 312.5 -152t114.5 -429zM974 562q0 200 -66 303.5t-213 103.5q-82 0 -166 -35.5t-156 -91.5v-640 q80 -36 137.5 -50t130.5 -14q156 0 244.5 102.5t88.5 321.5z',
-                'M1011 70q-94 -45 -178.5 -70t-179.5 -25q-121 0 -222 35.5t-173 107.5q-73 72 -113 182t-40 257q0 274 150.5 430t397.5 156q96 0 188.5 -27t169.5 -66v-209h-10q-86 67 -177.5 103t-178.5 36q-160 0 -252.5 -107.5t-92.5 -315.5q0 -202 90.5 -310.5t254.5 -108.5 q57 0 116 15t106 39q41 21 77 44.5t57 40.5h10v-207z',
-                'M1091 0h-188v117q-81 -70 -169 -109t-191 -39q-200 0 -317.5 154t-117.5 427q0 142 40.5 253t109.5 189q68 76 158.5 116t187.5 40q88 0 156 -18.5t143 -57.5v484h188v-1556zM903 275v641q-76 34 -136 47t-131 13q-158 0 -246 -110t-88 -312q0 -199 68 -302.5t218 -103.5 q80 0 162 35.5t153 91.5z',
-                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640z',
-                'M786 1374h-10q-31 9 -81 18.5t-88 9.5q-121 0 -175.5 -53.5t-54.5 -193.5v-38h339v-158h-333v-959h-188v959h-127v158h127v37q0 199 99 305.5t286 106.5q63 0 113.5 -6t92.5 -14v-172z',
-                'M1091 127q0 -284 -129 -417t-397 -133q-89 0 -173.5 12.5t-166.5 35.5v192h10q46 -18 146 -44.5t200 -26.5q96 0 159 23t98 64q35 39 50 94t15 123v102q-85 -68 -162.5 -101.5t-197.5 -33.5q-200 0 -317.5 144.5t-117.5 407.5q0 144 40.5 248.5t110.5 180.5 q65 71 158 110.5t185 39.5q97 0 162.5 -19.5t138.5 -59.5l12 48h176v-990zM903 307v609q-75 34 -139.5 48.5t-128.5 14.5q-155 0 -244 -104t-89 -302q0 -188 66 -285t219 -97q82 0 164.5 31.5t151.5 84.5z',
-                'M1119 0h-188v636q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1556h188v-563q88 73 182 114t193 41q181 0 276 -109t95 -314v-725z',
-                'M387 1304h-212v195h212v-195zM375 0h-188v1117h188v-1117z',
-                'M533 1304h-212v195h212v-195zM521 -27q0 -196 -100 -296t-268 -100q-40 0 -105.5 8t-109.5 20v179h10q28 -11 75.5 -25t92.5 -14q72 0 116 20t66 60t28.5 96.5t6.5 137.5v900h-233v158h421v-1144z',
-                'M1199 0h-248l-448 489l-122 -116v-373h-188v1556h188v-998l543 559h237l-519 -516z',
-                'M375 0h-188v1556h188v-1556z',
-                'M1815 0h-188v636q0 72 -6.5 139t-27.5 107q-23 43 -66 65t-124 22q-79 0 -158 -39.5t-158 -100.5q3 -23 5 -53.5t2 -60.5v-715h-188v636q0 74 -6.5 140.5t-27.5 106.5q-23 43 -66 64.5t-124 21.5q-77 0 -154.5 -38t-154.5 -97v-834h-188v1117h188v-124q88 73 175.5 114 t186.5 41q114 0 193.5 -48t118.5 -133q114 96 208 138.5t201 42.5q184 0 271.5 -111.5t87.5 -311.5v-725z',
-                'M1119 0h-188v636q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-725z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z',
-                'M1168 572q0 -136 -39 -248.5t-110 -190.5q-66 -74 -155.5 -114.5t-189.5 -40.5q-87 0 -157.5 19t-143.5 59v-468h-188v1529h188v-117q75 63 168.5 105.5t199.5 42.5q202 0 314.5 -152.5t112.5 -423.5zM974 567q0 202 -69 302t-212 100q-81 0 -163 -35t-157 -92v-633 q80 -36 137.5 -49t130.5 -13q157 0 245 106t88 314z',
-                'M1091 -412h-188v538q-87 -75 -173 -111.5t-186 -36.5q-199 0 -317.5 153.5t-118.5 423.5q0 144 41.5 254.5t109.5 185.5q66 73 155 113t188 40q90 0 159.5 -20t141.5 -59l12 48h176v-1529zM903 284v632q-78 35 -138 49t-130 14q-163 0 -248 -110.5t-85 -304.5 q0 -196 68.5 -301.5t215.5 -105.5q82 0 164 35.5t153 91.5z',
-                'M882 912h-10q-42 10 -81.5 14.5t-93.5 4.5q-87 0 -168 -38.5t-156 -99.5v-793h-188v1117h188v-165q112 90 197.5 127.5t174.5 37.5q49 0 71 -2.5t66 -9.5v-193z',
-                'M983 322q0 -153 -126.5 -251t-345.5 -98q-124 0 -227.5 29.5t-173.5 64.5v211h10q89 -67 198 -106.5t209 -39.5q124 0 194 40t70 126q0 66 -38 100t-146 58q-40 9 -104.5 21t-117.5 26q-147 39 -208.5 114.5t-61.5 185.5q0 69 28.5 130t86.5 109q56 47 142.5 74.5 t193.5 27.5q100 0 202.5 -24.5t170.5 -59.5v-201h-10q-72 53 -175 89.5t-202 36.5q-103 0 -174 -39.5t-71 -117.5q0 -69 43 -104q42 -35 136 -57q52 -12 116.5 -24t107.5 -22q131 -30 202 -103q71 -74 71 -196z',
-                'M765 10q-53 -14 -115.5 -23t-111.5 -9q-171 0 -260 92t-89 295v594h-127v158h127v321h188v-321h388v-158h-388v-509q0 -88 4 -137.5t28 -92.5q22 -40 60.5 -58.5t117.5 -18.5q46 0 96 13.5t72 22.5h10v-169z',
-                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117z',
-                'M1151 1117l-452 -1117h-189l-449 1117h204l346 -889l343 889h197z',
-                'M1590 1117l-291 -1117h-174l-287 861l-285 -861h-173l-294 1117h196l205 -865l279 865h155l286 -865l194 865h189z',
-                'M1152 0h-237l-317 429l-319 -429h-219l436 557l-432 560h237l315 -422l316 422h220l-439 -550z',
-                'M1151 1117l-652 -1529h-201l208 466l-445 1063h204l343 -828l346 828h197z',
-                'M995 0h-902v139l651 821h-637v157h871v-134l-654 -824h671v-159z',
-                'M1113 -392h-150q-179 0 -290.5 99.5t-111.5 287.5v149q0 169 -83 264.5t-254 95.5h-51v156h51q171 0 254 95.5t83 264.5v149q0 188 111.5 287.5t290.5 99.5h150v-138h-114q-136 0 -197.5 -63t-61.5 -203v-175q0 -139 -77 -233.5t-214 -149.5v-24q137 -55 214 -149.5 t77 -233.5v-175q0 -140 61.5 -203t197.5 -63h114v-138z',
-                'M552 -392h-174v1948h174v-1948z',
-                'M1127 504h-51q-171 0 -254 -95.5t-83 -264.5v-149q0 -188 -111.5 -287.5t-290.5 -99.5h-150v138h114q136 0 197.5 63t61.5 203v175q0 139 77 233.5t214 149.5v24q-137 55 -214 149.5t-77 233.5v175q0 140 -61.5 203t-197.5 63h-114v138h150q179 0 290.5 -99.5 t111.5 -287.5v-149q0 -169 83 -264.5t254 -95.5h51v-156z',
-                'M1489 927q-2 -99 -22.5 -195t-65.5 -171q-46 -77 -111 -121t-165 -44q-94 0 -167 39.5t-157 141.5q-102 125 -148 157t-96 32q-94 0 -144 -87.5t-59 -283.5h-167q2 100 22.5 194.5t64.5 171.5q43 74 112 119.5t165 45.5q93 0 166.5 -38.5t158.5 -142.5q80 -98 131 -143.5 t112 -45.5q103 0 151.5 101t51.5 270h167z',
-                '',
-                'M505 1278h-204v211h204v-211zM515 0h-224l26 1079h170z',
-                'M1120 74q-71 -30 -161 -53.5t-194 -26.5v-355h-118v359q-227 21 -357.5 165t-130.5 394q0 242 133.5 391.5t354.5 171.5v355h118v-351q104 -3 197 -25t158 -53v-203h-11q-55 44 -142 85t-202 50v-839q120 10 206.5 52.5t137.5 83.5h11v-201zM647 142v834 q-135 -20 -216 -125t-81 -294q0 -181 76 -286t221 -129z',
-                'M1163 0h-1026v207q118 32 169.5 126.5t51.5 279.5h-176v138h176v310q0 200 126.5 328.5t331.5 128.5q105 0 181 -17t140 -34v-206h-10q-62 42 -138 66t-162 24q-140 0 -209.5 -82.5t-69.5 -226.5v-291h415v-138h-415v-61q0 -126 -62 -219.5t-160 -150.5v-11h837v-171z ',
-                'M1168 257l-110 -110l-236 234q-44 -26 -81 -37t-89 -11q-46 0 -89.5 12.5t-79.5 35.5l-236 -236l-109 113l233 234q-23 37 -35 81.5t-12 87.5q0 52 11 88.5t37 79.5l-234 237l111 110l235 -235q36 23 79.5 35.5t88.5 12.5q44 0 88 -12t81 -35l234 234l113 -109l-235 -237 q24 -38 36 -79.5t12 -89.5q0 -45 -12.5 -89t-35.5 -80zM832 661q0 73 -52.5 129t-127.5 56q-73 0 -126.5 -55t-53.5 -130q0 -74 52.5 -129.5t127.5 -55.5q73 0 126.5 54.5t53.5 130.5z',
-                'M1191 1489l-448 -831v-94h372v-138h-370v-426h-188v426h-370v138h372v73l-451 852h212l332 -659l336 659h203z',
-                'M552 758h-174v798h174v-798zM552 -392h-174v798h174v-798z',
-                'M1128 601q0 -106 -59 -187t-158 -136v-7q97 -46 141 -118.5t44 -162.5q0 -77 -33 -146t-98 -119q-72 -56 -169 -83t-221 -27q-87 0 -170.5 13.5t-175.5 44.5v194h10q79 -37 169 -62t198 -25q134 0 215 48.5t81 135.5q0 56 -19.5 88.5t-64.5 57.5q-41 23 -113 41.5 t-154 38.5q-214 52 -296 133q-83 81 -83 210q0 98 57 182.5t159 141.5v7q-101 48 -143 121t-42 162q0 81 32 146.5t99 117.5q64 50 163.5 79t227.5 29q87 0 171 -14t175 -43v-194h-10q-58 27 -152.5 57t-215.5 30q-127 0 -211.5 -46t-84.5 -133q0 -57 21.5 -92.5t64.5 -58.5 t109 -41.5t157 -39.5q200 -46 290 -125q89 -79 89 -218zM881 399q28 33 43 65.5t15 90.5q0 51 -16.5 86t-45.5 58q-28 24 -67 39.5t-83 27.5q-39 11 -85.5 21.5t-116.5 30.5q-18 -9 -49 -31.5t-53 -46.5q-24 -26 -43 -69t-19 -92q0 -50 15.5 -85t44.5 -59q27 -23 67.5 -39 t84.5 -27q38 -10 86 -22t115 -31q20 11 53 34.5t54 48.5z',
-                'M958 1304h-199v195h199v-195zM545 1304h-199v195h199v-195z',
-                'M1889 655q0 -358 -253.5 -611.5t-611.5 -253.5t-611.5 253.5t-253.5 611.5t253.5 611.5t611.5 253.5t611.5 -253.5t253.5 -611.5zM1773 655q0 310 -219.5 532t-529.5 222t-529.5 -222t-219.5 -532t219.5 -532t529.5 -222t529.5 222t219.5 532zM1375 258 q-86 -39 -165.5 -58.5t-157.5 -19.5q-227 0 -359 123t-132 357q0 225 134.5 354t356.5 129q89 0 175 -24t148 -52v-181h-16q-54 40 -138.5 75t-173.5 35q-142 0 -221.5 -85.5t-79.5 -250.5q0 -159 76.5 -246t224.5 -87q83 0 161.5 29t150.5 81h16v-179z',
-                'M944 554h-170v94q-28 -20 -52.5 -38.5t-68.5 -37.5q-45 -20 -85.5 -30.5t-113.5 -10.5q-128 0 -215.5 85t-87.5 217q0 106 46.5 173.5t123.5 103.5q78 36 197.5 51.5t255.5 21.5v18q0 53 -18 85t-51 51q-34 18 -77.5 23t-91.5 5q-84 0 -168 -24t-123 -38h-14v172 q45 13 137 29t169 16q217 0 312 -84.5t95 -243.5v-638zM774 796v245q-69 -4 -160.5 -12t-145.5 -23q-64 -18 -103 -56.5t-39 -106.5q0 -76 45.5 -114t139.5 -38q82 0 147.5 33.5t115.5 71.5z',
-                'M1146 191l-528 419v85l528 418v-188l-357 -273l357 -273v-188zM716 162l-550 446v89l550 445v-196l-371 -294l371 -294v-196z',
-                'M1456 57h-171v545h-1075v160h1246v-705z',
-                'M777 561h-624v181h624v-181z',
-                'M1889 655q0 -358 -253.5 -611.5t-611.5 -253.5t-611.5 253.5t-253.5 611.5t253.5 611.5t611.5 253.5t611.5 -253.5t253.5 -611.5zM1773 655q0 310 -219.5 532t-529.5 222t-529.5 -222t-219.5 -532t219.5 -532t529.5 -222t529.5 222t219.5 532zM1581 215h-223l-331 355 h-162v-355h-165v915h312q94 0 155 -8t120 -39q63 -34 92.5 -82.5t29.5 -121.5q0 -97 -56.5 -161.5t-155.5 -102.5zM1229 868q0 36 -14 64t-47 46q-31 17 -66 22t-88 5h-149v-309h127q62 0 107 9.5t74 32.5q31 25 43.5 55t12.5 75z',
-                'M1306 1668h-1305l-5 120h1310v-120z',
-                'M956 1116q0 -168 -116 -284t-285 -116t-285 115.5t-116 284.5q0 168 116 284t285 116q170 0 285.5 -116t115.5 -284zM791 1116q0 102 -67 171.5t-169 69.5t-169 -69.5t-67 -171.5q0 -104 68.5 -172.5t167.5 -68.5q102 0 169 70t67 171z',
-                'M1461 179h-1246v158h540v422h-540v158h540v545h166v-545h540v-158h-540v-422h540v-158z',
-                'M967 566h-760v156q100 62 183.5 117t134.5 96q131 103 168 154.5t37 135.5q0 69 -53.5 107t-143.5 38q-89 0 -175 -30.5t-134 -61.5h-13v180q71 26 158.5 43.5t174.5 17.5q180 0 273.5 -78.5t93.5 -203.5q0 -99 -48.5 -174.5t-163.5 -165.5q-55 -43 -132.5 -94 t-143.5 -92h544v-145z',
-                'M956 817q0 -75 -33 -131.5t-89 -90.5q-57 -35 -131 -51.5t-163 -16.5q-94 0 -176.5 15t-156.5 43v179h14q41 -36 138.5 -65.5t190.5 -29.5q100 0 166.5 35.5t66.5 110.5q0 85 -59 115t-171 30h-143v141h128q112 0 165.5 38.5t53.5 106.5q0 61 -49.5 96.5t-153.5 35.5 q-77 0 -174.5 -31t-141.5 -67h-14v178q74 27 160.5 44.5t176.5 17.5q175 0 271.5 -68t96.5 -174q0 -89 -55 -146t-144 -83v-8q95 -17 160.5 -72.5t65.5 -151.5z',
-                'M963 1676l-273 -374h-149l179 374h243z',
-                'M1124 0h-178l-10 118q-59 -65 -123.5 -102t-155.5 -37q-86 0 -149.5 35t-129.5 99v-525h-188v1529h188v-838q32 -39 109.5 -80t168.5 -41q93 0 159.5 33.5t120.5 93.5v832h188v-1117z',
-                'M1106 -363h-148v1722h-214v-1722h-149v956q-206 5 -332 129t-126 328q0 207 130 323t373 116h466v-1852z',
-                'M492 511h-239v283h239v-283z',
-                'M880 -89q0 -162 -91.5 -248t-237.5 -86q-37 0 -95 7t-103 19v160h9q26 -10 70 -23t94 -13q104 0 153 39t49 127q0 29 -3 65.5t-6 61.5h153q2 -19 5 -45t3 -64z',
-                'M914 566h-615v122h234v568h-242v112q45 0 99 6.5t84 18.5q37 16 59 38t25 62h135v-805h221v-122z',
-                'M996 1025q0 -235 -122 -364.5t-315 -129.5q-201 0 -319.5 132.5t-118.5 361.5t118.5 362t319.5 133q193 0 315 -130t122 -365zM814 1025q0 172 -67.5 258t-187.5 86q-122 0 -189 -87t-67 -257t67 -256.5t189 -86.5q120 0 187.5 85.5t67.5 257.5z',
-                'M1154 608l-550 -446v196l371 294l-371 294v196l550 -445v-89zM702 610l-528 -419v188l357 273l-357 273v188l528 -418v-85z',
-                'M545 565h-165v681h-209v117q102 0 165 22t72 108h137v-928zM1410 1489l-780 -1489h-165l780 1489h165zM1857 220h-163v-220h-150v220h-465v185l466 539h149v-591h163v-133zM1548 353v400l-353 -400h353z',
-                'M545 565h-165v681h-209v117q102 0 165 22t72 108h137v-928zM1410 1489l-780 -1489h-165l780 1489h165zM1955 0h-688v148q91 69 158 121t106 89q109 103 141 157.5t32 136.5q0 70 -44 107t-120 37q-70 0 -141.5 -30t-112.5 -62h-15v179q65 27 140.5 44t152.5 17 q157 0 241.5 -79t84.5 -201q0 -93 -41 -167t-147 -168q-49 -43 -119.5 -96t-125.5 -94h498v-139z',
-                'M793 826q0 -71 -30 -127t-78 -90q-53 -37 -114.5 -53t-140.5 -16q-82 0 -153.5 15t-136.5 43v175h17q37 -35 114 -64.5t156 -29.5q84 0 139 36.5t55 108.5q0 83 -50 112.5t-141 29.5h-140v139h125q87 0 134.5 38t47.5 104q0 60 -41 95.5t-128 35.5q-66 0 -142.5 -31 t-113.5 -66h-17v175q64 27 139 44t154 17q152 0 237 -70t85 -168q0 -87 -48.5 -143.5t-125.5 -82.5v-8q80 -16 138.5 -70.5t58.5 -148.5zM1500 1489l-780 -1489h-165l780 1489h165zM1913 220h-163v-220h-150v220h-465v185l466 539h149v-591h163v-133zM1604 353v400 l-353 -400h353z',
-                'M712 1278h-204v211h204v-211zM958 40q-83 -30 -176 -50t-205 -20q-215 0 -339.5 104.5t-124.5 275.5q0 98 34.5 173t93.5 137q58 62 136.5 112.5t146.5 91.5v225h179v-305q-60 -33 -139 -81.5t-125 -88.5q-54 -47 -88 -109t-34 -140q0 -113 76.5 -168.5t197.5 -55.5 q103 0 201.5 33t155.5 70h10v-204z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM862 1675h-149l-273 374h243z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM955 2049l-273 -374h-149l179 374h243z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM1033 1670h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM1119 1992q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5 t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM1005 1677h-199v195h199v-195zM592 1677h-199v195h199v-195z',
-                'M1374 0h-211l-148 415h-640l-148 -415h-201l519 1407q-89 44 -142.5 123.5t-53.5 181.5q0 143 102 240t248 97q147 0 248.5 -97t101.5 -240q0 -100 -52.5 -181.5t-141.5 -123.5zM899 1710q0 86 -57 143.5t-143 57.5t-143 -58t-57 -143q0 -86 57.5 -143.5t142.5 -57.5 q86 0 143 57.5t57 143.5zM953 585l-258 715l-259 -715h517z',
-                'M1901 0h-944v556h-524l-212 -556h-207l594 1489h1293v-176h-749v-408h749v-176h-749v-553h749v-176zM957 723v601h-219l-239 -601h458z',
-                'M1350 108q-55 -24 -99.5 -45t-116.5 -44q-11 -3 -24 -7.5t-31 -7.5q2 -19 3.5 -44.5t1.5 -48.5q0 -162 -93.5 -248t-240.5 -86q-38 0 -97.5 7t-104.5 19v162h9q26 -10 71.5 -24t95.5 -14q106 0 155 40t49 126q0 19 -1 41.5t-3 42.5q-19 -2 -40.5 -3t-39.5 -1 q-162 0 -294.5 45.5t-230.5 142.5q-96 95 -150 241.5t-54 340.5q0 184 52 329t150 245q95 97 229.5 148t298.5 51q120 0 239.5 -29t265.5 -102v-235h-15q-123 103 -244 150t-259 47q-113 0 -203.5 -36.5t-161.5 -113.5q-69 -75 -107.5 -189.5t-38.5 -264.5q0 -157 42.5 -270 t109.5 -184q70 -74 163.5 -109.5t197.5 -35.5q143 0 268 49t234 147h14v-232z',
-                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM822 1675h-149l-273 374h243z',
-                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM993 2049l-273 -374h-149l179 374h243z',
-                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM1031 1670h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM1038 1677h-199v195h199v-195zM625 1677h-199v195h199v-195z',
-                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM568 1675h-149l-273 374h243z',
-                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM725 2049l-273 -374h-149l179 374h243z',
-                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM776 1670h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM738 1677h-199v195h199v-195zM325 1677h-199v195h199v-195z',
-                'M1468 743q0 -203 -88.5 -368t-235.5 -256q-102 -63 -227.5 -91t-330.5 -28h-376v740h-196v143h196v606h372q218 0 347 -31.5t217 -86.5q152 -95 237 -253t85 -375zM1261 746q0 175 -61 295t-182 189q-88 50 -187 69.5t-237 19.5h-188v-436h361v-143h-361v-570h188 q143 0 249.5 21t195.5 78q111 71 166.5 187t55.5 290z',
-                'M1336 0h-245l-706 1332v-1332h-185v1489h307l644 -1216v1216h185v-1489zM1208 1992q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5 q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
-                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM932 1675h-149l-273 374h243z',
-                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1083 2049l-273 -374h-149l179 374h243z',
-                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1136 1670h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1207 1992q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228 t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
-                'M1307 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1289 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1108 1677h-199v195h199v-195zM695 1677h-199v195h199v-195z',
-                'M1385 216l-111 -111l-436 440l-436 -440l-111 111l440 436l-440 436l111 111l436 -440l436 440l111 -111l-440 -436z',
-                'M1498 744q0 -184 -49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-115 0 -215.5 29t-179.5 84l-159 -228h-132l205 294q-101 100 -155.5 250t-54.5 346q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q118 0 215 -27.5t179 -82.5l142 201h132 l-188 -268q101 -100 156.5 -248.5t55.5 -350.5zM1097 1260q-57 46 -129 68.5t-161 22.5q-110 0 -200 -38.5t-156 -116.5q-64 -76 -98.5 -190.5t-34.5 -261.5q0 -140 29.5 -252t87.5 -188zM1295 744q0 139 -30 253t-88 189l-664 -957q60 -45 132.5 -68t161.5 -23 q110 0 201.5 40t153.5 116q67 82 100 194.5t33 255.5z',
-                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM932 1675h-149l-273 374h243z',
-                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM1073 2049l-273 -374h-149l179 374h243z',
-                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM1084 1670h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM1056 1677h-199v195h199v-195zM643 1677h-199v195h199v-195z',
-                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211zM935 2049l-273 -374h-149l179 374h243z',
-                'M1174 787q0 -92 -35 -176.5t-95 -141.5q-78 -75 -187.5 -111t-260.5 -36h-198v-322h-198v1489h198v-270h205q133 0 230 -22.5t164 -66.5q83 -53 130 -138t47 -205zM968 782q0 72 -26 125.5t-82 88.5q-48 30 -112 42.5t-154 12.5h-196v-563h167q119 0 195 20.5t123 65.5 q44 41 64.5 92t20.5 116z',
-                'M1165 481q0 -214 -135.5 -359.5t-354.5 -145.5q-44 0 -101.5 7.5t-93.5 20.5v165h10q42 -24 91.5 -33t105.5 -9q74 0 129 29t88 78q35 52 50.5 115.5t15.5 139.5q0 166 -105.5 250.5t-303.5 84.5v150q157 0 234 59.5t77 188.5q0 35 -11 68t-41 64q-27 29 -71 46.5 t-105 17.5q-57 0 -103 -14.5t-86 -53.5q-37 -36 -59.5 -102t-22.5 -161v-1087h-188v1080q0 124 36 215.5t100 153.5q60 58 149.5 87.5t183.5 29.5q183 0 297.5 -87t114.5 -238q0 -112 -71 -201t-184 -121v-9q164 -37 259 -148.5t95 -280.5z',
-                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM738 1302h-149l-273 374h243z',
-                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM934 1676l-273 -374h-149l179 374h243z',
-                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM961 1297h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM1038 1619q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5 q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
-                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM926 1304h-199v195h199v-195zM513 1304h-199v195h199v-195z',
-                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM956 1630q0 -143 -102 -242t-248 -99q-144 0 -247 98.5t-103 242.5 q0 143 102 241t248 98q147 0 248.5 -98t101.5 -241zM811 1630q0 86 -58.5 145.5t-146.5 59.5t-146.5 -59t-58.5 -146t59 -146t146 -59q88 0 146.5 59t58.5 146z',
-                'M1855 559h-819q0 -114 30 -195t85 -133q52 -48 123 -70.5t157 -22.5q111 0 217.5 41.5t172.5 93.5h12v-205q-78 -35 -184.5 -64.5t-215.5 -29.5q-166 0 -284.5 52t-194.5 155q-21 -19 -67 -59t-96 -68q-63 -36 -137 -59.5t-189 -23.5q-150 0 -255.5 97t-105.5 249 q0 124 54 200.5t155 118.5q95 39 241 53t308 17v61q0 65 -23 107.5t-64 65.5q-40 23 -96 31.5t-116 8.5q-79 0 -168.5 -21t-179.5 -57h-13v191q55 15 158 34t204 19q159 0 264.5 -46.5t162.5 -137.5q69 82 170 134t226 52q217 0 342.5 -128t125.5 -379v-82zM1673 703 q-5 68 -23.5 119t-50.5 88q-34 39 -88.5 61t-133.5 22q-133 0 -223 -75t-115 -215h634zM894 298q-20 53 -30.5 119t-10.5 141q-105 -3 -201 -7.5t-178 -25.5q-79 -20 -127.5 -65.5t-48.5 -128.5q0 -95 58 -141t176 -46q99 0 195.5 43t166.5 111z',
-                'M1011 70q-33 -15 -71.5 -30.5t-67.5 -24.5q3 -19 5.5 -47.5t2.5 -56.5q0 -162 -91.5 -248t-237.5 -86q-37 0 -95 7t-103 19v160h9q26 -10 70 -23t94 -13q104 0 153 39t49 127q0 22 -1.5 45t-3.5 43q-16 -2 -30.5 -4t-39.5 -2q-121 0 -222 35.5t-173 107.5 q-73 72 -113 182t-40 257q0 274 150.5 430t397.5 156q96 0 188.5 -27t169.5 -66v-209h-10q-86 67 -177.5 103t-178.5 36q-160 0 -252.5 -107.5t-92.5 -315.5q0 -202 90.5 -310.5t254.5 -108.5q57 0 116 15t106 39q41 21 77 44.5t57 40.5h10v-207z',
-                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM759 1302h-149l-273 374h243z',
-                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM960 1676l-273 -374h-149l179 374h243z',
-                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM986 1297h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM951 1304h-199v195h199v-195zM538 1304h-199v195h199v-195z',
-                'M375 0h-188v1117h188v-1117zM401 1302h-149l-273 374h243z',
-                'M375 0h-188v1117h188v-1117zM582 1676l-273 -374h-149l179 374h243z',
-                'M572 1297h-151l-143 267l-142 -267h-147l178 379h227zM375 0h-188v1117h188v-1117z',
-                'M557 1304h-189v195h189v-195zM194 1304h-189v195h189v-195zM375 0h-188v1117h188v-1117z',
-                'M1137 637q0 -324 -142 -496t-383 -172q-229 0 -367.5 135t-138.5 380q0 226 137 358t339 132q108 0 185.5 -26.5t163.5 -79.5q-32 112 -99.5 219t-154.5 181l-264 -162l-66 97l237 142q-84 67 -156 107.5t-165 87.5v16h295q35 -25 84 -58.5t86 -59.5l210 128l66 -97 l-186 -109q153 -147 236 -325.5t83 -397.5zM847 226q49 59 75 143.5t26 234.5q0 32 -1.5 59.5t-3.5 57.5q-75 45 -157.5 66.5t-168.5 21.5q-147 0 -231.5 -87.5t-84.5 -239.5q0 -180 84.5 -267t227.5 -87q66 0 127.5 22t106.5 76z',
-                'M1119 0h-188v636q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-725zM1075 1619q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5 t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M732 1302h-149l-273 374h243z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M933 1676l-273 -374h-149l179 374h243z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M963 1297h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M1038 1619q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M928 1304h-199v195h199v-195zM515 1304h-199v195h199v-195z',
-                'M957 1022h-238v275h238v-275zM1466 572h-1256v160h1256v-160zM957 7h-238v275h238v-275z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-84 0 -155.5 21t-130.5 60l-133 -198h-110l171 256q-75 77 -116.5 190t-41.5 260q0 273 139.5 431.5t376.5 158.5q87 0 158 -22t125 -57l116 172h111l-155 -231q76 -76 118 -188t42 -264zM813 930q-37 29 -86.5 43.5t-104.5 14.5 q-155 0 -240 -110t-85 -320q0 -97 17 -171t52 -128zM946 558q0 97 -17.5 173t-51.5 130l-448 -671q39 -31 86.5 -46t106.5 -15q150 0 237 108.5t87 320.5z',
-                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM764 1302h-149l-273 374h243z',
-                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM945 1676l-273 -374h-149l179 374h243z',
-                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM985 1297h-159l-185 256l-184 -256h-155l228 379h227z',
-                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM955 1304h-199v195h199v-195zM542 1304h-199v195h199v-195z',
-                'M1151 1117l-652 -1529h-201l208 466l-445 1063h204l343 -828l346 828h197zM928 1676l-273 -374h-149l179 374h243z',
-                'M1168 572q0 -136 -39 -248.5t-110 -190.5q-66 -74 -155.5 -114.5t-189.5 -40.5q-87 0 -157.5 19t-143.5 59v-468h-188v1968h188v-556q75 63 168.5 105.5t199.5 42.5q202 0 314.5 -152.5t112.5 -423.5zM974 567q0 202 -69 302t-212 100q-81 0 -163 -35t-157 -92v-633 q80 -36 137.5 -49t130.5 -13q157 0 245 106t88 314z',
-                'M585 832h-239v285h239v-285zM658 285l-282 -655h-146l174 655h254z',
-                'M773 1676l-49 -384h-145l-49 384h243z',
-                'M765 1676l-49 -384h-128l-49 384h226zM1048 1304h-191v195h191v-195zM447 1304h-191v195h191v-195z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM250 1489l-49 -384h-145l-49 384h243z',
-                'M585 832h-239v285h239v-285z',
-                'M1424 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM243 1489l-49 -384h-145l-49 384h243z',
-                'M1582 0h-198v729h-743v-729h-198v1489h198v-584h743v584h198v-1489zM243 1489l-49 -384h-145l-49 384h243z',
-                'M968 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM243 1489l-49 -384h-145l-49 384h243z',
-                'M1501 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1483 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM243 1489l-49 -384h-145l-49 384h243z',
-                'M1537 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211zM243 1489l-49 -384h-145l-49 384h243z',
-                'M1751 0h-576v387q60 38 119.5 82t103.5 101q45 59 71 138.5t26 185.5q0 206 -127 330.5t-347 124.5t-347 -124.5t-127 -330.5q0 -106 26 -185.5t71 -138.5q45 -57 104 -101t119 -82v-387h-576v174h410v124q-157 90 -258.5 246t-101.5 350q0 276 187.5 451t492.5 175 t492.5 -175t187.5 -451q0 -194 -101.5 -350t-258.5 -246v-124h410v-174zM243 1489l-49 -384h-145l-49 384h243z',
-                'M375 0h-188v1117h188v-1117zM379 1676l-56 -384h-84l-56 384h196zM615 1304h-171v195h171v-195zM118 1304h-171v195h171v-195z',
-                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523z',
-                'M1323 458q0 -111 -42 -196t-113 -140q-84 -66 -184.5 -94t-255.5 -28h-528v1489h441q163 0 244 -12t155 -50q82 -43 119 -110.5t37 -161.5q0 -106 -54 -180.5t-144 -119.5v-8q151 -31 238 -132.5t87 -256.5zM990 1129q0 54 -18 91t-58 60q-47 27 -114 33.5t-166 6.5h-236 v-430h256q93 0 148 9.5t102 39.5t66.5 77.5t19.5 112.5zM1117 450q0 90 -27 143t-98 90q-48 25 -116.5 32.5t-166.5 7.5h-311v-554h262q130 0 213 13.5t136 49.5q56 39 82 89t26 129z',
-                'M1162 1313h-764v-1313h-198v1489h962v-176z',
-                'M1414 0h-1388l562 1489h264zM1147 168l-432 1147l-431 -1147h863z',
-                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176z',
-                'M1288 0h-1162v184l913 1129h-879v176h1106v-179l-922 -1134h944v-176z',
-                'M1339 0h-198v729h-743v-729h-198v1489h198v-584h743v584h198v-1489z',
-                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1120 713h-627v179h627v-179z',
-                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152z',
-                'M1397 0h-257l-589 663l-148 -158v-505h-198v1489h198v-777l723 777h240l-665 -700z',
-                'M1378 0h-213l-468 1285l-468 -1285h-203l556 1489h240z',
-                'M1526 0h-198v1283l-414 -873h-118l-411 873v-1283h-185v1489h270l397 -829l384 829h275v-1489z',
-                'M1336 0h-245l-706 1332v-1332h-185v1489h307l644 -1216v1216h185v-1489z',
-                'M1215 1313h-1101v176h1101v-176zM1163 729h-997v176h997v-176zM1215 0h-1101v176h1101v-176z',
-                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5z',
-                'M1339 0h-198v1313h-743v-1313h-198v1489h1139v-1489z',
-                'M1174 1039q0 -99 -34.5 -183.5t-96.5 -146.5q-77 -77 -182 -115.5t-265 -38.5h-198v-555h-198v1489h404q134 0 227 -22.5t165 -70.5q85 -57 131.5 -142t46.5 -215zM968 1034q0 77 -27 134t-82 93q-48 31 -109.5 44.5t-155.5 13.5h-196v-595h167q120 0 195 21.5t122 68.5 q47 48 66.5 101t19.5 119z',
-                'M1280 0h-1162v184l620 600l-600 526v179h1096v-176h-832l586 -506v-26l-630 -605h922v-176z',
-                'M1262 1313h-532v-1313h-198v1313h-532v176h1262v-176z',
-                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211z',
-                'M1572 755q0 -140 -44.5 -248.5t-123.5 -181.5q-85 -79 -207 -125.5t-260 -49.5v-166h-197v166q-134 3 -257 48t-210 127q-79 74 -123.5 182t-44.5 248q0 136 43 238t119 178q81 81 202.5 128t270.5 51v155h197v-155q148 -3 271 -52t202 -127q75 -73 118.5 -177t43.5 -239 zM1366 763q0 99 -32 182t-91 140q-58 56 -129 82t-177 28v-890q94 2 171 30.5t127 75.5q65 60 98 147t33 205zM740 305v890q-106 -1 -177 -28t-129 -82t-90.5 -140t-32.5 -182q0 -112 33.5 -203t97.5 -149q49 -45 126.5 -75t171.5 -31z',
-                'M1336 1489l-514 -736l513 -753h-229l-406 613l-416 -613h-216l519 744l-507 745h228l401 -605l410 605h217z',
-                'M1604 910q0 -157 -40.5 -264.5t-117.5 -174.5q-80 -69 -192.5 -104t-263.5 -45v-322h-197v322q-154 11 -267 47t-188 102q-78 69 -118.5 176t-40.5 263v579h198v-602q0 -109 29.5 -180t81.5 -115q53 -45 130 -68.5t175 -30.5v996h197v-996q97 8 175 30.5t131 68.5 q56 49 83 115.5t27 179.5v602h198v-579z',
-                'M1568 0h-576v387q60 38 119.5 82t103.5 101q45 59 71 138.5t26 185.5q0 206 -127 330.5t-347 124.5t-347 -124.5t-127 -330.5q0 -106 26 -185.5t71 -138.5q45 -57 104 -101t119 -82v-387h-576v174h410v124q-157 90 -258.5 246t-101.5 350q0 276 187.5 451t492.5 175 t492.5 -175t187.5 -451q0 -194 -101.5 -350t-258.5 -246v-124h410v-174z',
-                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM738 1677h-199v195h199v-195zM325 1677h-199v195h199v-195z',
-                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211zM939 1677h-199v195h199v-195zM526 1677h-199v195h199v-195z',
-                'M1091 0h-188v117q-81 -70 -169 -109t-191 -39q-200 0 -317.5 154t-117.5 427q0 142 40.5 253t109.5 189q68 76 158.5 116t187.5 40q88 0 156 -22t143 -61v52h188v-1117zM903 275v636q-76 34 -136 49.5t-131 15.5q-158 0 -246 -110t-88 -312q0 -199 68 -302.5t218 -103.5 q80 0 162 35.5t153 91.5zM743 1676l-49 -384h-145l-49 384h243z',
-                'M1006 64q-107 -48 -210 -69t-218 -21q-79 0 -161 16t-152 56q-69 39 -112.5 102.5t-43.5 157.5q0 96 56.5 168t177.5 110v7q-91 24 -145 90t-54 158q0 89 47.5 147.5t112.5 92.5q64 33 145 49t160 16q98 0 180 -16.5t172 -44.5v-207h-13q-66 51 -163.5 79t-197.5 28 q-45 0 -84 -5.5t-81 -25.5q-35 -15 -60.5 -48.5t-25.5 -77.5q0 -61 28 -95t76 -49q45 -14 97 -15.5t105 -1.5h111v-166h-158q-62 0 -112 -4.5t-92 -21.5q-41 -17 -65.5 -54t-24.5 -96q0 -53 26 -90t67 -58q37 -19 87.5 -29t106.5 -10q102 0 218 36t187 98h13v-206zM721 1676 l-49 -384h-145l-49 384h243z',
-                'M1119 -412h-188v1048q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-1137zM802 1676l-49 -384h-145l-49 384h243z',
-                'M375 0h-188v1117h188v-1117zM403 1676l-49 -384h-145l-49 384h243z',
-                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710zM760 1676l-49 -384h-128l-49 384h226zM1043 1304h-191 v195h191v-195zM442 1304h-191v195h191v-195z',
-                'M1091 0h-188v117q-81 -70 -169 -109t-191 -39q-200 0 -317.5 154t-117.5 427q0 142 40.5 253t109.5 189q68 76 158.5 116t187.5 40q88 0 156 -22t143 -61v52h188v-1117zM903 275v636q-76 34 -136 49.5t-131 15.5q-158 0 -246 -110t-88 -312q0 -199 68 -302.5t218 -103.5 q80 0 162 35.5t153 91.5z',
-                'M1165 444q0 -202 -134.5 -334t-339.5 -132q-79 0 -167 22t-151 64v-476h-188v1490q0 224 126.5 351t349.5 127q90 0 164.5 -21.5t133.5 -67.5q57 -43 91 -112t34 -160q0 -127 -69.5 -221.5t-196.5 -131.5v-17q159 -26 253 -125.5t94 -255.5zM971 449q0 89 -34.5 144.5 t-92.5 86.5q-59 32 -132 43t-146 11h-36v160h36q66 0 131 14.5t104 44.5q46 34 68.5 83t22.5 134q0 112 -69 170t-178 58q-73 0 -125 -26.5t-85 -70.5q-32 -44 -47 -102.5t-15 -120.5v-862q66 -38 141 -53.5t147 -15.5q149 0 229.5 78.5t80.5 223.5z',
-                'M1151 1117l-457 -1061v-468h-188v468l-445 1061h204l343 -828l346 828h197z',
-                'M1139 551q0 -272 -138.5 -427t-376.5 -155q-241 0 -379.5 151.5t-138.5 413.5q0 141 43 239.5t107 162.5q69 72 159 113t182 58q-76 63 -166 130.5t-192 139.5v179h810v-158h-561v-10q68 -46 179 -124t204 -162q150 -136 209 -261.5t59 -289.5zM945 551q0 135 -55 249 t-165 200q-66 -8 -138.5 -32t-138.5 -77q-63 -50 -105.5 -137t-42.5 -214q0 -201 85 -305t241 -104q153 0 236 105.5t83 314.5z',
-                'M1006 64q-107 -48 -210 -69t-218 -21q-79 0 -161 16t-152 56q-69 39 -112.5 102.5t-43.5 157.5q0 96 56.5 168t177.5 110v7q-91 24 -145 90t-54 158q0 89 47.5 147.5t112.5 92.5q64 33 145 49t160 16q98 0 180 -16.5t172 -44.5v-207h-13q-66 51 -163.5 79t-197.5 28 q-45 0 -84 -5.5t-81 -25.5q-35 -15 -60.5 -48.5t-25.5 -77.5q0 -61 28 -95t76 -49q45 -14 97 -15.5t105 -1.5h111v-166h-158q-62 0 -112 -4.5t-92 -21.5q-41 -17 -65.5 -54t-24.5 -96q0 -53 26 -90t67 -58q37 -19 87.5 -29t106.5 -10q102 0 218 36t187 98h13v-206z',
-                'M922 75q32 -40 46 -85.5t14 -85.5q0 -84 -45 -168.5t-112 -147.5h-179v14q90 79 128 138.5t38 128.5q0 57 -30.5 95t-77.5 38h-145q-229 0 -340 116t-111 345q0 140 46 268t124 247q75 112 173.5 214.5t206.5 196.5v9h-460v158h744v-135q-117 -78 -231.5 -181 t-204.5 -223q-89 -117 -146 -257t-57 -283q0 -34 3 -70t15 -76q10 -38 34.5 -75.5t63.5 -61.5q36 -22 96.5 -24.5t116.5 -2.5h86q71 0 122 -26t82 -66z',
-                'M1119 -412h-188v1048q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-1137z',
-                'M1141 768q0 -190 -23 -316.5t-59 -210.5q-58 -135 -163 -203.5t-257 -68.5t-257 68.5t-163 203.5q-37 84 -59.5 210.5t-22.5 316.5q0 174 22.5 305.5t60.5 214.5q57 130 162.5 199t256.5 69t256.5 -69t162.5 -199q37 -84 60 -215t23 -305zM952 858q-4 143 -28.5 250 t-56.5 161q-41 70 -95 98.5t-133 28.5t-133 -28.5t-95 -98.5q-34 -55 -57.5 -161.5t-27.5 -249.5h626zM952 697h-626q0 -142 23 -258.5t59 -178.5q40 -69 96 -100t135 -31t135 31t96 100q36 62 59 178.5t23 258.5z',
-                'M375 0h-188v1117h188v-1117z',
-                'M1192 0h-248l-451 489l-112 -109v-380h-188v1117h188v-550l384 417q72 79 135.5 107t126.5 28q28 0 58 -1t37 -1v-166h-11q-16 2 -39.5 3t-36.5 1q-47 0 -85.5 -23.5t-67.5 -56.5l-251 -271z',
-                'M1151 0h-205l-328 829l-361 -829h-196l465 1056l-215 500h211z',
-                'M1125 0h-186v118q-74 -78 -141.5 -108.5t-145.5 -30.5q-75 0 -135 27t-144 107v-525h-188v1529h188v-838q32 -39 111 -80t170 -41q93 0 161 33.5t122 93.5v832h188v-1117z',
-                'M1151 1117l-452 -1117h-189l-449 1117h204l346 -889l343 889h197z',
-                'M1041 -96q0 -85 -45.5 -169t-111.5 -147h-180v14q92 79 129.5 139t37.5 128q0 55 -29 94t-75 39h-140q-140 0 -232.5 27t-155.5 84q-66 60 -100.5 135.5t-34.5 163.5q0 78 25 144t73 119q44 49 112.5 83.5t144.5 53.5v11q-125 28 -200 110.5t-75 186.5q0 83 43.5 150.5 t133.5 125.5v6h-228v154h824v-158h-256q-68 0 -122.5 -14.5t-102.5 -48.5q-45 -32 -72 -83t-27 -118q0 -79 32.5 -128t83.5 -75q45 -23 104 -34t139 -11h170v-165h-295q-66 0 -118.5 -20t-99.5 -59q-43 -37 -68.5 -90t-25.5 -112q0 -102 37.5 -159t101.5 -82 q63 -25 139.5 -28.5t166.5 -3.5h28q68 0 119.5 -23.5t84.5 -60.5q31 -35 48 -82.5t17 -96.5z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z',
-                'M1120 0h-188v955h-559v-955h-188v1117h935v-1117z',
-                'M1172 577q0 -258 -138.5 -428.5t-360.5 -170.5q-65 0 -146.5 18t-153.5 61v-469h-188v1058q0 123 35.5 215.5t101.5 158.5q62 62 155.5 95t195.5 33q243 0 371 -147t128 -424zM978 565q0 218 -80 320t-226 102q-158 0 -228.5 -96t-70.5 -278v-403q73 -34 132.5 -48.5 t134.5 -14.5q162 0 250 111t88 307z',
-                'M1018 -96q0 -87 -47 -172t-109 -144h-177v14q86 75 124.5 135.5t38.5 131.5q0 54 -30 93.5t-75 39.5h-92q-117 0 -216 30t-174 97q-73 66 -114.5 170t-41.5 250q0 270 155.5 432t414.5 162q84 0 164 -18.5t147 -45.5v-211h-12q-94 62 -172.5 87t-146.5 25 q-166 0 -260.5 -119t-94.5 -312q0 -112 28.5 -183t78.5 -116q50 -44 114.5 -63.5t139.5 -19.5h100q115 0 186 -76.5t71 -186.5z',
-                'M1137 558q0 -281 -140.5 -435t-373.5 -154q-241 0 -379 158t-138 431q0 275 141 432.5t378 157.5q55 0 108 -11t82 -20h480v-165h-288q62 -73 96 -170t34 -224zM943 558q0 215 -82 322t-236 107q-161 0 -243 -112t-82 -317q0 -209 83.5 -318t239.5 -109q152 0 236 107.5 t84 319.5z',
-                'M1006 952h-404v-952h-188v952h-404v165h996v-165z',
-                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710z',
-                'M1514 576q0 -259 -171.5 -417t-440.5 -173v-398h-187v398q-130 6 -240.5 46.5t-191.5 109.5q-85 74 -132 172t-47 232q0 159 59 296t192 275h229v-17q-136 -99 -210 -232t-74 -300q0 -189 112.5 -304t301.5 -121v1000q33 2 70.5 2.5t76.5 0.5q304 0 478.5 -149.5 t174.5 -420.5zM1319 586q0 184 -112 293.5t-305 109.5v-846q206 10 311.5 126t105.5 317z',
-                'M1160 -412h-213l-346 619l-350 -619h-203l444 770l-433 759h213l335 -600l339 600h203l-433 -751z',
-                'M1507 446q0 -114 -48 -198t-127 -137q-82 -55 -182 -82.5t-215 -32.5v-408h-187v408q-115 6 -214.5 32t-182.5 83q-80 54 -127.5 137.5t-47.5 197.5v671h188v-612q0 -113 37.5 -180.5t89.5 -102.5q56 -38 123 -53t134 -19v967h187v-967q67 5 134 19t123 53 q59 40 93 101.5t34 181.5v612h188v-671z',
-                'M1553 503q0 -96 -23.5 -192.5t-74.5 -171.5q-55 -80 -133.5 -124.5t-193.5 -44.5q-96 0 -177 49.5t-118 116.5h-6q-39 -68 -113 -117t-176 -49q-113 0 -194.5 46.5t-132.5 122.5t-74.5 171.5t-23.5 192.5q0 170 57 308.5t201 305.5h228v-17q-135 -108 -214.5 -262 t-79.5 -337q0 -66 8 -122.5t38 -119.5q26 -55 72.5 -91.5t117.5 -36.5q51 0 86.5 12.5t55.5 29.5q22 18 36.5 40t20.5 37v584h186v-584q9 -17 23 -39t35 -39q24 -19 52.5 -30t86.5 -11q70 0 117 35.5t74 92.5q25 55 36 116t11 126q0 182 -78.5 336t-215.5 263v17h228 q144 -167 201 -305.5t57 -308.5z',
-                'M557 1304h-189v195h189v-195zM194 1304h-189v195h189v-195zM375 0h-188v1117h188v-1117z',
-                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710zM953 1304h-199v195h199v-195zM540 1304h-199v195h199 v-195z',
-                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M743 1676l-49 -384h-145l-49 384h243z',
-                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710zM768 1676l-49 -384h-145l-49 384h243z',
-                'M1553 503q0 -96 -23.5 -192.5t-74.5 -171.5q-55 -80 -133.5 -124.5t-193.5 -44.5q-96 0 -177 49.5t-118 116.5h-6q-39 -68 -113 -117t-176 -49q-113 0 -194.5 46.5t-132.5 122.5t-74.5 171.5t-23.5 192.5q0 170 57 308.5t201 305.5h228v-17q-135 -108 -214.5 -262 t-79.5 -337q0 -66 8 -122.5t38 -119.5q26 -55 72.5 -91.5t117.5 -36.5q51 0 86.5 12.5t55.5 29.5q22 18 36.5 40t20.5 37v584h186v-584q9 -17 23 -39t35 -39q24 -19 52.5 -30t86.5 -11q70 0 117 35.5t74 92.5q25 55 36 116t11 126q0 182 -78.5 336t-215.5 263v17h228 q144 -167 201 -305.5t57 -308.5zM955 1676l-49 -384h-145l-49 384h243z',
-                'M1145 837q0 -164 -39 -344t-121 -303q-85 -124 -186.5 -173t-214.5 -49q-192 0 -313.5 126.5t-121.5 329.5q0 228 134.5 372.5t336.5 144.5q90 0 169.5 -26t158.5 -91q2 26 3 55.5t1 55.5q0 217 -79 318t-231 101q-78 0 -169.5 -31.5t-169.5 -86.5h-11v194 q81 44 181.5 66.5t196.5 22.5q137 0 239.5 -54.5t164.5 -178.5q42 -86 56.5 -189t14.5 -260zM942 678q-60 47 -136 74t-148 27q-141 0 -225 -91t-84 -261q0 -145 67.5 -221.5t179.5 -76.5q128 0 209.5 97t115.5 287q6 33 11.5 73t9.5 92z',
-                'M1438 0h-1388l562 1489h264zM1171 168l-432 1147l-431 -1147h863z',
-                'M1532 1315h-200v-1508h-198v1508h-592v-1508h-198v1508h-200v174h1388v-174z',
-                'M1369 -189h-1182v191l673 668l-663 631v188h1133v-176h-891l648 -601v-72l-666 -653h948v-176z',
-                'M1456 572h-1236v160h1236v-160z',
-                'M843 1489l-780 -1489h-165l780 1489h165z',
-                'M492 511h-239v283h239v-283z',
-                'M1737 1788l-880 -1939h-102l-384 993h-237v139h393l313 -821l730 1628h167z',
-                'M1887 663q0 -239 -122.5 -372.5t-329.5 -133.5q-133 0 -244 76.5t-180 222.5q-79 -151 -184.5 -225t-248.5 -74q-191 0 -304 135.5t-113 349.5q0 238 125 372t327 134q134 0 245 -77t179 -222q79 150 185.5 224.5t247.5 74.5q191 0 304 -135.5t113 -349.5zM967 729 q-63 117 -155 175.5t-188 58.5q-138 0 -216 -83.5t-78 -237.5q0 -133 63.5 -216t182.5 -83q110 0 172 48.5t119 142.5q34 57 52.5 92.5t47.5 102.5zM1718 663q0 134 -64 216.5t-182 82.5q-88 0 -152.5 -35.5t-138.5 -155.5q-30 -48 -55.5 -99.5t-44.5 -95.5 q60 -115 153.5 -174.5t189.5 -59.5q138 0 216 83t78 238z',
-                'M1168 1367h-10q-32 8 -89.5 18.5t-89.5 10.5q-129 0 -181 -61q-53 -61 -53 -210v-1123q0 -206 -104 -315q-105 -110 -293 -110q-52 0 -106.5 5.5t-103.5 15.5v178h10q33 -8 87 -18.5t88 -10.5q129 0 182 61q52 61 52 210v1123q0 204 104 315q104 110 293 110 q58 0 109 -5.5t105 -15.5v-178z',
-                'M1431 1104q-20 -194 -111 -293t-249 -99q-77 0 -147 37.5t-126 82.5q-65 52 -117 79.5t-96 27.5q-75 0 -117 -48t-70 -172h-155q23 182 112.5 280t248.5 98q72 0 143 -37t130 -83q61 -48 114.5 -77.5t98.5 -29.5q76 0 120.5 54.5t63.5 179.5h157zM1432 588 q-25 -184 -112 -281.5t-250 -97.5q-72 0 -144 37.5t-129 82.5q-39 31 -103 69t-110 38q-78 0 -121 -55t-63 -179h-157q19 192 110.5 292t249.5 100q77 0 146 -37t127 -83q35 -28 97 -67.5t116 -39.5q75 0 117 49.5t69 171.5h157z',
-                'M1431 362h-608l-104 -335h-153l104 335h-425v156h474l84 268h-558v156h606l105 335h153l-105 -335h427v-156h-476l-83 -268h559v-156z',
-                'M1408 303l-1154 483v124l1154 483v-183l-889 -362l889 -362v-183zM1408 0h-1154v160h1154v-160z',
-                'M1422 786l-1154 -483v183l889 362l-889 362v183l1154 -483v-124zM1422 0h-1154v160h1154v-160z'
-            ];
-            this.OUTLINE_X = [
-                [], [291, 301, 505, 515], [168, 211, 729, 772, 554], [195, 389, 917, 1364, 1481, 1481, 1288, 760, 312, 195],
-                [155, 604, 722, 1129.8, 1160, 1107, 722, 604, 278.5, 191.1, 162, 155], [149, 172.3, 242, 630, 1687, 1844.3, 1960, 2031.3, 2055, 2031.8, 1962, 1575, 517, 359.8, 244, 172.8],
-                [115, 149.4, 252.5, 407.6, 598, 1555, 1287, 961.3, 881, 757.5, 601, 423.5, 293, 213.5, 187], [164, 207, 343, 386], [181, 205.5, 279, 554, 783, 783, 554, 279, 205.5],
-                [147, 376, 651, 724.5, 749, 724.5, 651, 376, 147], [167, 232, 588, 717, 1073, 1137, 1137, 1073, 717, 588, 232, 167], [210, 755, 921, 1466, 1466, 921, 755, 210],
-                [147, 293, 575, 321], [153, 777, 777, 153], [253, 492, 492, 253], [-30, 143, 860, 684],
-                [137, 167.9, 260.5, 420.1, 652, 881.4, 1041.5, 1135.6, 1167, 1136.1, 1043.5, 883.9, 652, 422, 262, 168.3], [278, 1084, 1084, 780, 625, 278],
-                [161, 1169, 1169, 1106, 1073.5, 976, 821.3, 617, 387.5, 198, 161], [167, 364, 608, 830.5, 1007, 1111, 1148, 1117, 1080, 971, 821, 629, 399.5, 210, 167],
-                [77, 790, 982, 1203, 1203, 982, 798, 77], [187, 378, 613, 843.5, 1015, 1119, 1157, 1147, 251, 187],
-                [137, 183.5, 316, 475, 675, 875.1, 1041.5, 1153.6, 1191, 1046, 965, 866, 542, 315, 179.5], [154, 285, 499, 1173, 1173, 154],
-                [122, 157.9, 265.5, 433.6, 651, 859.6, 1029.5, 1142.4, 1180, 1140, 1106.8, 1007, 851.5, 651, 456.8, 300, 196.5, 162],
-                [113, 258, 340, 438, 760, 988, 1122.5, 1167, 1121, 990, 829, 629, 429.5, 263, 150.5], [346, 585, 585, 346], [230, 376, 658, 585, 346], [254, 1408, 1408, 254],
-                [245, 1431, 1431, 245], [268, 1422, 1422, 268], [160, 406, 610, 970, 1005, 973.9, 880.5, 733.4, 541, 337.5, 160],
-                [176, 240, 419, 692, 1037, 1210, 1391, 1714, 1829.5, 1870, 1813.5, 1651, 1391, 1041, 701, 426, 243], [26, 1374, 832, 568],
-                [200, 728, 983.5, 1168, 1281, 1323, 1196, 1159, 1040, 885, 641, 200], [115, 169, 319, 549.5, 844, 1001.5, 1134, 1250.5, 1350, 1350, 1084.5, 845, 546.5, 317, 167],
-                [200, 576, 906.5, 1134, 1369.5, 1458, 1373, 1136, 918.5, 572, 200], [200, 1181, 1181, 200], [200, 398, 1045, 1151, 1151, 200],
-                [115, 171, 330, 577, 896, 1175.5, 1442, 1442, 1441, 1155.5, 896, 570.9, 323.5, 167.1], [200, 1339, 1339, 200], [137, 725, 725, 137],
-                [44, 178, 306, 486.6, 626.5, 716.1, 746, 746, 233, 44], [205, 1397, 1366, 205], [200, 1142, 1142, 398, 200], [200, 1526, 1526, 200], [200, 1336, 1336, 200],
-                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163], [200, 398, 1043, 1139.5, 1174, 1127.5, 996, 831, 604, 200],
-                [115, 163.5, 302, 520.5, 1010.5, 1133.1, 1290, 1409.5, 1528, 1528, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163], [200, 1432, 1130.5, 1004, 842, 617, 200],
-                [134, 395.5, 685, 941.5, 1128, 1241.5, 1282, 1222, 990, 702, 480.3, 301, 182.5, 143, 134], [0, 532, 730, 1262, 1262, 0],
-                [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 178], [26, 568, 832, 1374, 238], [92, 486, 1546, 1933, 295], [68, 1335, 1336, 80], [6, 532, 730, 1254, 225],
-                [126, 1288, 1288, 1266, 160, 126], [239, 759, 759, 239], [70, 787, 960, 246], [171, 691, 691, 171], [186, 383, 1490, 901, 775], [-4, 1306, 1306, -4], [340, 613, 762, 583],
-                [104, 130.3, 209, 325.5, 465, 1053, 1053, 1020, 924, 772.5, 567, 362, 203], [185, 679, 866, 1022, 1128.5, 1168, 1139.4, 1053.5, 918.1, 373, 185],
-                [105, 145, 258, 431, 653, 832.5, 1011, 1011, 841.5, 653, 430.1, 255.5, 142.6], [108, 137.4, 225.5, 363.6, 543, 1091, 1091, 903, 258, 148.5],
-                [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 997.5, 849.1, 649, 428.6, 255.5, 143.4], [68, 195, 383, 716, 786, 786, 693.5, 580, 415, 294, 68],
-                [108, 225, 391.5, 565, 798.3, 962, 1058.8, 1091, 1091, 602, 417, 259, 148.5], [185, 1119, 1119, 1095.3, 1024, 373, 185], [175, 187, 375, 387, 387, 175],
-                [-62, 47.5, 153, 304, 421, 496, 521, 533, 533, 321, 100, -62], [193, 1199, 1161, 381, 193], [187, 375, 375, 187], [185, 1815, 1815, 1793.1, 1727.5, 1615.9, 1456, 735, 185],
-                [185, 1119, 1119, 1095.3, 1024, 907.5, 748, 185], [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 997, 833.3, 622, 409.4, 245.5, 140.9],
-                [185, 373, 1019, 1129, 1168, 1139.9, 1055.5, 920.6, 741, 185], [108, 137.6, 226.5, 365.1, 903, 1091, 1091, 602, 414, 259, 149.5], [185, 373, 882, 882, 816, 745, 185],
-                [110, 283.5, 511, 706.9, 856.5, 951.4, 983, 939, 768.5, 566, 372.5, 230, 143.5, 115, 110], [62, 211.3, 278, 387.5, 538, 649.5, 765, 765, 377, 189, 62],
-                [177, 201.5, 275, 392.5, 549, 1111, 1111, 177], [61, 510, 699, 1151, 265], [86, 380, 1299, 1590, 766], [60, 1152, 1152, 64], [61, 298, 499, 1151, 265],
-                [93, 995, 995, 978, 107, 93], [173, 588.9, 672.5, 800.9, 963, 1113, 1113, 963, 800.9, 672.5, 588.9, 173], [378, 552, 552, 378],
-                [187, 337, 499.1, 627.5, 711.1, 1127, 1127, 711.1, 627.5, 499.1, 337, 187], [187, 354, 1125, 1290, 1401, 1466.5, 1489, 1322, 551, 386, 274, 209.5], [], [291, 515, 505, 301],
-                [159, 191.6, 289.5, 647, 765, 1120, 1120, 765, 647, 292.5, 192.4], [137, 1163, 1163, 1137, 997, 816, 630.6, 484.5, 389.6, 182, 137],
-                [138, 247, 1058, 1168, 1168, 1055, 249, 138], [108, 187, 557, 745, 1115, 1191, 320], [378, 552, 552, 378],
-                [172, 229, 404.5, 575, 796, 965, 1063, 1096, 1128, 1071, 896, 725, 497.5, 334, 235, 203], [346, 958, 958, 346],
-                [159, 222.4, 412.5, 692.1, 1024, 1355.9, 1635.5, 1825.6, 1889, 1825.6, 1635.5, 1355.9, 1024, 692.1, 412.5, 222.4],
-                [151, 238.5, 454, 944, 944, 920.3, 849, 723.5, 537, 368, 231], [166, 716, 1146, 1146, 716, 166], [210, 1285, 1456, 1456, 210], [153, 777, 777, 153],
-                [159, 222.4, 412.5, 692.1, 1024, 1355.9, 1635.5, 1825.6, 1889, 1825.6, 1635.5, 1355.9, 1024, 692.1, 412.5, 222.4], [-4, 1, 1306, 1306],
-                [154, 183, 270, 399.3, 555, 710.8, 840, 927, 956, 927.1, 840.5, 711.4, 555, 399.3, 270, 183], [215, 1461, 1461, 921, 755, 215],
-                [207, 967, 967, 911, 887.6, 817.5, 544, 369.5, 211, 207], [207, 363.5, 540, 703, 834, 923, 956, 929, 904.9, 832.5, 561, 384.5, 224, 207], [541, 690, 963, 720],
-                [190, 378, 1124, 1124, 190], [137, 168.5, 595, 1106, 1106, 640, 425.3, 267, 169.5], [253, 492, 492, 253], [353, 456, 551, 788.5, 857.1, 880, 877, 872, 719, 353],
-                [291, 299, 914, 914, 693, 558, 291], [121, 150.6, 239.5, 378.6, 559, 734.3, 874, 965.5, 996, 965.5, 874, 734.3, 559, 378.6, 239.5, 150.6], [174, 604, 1154, 1154, 604, 174],
-                [171, 465, 1694, 1857, 1857, 1694, 1410, 545, 408, 171], [171, 465, 1955, 1955, 1890, 1805.5, 1410, 545, 408, 171], [140, 555, 1750, 1913, 1913, 1750, 1500, 448, 294, 155, 140],
-                [113, 144.1, 237.5, 384.6, 577, 782, 958, 958, 712, 508, 147.5], [26, 1374, 862, 683, 440], [26, 1374, 955, 712, 533], [26, 1374, 1033, 805, 578, 350],
-                [26, 1374, 1119, 990, 541, 367, 288], [26, 1374, 1005, 806, 393], [26, 1374, 1049, 1023.6, 947.5, 834.6, 699, 564, 451, 374.5, 349], [14, 1901, 1901, 608],
-                [115, 169, 548, 652.5, 750, 990.5, 1350, 1350, 1084.5, 845, 546.5, 317, 167], [200, 1181, 1181, 643, 400, 200], [200, 1181, 1181, 993, 750, 200],
-                [200, 1181, 1181, 803, 576, 200], [200, 1181, 1181, 1038, 426, 200], [137, 725, 725, 389, 146, 137], [137, 725, 725, 482, 137], [93, 137, 725, 776, 548, 321],
-                [126, 137, 725, 738, 738, 126], [14, 210, 586, 916.5, 1144, 1379.5, 1468, 1383, 1146, 929, 582, 210, 14], [200, 1336, 1336, 1208, 1079, 630, 456, 200],
-                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 753, 510, 163], [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1083, 840, 303, 163],
-                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1136, 908, 681, 453, 163],
-                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1207, 1078, 629, 455, 163],
-                [112, 160.5, 299, 517.5, 803, 1089.5, 1307, 1445.5, 1495, 1446.5, 1108, 909, 496, 160], [291, 402, 1274, 1385, 1385, 1274, 402, 291],
-                [115, 120, 252, 1092.5, 1310, 1448.5, 1498, 1474, 1342, 806, 521.5, 303, 163], [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 753, 510, 178],
-                [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 1073, 830, 178], [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 856, 629, 178],
-                [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 1056, 444, 178], [6, 532, 730, 1254, 935, 692], [200, 398, 1044, 1139, 1174, 1127, 997, 398, 200],
-                [185, 675, 873.1, 1029.5, 1131.1, 1165, 1066, 1037.4, 951.5, 819.9, 654, 470.5, 321, 221, 185], [104, 130.3, 209, 325.5, 465, 1053, 1053, 1020, 559, 316, 203],
-                [104, 130.3, 209, 325.5, 465, 1053, 1053, 934, 691, 203], [104, 130.3, 209, 325.5, 465, 1053, 1053, 961, 733, 506, 278, 203],
-                [104, 130.3, 209, 325.5, 465, 1053, 1053, 1038, 909, 460, 286, 207], [104, 130.3, 209, 325.5, 465, 1053, 1053, 926, 314, 203],
-                [104, 130.3, 209, 325.5, 465, 1053, 1053, 956, 930.6, 854.5, 741.6, 606, 471, 358, 281.5, 256],
-                [104, 130.4, 209.5, 326.1, 465, 1433, 1648.5, 1833, 1855, 1855, 1823.6, 1729.5, 1581.1, 1387, 564, 360, 202],
-                [105, 145, 353, 456, 551, 788.5, 857.1, 1011, 1011, 841.5, 653, 430.1, 255.5, 142.6], [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 997.5, 580, 337, 143.4],
-                [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 960, 717, 255.5, 143.4], [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 986, 758, 531, 303, 143.4],
-                [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 951, 339, 143.4], [-21, 187, 375, 401, 222], [160, 187, 375, 582, 339], [-11, 187, 375, 572, 394, 167],
-                [5, 187, 375, 557, 557, 5], [106, 140.6, 244.5, 405.6, 612, 828.3, 995, 1101.5, 1137, 1004, 938, 263], [185, 1119, 1119, 1075, 946, 497, 323, 244, 185],
-                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 997, 553, 310, 140.9], [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 933, 690, 245.5, 140.9],
-                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 963, 735, 508, 280, 140.9], [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1038, 909, 460, 286, 207],
-                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 928, 729, 316, 140.9], [210, 719, 957, 1466, 1466, 957, 719, 210],
-                [93, 203, 833.3, 997, 1102, 1137, 1132, 1021, 409.4, 245.5, 140.9, 106], [177, 201.5, 275, 392.5, 549, 1111, 1111, 585, 342, 177],
-                [177, 201.5, 275, 392.5, 549, 1111, 1111, 945, 702, 177], [177, 201.5, 275, 392.5, 549, 1111, 1111, 757, 530, 177], [177, 201.5, 275, 392.5, 549, 1111, 1111, 955, 343, 177],
-                [61, 298, 499, 1151, 928, 685], [185, 373, 1019, 1129, 1168, 1139.9, 1055.5, 920.6, 373, 185], [230, 376, 658, 585, 346], [530, 579, 724, 773],
-                [256, 588, 716, 1048, 1048, 765, 539, 256], [7, 26, 1374, 832], [346, 585, 585, 346], [0, 49, 443, 1424, 1424, 443], [0, 49, 443, 1582, 1582, 443], [0, 49, 380, 968, 968, 380],
-                [0, 49, 354.5, 493, 711.5, 997, 1283.5, 1501, 1639.5, 1689, 1640.5, 1501, 1284.5, 997], [0, 49, 815, 1013, 1537, 289],
-                [0, 49, 291, 1751, 1751, 1701, 1654.1, 1513.5, 1296.6, 1021], [-53, 187, 375, 615, 615, 379, 183, -53], [26, 1374, 832, 568],
-                [200, 728, 983.5, 1168, 1281, 1323, 1196, 1159, 1040, 885, 641, 200], [200, 398, 1162, 1162, 200], [26, 1414, 852, 588], [200, 1181, 1181, 200],
-                [126, 1288, 1288, 1266, 160, 126], [200, 1339, 1339, 200], [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163],
-                [137, 725, 725, 137], [205, 1397, 1366, 205], [26, 1378, 822, 582], [200, 1526, 1526, 200], [200, 1336, 1336, 200], [114, 1215, 1215, 114],
-                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163], [200, 1339, 1339, 200],
-                [200, 398, 1043, 1139.5, 1174, 1127.5, 996, 831, 604, 200], [118, 1280, 1280, 1234, 138, 118], [0, 532, 730, 1262, 1262, 0], [6, 532, 730, 1254, 225],
-                [105, 149.5, 273, 740, 937, 1404, 1527.5, 1572, 1528.5, 1410, 937, 740, 267, 148], [68, 1335, 1336, 80], [179, 219.5, 338, 793, 990, 1446, 1563.5, 1604, 1604, 179],
-                [108, 1568, 1568, 1518, 1471.1, 1330.5, 1113.6, 838, 562.4, 345.5, 204.9, 158, 108], [126, 137, 725, 738, 738, 126], [6, 532, 730, 1254, 939, 740, 327],
-                [108, 137.4, 225.5, 363.6, 543, 1091, 1091, 743, 500, 148.5], [109, 152.5, 265, 417, 578, 796, 1006, 1006, 961, 721, 478, 191.5, 144],
-                [185, 931, 1119, 1119, 1095.3, 802, 559, 185], [160, 187, 375, 403], [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 1043, 760, 534, 251, 177],
-                [108, 137.4, 225.5, 363.6, 543, 1091, 1091, 604, 416.5, 258, 148.5], [185, 373, 1030.5, 1131.4, 1165, 1084, 1050, 959, 825.5, 661, 462.1, 311.5, 216.6, 185],
-                [61, 506, 694, 1151, 265], [106, 140.6, 244.5, 408.6, 624, 837.1, 1000.5, 1104.4, 1139, 1049, 239],
-                [109, 152.5, 265, 417, 578, 796, 1006, 1006, 961, 789, 609, 449, 304, 191.5, 144], [108, 135.8, 219, 646, 825, 937, 982, 942, 198],
-                [185, 931, 1119, 1119, 1095.3, 1024, 907.5, 748, 185], [137, 159.5, 219, 382, 639, 896, 1059, 1118, 1141, 1118, 1058, 895.5, 639, 382.5, 220, 159.5], [187, 375, 375, 187],
-                [193, 1192, 1122, 1085, 1027, 193], [61, 1151, 522, 311], [185, 373, 1125, 1125, 185], [61, 510, 699, 1151, 265], [104, 138.5, 239, 704, 884, 995.5, 1041, 957, 133],
-                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 997, 833.3, 622, 409.4, 245.5, 140.9], [185, 1120, 1120, 185],
-                [185, 373, 1033.5, 1137.4, 1172, 1140, 1044, 887.3, 673, 477.5, 322, 220.5, 185], [105, 146.5, 261, 685, 862, 971, 1018, 986, 839, 675, 441.9, 260.5, 143.9],
-                [106, 140.5, 244, 407.8, 623, 832.9, 996.5, 1101.9, 1295, 1295, 625, 412, 247, 141.3], [10, 414, 602, 1006, 1006, 10],
-                [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 177], [104, 151, 283, 715, 902, 1342.5, 1471.1, 1514, 1470.4, 1339.5, 1132.6, 861, 784.5, 714, 355, 163],
-                [48, 1160, 1149, 59], [176, 223.5, 748, 935, 1459, 1507, 1507, 176], [113, 136.5, 211, 343.5, 538, 1128, 1321.5, 1455, 1529.5, 1553, 1496, 1295, 371, 170],
-                [5, 187, 375, 557, 557, 5], [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 953, 341, 177],
-                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 743, 500, 140.9], [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 768, 525, 177],
-                [113, 136.5, 211, 343.5, 538, 1128, 1321.5, 1455, 1529.5, 1553, 1496, 955, 712, 170],
-                [149, 179.4, 270.5, 409.6, 584, 798.5, 985, 1106, 1145, 1130.5, 1074, 909.5, 670, 473.5, 292], [50, 1438, 876, 612], [144, 344, 1332, 1532, 1532, 144],
-                [187, 1369, 1369, 1330, 197, 187], [220, 1456, 1456, 220], [-102, 63, 843, 678], [253, 492, 492, 253], [134, 755, 857, 1737, 1570, 134],
-                [161, 189.3, 274, 406.5, 578, 1435, 1620.9, 1764.5, 1856.4, 1887, 1858.8, 1774, 1641.5, 1470, 613, 430.3, 286, 192.3],
-                [138, 241.5, 348, 515.3, 641, 719, 1168, 1168, 1063, 954, 786.3, 661, 583, 138], [243, 400, 1070, 1214, 1320, 1432, 1431, 1274, 604, 462.4, 355.5, 243],
-                [245, 566, 719, 1431, 1431, 1109, 956, 245], [254, 1408, 1408, 254], [268, 1422, 1422, 268]
-            ];
-            this.OUTLINE_Y = [
-                [], [1489, 0, 0, 1489], [1556, 977, 977, 1556, 1556], [421, 0, 0, 421, 932, 1067, 1489, 1489, 1067, 556],
-                [85, -361, -361, 238.1, 380, 1231, 1576, 1576, 1185, 1071.5, 935, 283], [1075, 880.5, 743, 0, -29, -1.8, 80, 217.8, 413, 607.5, 745, 1489, 1517, 1489.8, 1408, 1270.3],
-                [409, 230.9, 90.5, -0.6, -31, 0, 909, 1333.4, 1432.5, 1498.1, 1520, 1490, 1412, 1301.5, 1174], [1556, 977, 977, 1556], [572, 286.3, 31, -412, -412, 1556, 1556, 1113, 857.8],
-                [-412, -412, 31, 286.3, 572, 857.8, 1113, 1556, 1556], [886, 776, 630, 630, 777, 887, 1299, 1409, 1556, 1556, 1410, 1300], [572, 27, 27, 572, 732, 1277, 1277, 732],
-                [-370, -370, 285, 285], [561, 561, 742, 742], [0, 0, 285, 285], [-304, -304, 1556, 1556],
-                [743, 400, 159, 16.5, -31, 15.9, 156.5, 397.4, 745, 1084.9, 1326.5, 1470.9, 1519, 1471.6, 1329.5, 1088.1], [0, 0, 152, 1494, 1494, 1286],
-                [0, 0, 171, 1110, 1279.4, 1409.5, 1492.4, 1520, 1491, 1427, 209], [63, -1.5, -31, 2.5, 106, 254, 441, 1161, 1320, 1436, 1500, 1520, 1490.5, 1426, 272],
-                [419, 0, 0, 419, 579, 1489, 1489, 649], [56, -5.5, -31, 6.5, 114, 274, 473, 1489, 1489, 267],
-                [654, 324, 104, 3, -31, 4.9, 112.5, 276.9, 483, 1494, 1512, 1517, 1453.5, 1277, 1005], [1314, 0, 0, 1266, 1489, 1489],
-                [411, 233.5, 91, -2.8, -34, -2, 94, 238.3, 415, 1144, 1294.5, 1416, 1496.3, 1523, 1495, 1411, 1285, 1131],
-                [1005, -6, -23.5, -29, 33, 209, 480, 834, 1171.5, 1385, 1485.5, 1519, 1483.3, 1376, 1211.8], [0, 0, 1117, 1117], [-370, -370, 285, 1117, 1117], [590, 77, 1227, 714],
-                [362, 362, 942, 942], [77, 590, 714, 1227], [1245, 0, 0, 964.5, 1139, 1293.4, 1414.5, 1492.9, 1519, 1497.5, 1449],
-                [647, 291, 15, -162.5, -226, -218.5, -190, 157, 394, 663, 1013.5, 1283, 1457, 1519, 1452, 1268, 991.5], [0, 0, 1489, 1489],
-                [0, 0, 28, 122, 262, 458, 1155, 1316.5, 1427, 1477, 1489, 1489], [743, 402.5, 161, 18.5, -27, -13.5, 19, 63, 108, 1385, 1487, 1516, 1465, 1317, 1072],
-                [0, 0, 28, 119, 375, 743, 1118, 1371, 1457.5, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 717, 1313, 1489, 1489],
-                [746, 405.5, 163, 19, -29, 12.5, 110, 749, 1382, 1485.5, 1516, 1464.4, 1309.5, 1065.4], [0, 0, 1489, 1489], [0, 0, 1489, 1489],
-                [8, -12.5, -21, 5.5, 85, 213.5, 387, 1489, 1489, 193], [0, 0, 1489, 1489], [0, 0, 176, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489],
-                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 709, 855.5, 1039, 1254, 1396, 1466.5, 1489, 1489],
-                [744, 415, 172, 21, -297.5, -369.1, -393, -386.5, -365, -183, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 1280.5, 1409, 1471.5, 1489, 1489],
-                [92, 3, -27, 9, 109, 253, 425, 1412, 1486, 1516, 1486.1, 1396.5, 1260.1, 1090, 340], [1313, 0, 0, 1313, 1489, 1489], [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 1489],
-                [1489, 0, 0, 1489, 1489], [1489, 0, 0, 1489, 1489], [0, 0, 1489, 1489], [1489, 0, 0, 1489, 1489], [0, 0, 176, 1489, 1489, 184], [-392, -392, 1556, 1556],
-                [1556, -304, -304, 1556], [-392, -392, 1556, 1556], [682, 682, 684, 1489, 1489], [-300, -300, -180, -180], [1676, 1302, 1302, 1676],
-                [324, 182.8, 69, -6, -31, 0, 758, 939, 1058, 1124.5, 1144, 1126, 1093], [0, -31, 8.5, 127, 315, 567, 812.8, 996, 1110, 1556, 1556],
-                [557, 300, 118, 10.5, -25, 0, 70, 1050, 1116, 1143, 1104, 987, 801.5], [550, 306.8, 123, 7.5, -31, 0, 1556, 1556, 992, 803],
-                [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1016, 1115, 1148, 1107.8, 987, 797.8], [959, 0, 0, 959, 1374, 1546, 1560, 1566, 1539.4, 1459.5, 1117],
-                [569, -375, -410.5, -423, -389.8, -290, -119.3, 127, 1117, 1148, 1108.5, 998, 817.5], [0, 0, 725, 906, 1039, 1556, 1556], [1304, 0, 0, 1304, 1499, 1499],
-                [-395, -415, -423, -398, -323, -199, -27, 1304, 1499, 1499, 1117, -216], [0, 0, 1117, 1556, 1556], [0, 0, 1556, 1556], [0, 0, 725, 902.9, 1036.5, 1120.1, 1148, 1148, 1117],
-                [0, 0, 725, 906, 1039, 1120.8, 1148, 1117], [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 989.5, 1108.4, 1148, 1108.4, 989.5, 802.4],
-                [-412, -412, 133, 323.5, 572, 813.4, 995.5, 1109.9, 1148, 1117], [555, 314.1, 131.5, 16.4, -412, -412, 1117, 1148, 1108, 995, 809.5], [0, 0, 912, 1105, 1114.5, 1117, 1117],
-                [67, 2.5, -27, -2.5, 71, 182.8, 322, 1060, 1119.5, 1144, 1116.5, 1042, 933, 803, 278], [959, 189.8, 70, 1, -22, -13, 10, 1117, 1438, 1438, 1117],
-                [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1117], [1117, 0, 0, 1117, 1117], [1117, 0, 0, 1117, 1117], [0, 0, 1117, 1117], [1117, -412, -412, 1117, 1117],
-                [0, 0, 159, 1117, 1117, 139], [504, -170.9, -292.5, -367.1, -392, -392, 1556, 1556, 1531.1, 1456.5, 1334.9, 660], [-392, -392, 1556, 1556],
-                [-392, -392, -367.1, -292.5, -170.9, 504, 660, 1334.9, 1456.5, 1531.1, 1556, 1556], [395, 395, 396, 440, 561, 732, 927, 927, 926, 880.5, 761, 589.5], [], [0, 0, 1489, 1489],
-                [557, 333.5, 163, -361, -361, 74, 1046, 1475, 1475, 948.5, 775.9], [0, 0, 171, 1467, 1501, 1518, 1485.9, 1389.5, 1243.1, 751, 207],
-                [258, 145, 147, 257, 1067, 1176, 1176, 1066], [1489, 426, 0, 0, 426, 1489, 1489], [-392, -392, 1556, 1556],
-                [533, -327, -371.5, -385, -358, -275, -156, -10, 601, 1462, 1505, 1519, 1490, 1411, 1293.5, 1147], [1304, 1304, 1499, 1499],
-                [655, 323.1, 43.5, -146.6, -210, -146.6, 43.5, 323.1, 655, 986.9, 1266.5, 1456.6, 1520, 1456.6, 1266.5, 986.9],
-                [833, 616, 531, 554, 1192, 1332.4, 1435.5, 1498.9, 1520, 1504, 1475], [608, 162, 191, 1113, 1142, 697], [602, 57, 57, 762, 762], [561, 561, 742, 742],
-                [655, 323.1, 43.5, -146.6, -210, -146.6, 43.5, 323.1, 655, 986.9, 1266.5, 1456.6, 1520, 1456.6, 1266.5, 986.9], [1788, 1668, 1668, 1788],
-                [1116, 960.4, 831.5, 744.9, 716, 745, 832, 961, 1116, 1271, 1400, 1487, 1516, 1487, 1400, 1271], [179, 179, 917, 1462, 1462, 917],
-                [566, 566, 711, 1237, 1350.4, 1440.5, 1519, 1501.5, 1458, 722], [585, 542, 527, 543.5, 595, 685.5, 817, 1278, 1374.5, 1452, 1520, 1502.5, 1458, 764],
-                [1302, 1302, 1676, 1676], [-412, -412, 0, 1117, 1117], [1050, 866, -363, -363, 1489, 1489, 1460, 1373, 1234.3], [511, 511, 794, 794],
-                [-397, -416, -423, -337, -232, -89, -25, 20, 20, -237], [1256, 566, 566, 688, 1493, 1493, 1368],
-                [1025, 820.1, 663.5, 564.1, 531, 563.4, 660.5, 816.4, 1025, 1233.8, 1390, 1487.5, 1520, 1486.8, 1387, 1230], [191, 162, 608, 697, 1142, 1113],
-                [1246, 0, 0, 220, 353, 944, 1489, 1493, 1493, 1363], [1246, 0, 0, 139, 664, 865, 1489, 1493, 1493, 1363], [598, 0, 0, 220, 353, 944, 1489, 1517, 1500, 1456, 773],
-                [350, 195.6, 74.5, -3.9, -30, -10, 40, 244, 1489, 1489, 523], [0, 0, 1675, 2049, 2049], [0, 0, 2049, 2049, 1675], [0, 0, 1670, 2049, 2049, 1670],
-                [0, 0, 1992, 1992, 1987, 1910, 1682], [0, 0, 1872, 1872, 1872], [0, 0, 1712, 1843.5, 1952, 2024.8, 2049, 2024.8, 1952, 1843.5, 1712], [0, 0, 1489, 1489],
-                [743, 402.5, -397, -416, -423, -337, 108, 1385, 1487, 1516, 1465, 1317, 1072], [0, 0, 1489, 2049, 2049, 1489], [0, 0, 1489, 2049, 2049, 1489], [0, 0, 1489, 2049, 2049, 1489],
-                [0, 0, 1489, 1872, 1872, 1489], [0, 0, 1489, 2049, 2049, 1489], [0, 0, 2049, 2049, 1489], [1670, 0, 0, 1670, 2049, 2049], [1677, 0, 0, 1677, 1872, 1872],
-                [740, 0, 0, 28, 119, 375, 743, 1118, 1371, 1457.5, 1489, 1489, 883], [0, 0, 1489, 1992, 1992, 1987, 1910, 1489],
-                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 2049, 2049, 1070.5], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 2049, 2049, 1318, 1070.5],
-                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1670, 2049, 2049, 1670, 1070.5], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1992, 1992, 1987, 1910, 1070.5],
-                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1872, 1872, 1872, 1070.5], [216, 105, 105, 216, 1088, 1199, 1199, 1088],
-                [744, -146, -146, 20, 172, 414.5, 744, 1611, 1611, 1520, 1468, 1318, 1070.5], [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 2049, 2049, 1489],
-                [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 2049, 2049, 1489], [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 2049, 2049, 1489],
-                [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 1872, 1872, 1489], [1489, 0, 0, 1489, 2049, 2049], [0, 0, 469, 610.5, 787, 992, 1130, 1489, 1489],
-                [0, -24, 12.4, 121.5, 284.1, 481, 1241, 1376, 1479, 1544.3, 1566, 1536.5, 1449, 1295.5, 1080], [324, 182.8, 69, -6, -31, 0, 758, 939, 1676, 1676, 1093],
-                [324, 182.8, 69, -6, -31, 0, 758, 1676, 1676, 1093], [324, 182.8, 69, -6, -31, 0, 758, 1297, 1676, 1676, 1297, 1093],
-                [324, 182.8, 69, -6, -31, 0, 758, 1619, 1619, 1614, 1537, 1309], [324, 182.8, 69, -6, -31, 0, 758, 1499, 1499, 1093],
-                [324, 182.8, 69, -6, -31, 0, 758, 1630, 1761.8, 1871, 1944.5, 1969, 1944.5, 1871, 1761.8, 1630],
-                [317, 178.8, 68, -4.8, -29, -26, 3.5, 68, 559, 641, 861.3, 1020, 1116, 1148, 1146, 1127, 1093], [557, 300, -397, -416, -423, -337, -232, 70, 1050, 1116, 1143, 1104, 987, 801.5],
-                [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1016, 1676, 1676, 797.8], [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1676, 1676, 987, 797.8],
-                [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1297, 1676, 1676, 1297, 797.8], [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1499, 1499, 797.8],
-                [1676, 0, 0, 1302, 1676], [1302, 0, 0, 1676, 1676], [1297, 0, 0, 1297, 1676, 1676], [1304, 0, 0, 1304, 1499, 1499],
-                [484, 266.5, 104, 2.8, -31, 12, 141, 351, 637, 1469, 1566, 1556], [0, 0, 725, 1619, 1619, 1614, 1537, 1309, 1117],
-                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 989.5, 1676, 1676, 802.4], [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1676, 1676, 989.5, 802.4],
-                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1297, 1676, 1676, 1297, 802.4], [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 1619, 1619, 1614, 1537, 1309],
-                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1499, 1499, 1499, 802.4], [572, 7, 7, 572, 732, 1297, 1297, 732],
-                [-148, -148, 8.5, 127, 313.8, 558, 1241, 1241, 1108.4, 989.5, 802.4, 558], [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1676, 1676, 1117],
-                [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1676, 1676, 1117], [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1676, 1676, 1117], [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1499, 1499, 1117],
-                [1117, -412, -412, 1117, 1676, 1676], [-412, -412, 133, 323.5, 572, 813.4, 995.5, 1109.9, 1556, 1556], [-370, -370, 285, 1117, 1117], [1676, 1292, 1292, 1676],
-                [1304, 1292, 1292, 1304, 1499, 1676, 1676, 1499], [1489, 0, 0, 1489], [832, 832, 1117, 1117], [1489, 1105, 0, 0, 1489, 1489], [1489, 1105, 0, 0, 1489, 1489],
-                [1489, 1105, 0, 0, 1489, 1489], [1489, 1105, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520], [1489, 1105, 0, 0, 1489, 1489],
-                [1489, 1105, 0, 0, 174, 894, 1144.8, 1345, 1476.3, 1520], [1304, 0, 0, 1304, 1499, 1676, 1676, 1499], [0, 0, 1489, 1489],
-                [0, 0, 28, 122, 262, 458, 1155, 1316.5, 1427, 1477, 1489, 1489], [0, 0, 1313, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 176, 1489, 1489, 184],
-                [0, 0, 1489, 1489], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489],
-                [0, 0, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 1489, 1489],
-                [0, 0, 709, 855.5, 1039, 1254, 1396, 1466.5, 1489, 1489], [0, 0, 176, 1489, 1489, 184], [1313, 0, 0, 1313, 1489, 1489], [1489, 0, 0, 1489, 1489],
-                [755, 507, 325, -16, -16, 325, 506.5, 755, 994, 1171, 1505, 1505, 1171, 993], [0, 0, 1489, 1489], [910, 647, 471, 0, 0, 471, 645.5, 910, 1489, 1489],
-                [0, 0, 174, 894, 1144.8, 1345, 1476.3, 1520, 1476.3, 1345, 1144.8, 894, 174], [1677, 0, 0, 1677, 1872, 1872], [1489, 0, 0, 1489, 1872, 1872, 1872],
-                [550, 306.8, 123, 7.5, -31, 0, 1117, 1676, 1676, 803], [306, 148.5, 46, -10, -26, -5, 64, 270, 1083, 1676, 1676, 986.5, 839], [0, -412, -412, 725, 906, 1676, 1676, 1117],
-                [1676, 0, 0, 1676], [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1499, 1676, 1676, 1499, 1117], [550, 306.8, 123, 7.5, -31, 0, 1117, 1148, 1108, 992, 803],
-                [-412, -412, 110, 259.5, 444, 1195, 1355, 1467, 1534.5, 1556, 1524.3, 1429, 1277.8, 1078], [1117, -412, -412, 1117, 1117],
-                [534, 299.6, 120.5, 6.9, -31, 7.8, 124, 308.3, 551, 1556, 1556], [306, 148.5, 46, -10, -26, -5, 64, 270, 1083, 1127.5, 1144, 1128, 1079, 986.5, 839],
-                [463, 262.3, 118, -412, -412, -264.5, -96, 1556, 1556], [0, -412, -412, 725, 906, 1039, 1120.8, 1148, 1117],
-                [768, 451.5, 241, 37.5, -31, 37.5, 241, 451.5, 768, 1073, 1288, 1487, 1556, 1487, 1288, 1073.5], [0, 0, 1117, 1117], [0, 0, 1117, 1118, 1119, 1117], [0, 0, 1556, 1556],
-                [-412, -412, 0, 1117, 1117], [1117, 0, 0, 1117, 1117], [412, 248.5, 113, -412, -412, -265, -96, 1556, 1556],
-                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 989.5, 1108.4, 1148, 1108.4, 989.5, 802.4], [0, 0, 1117, 1117],
-                [-412, -412, 148.5, 340.9, 577, 821.5, 1001, 1111.3, 1148, 1115, 1020, 861.5, 646], [549, 299, 129, -412, -412, -268, -96, 1079, 1124.5, 1143, 1102.5, 981, 792],
-                [558, 313.8, 127, 8.5, -31, 7.5, 123, 308.8, 952, 1117, 1148, 1108.6, 990.5, 803.6], [952, 0, 0, 952, 1117, 1117],
-                [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1117], [546, 314, 142, -412, -412, 159, 342.3, 576, 816.6, 996.5, 1108.6, 1146, 1145.5, 1143, 1117, 842],
-                [-412, -412, 1117, 1117], [446, 248.5, -412, -412, 248, 446, 1117, 1117], [503, 310.5, 139, 16.5, -30, -30, 14.5, 139, 310.5, 503, 811.5, 1117, 1117, 811.5],
-                [1304, 0, 0, 1304, 1499, 1499], [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1499, 1499, 1117],
-                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1676, 1676, 802.4], [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1676, 1676, 1117],
-                [503, 310.5, 139, 16.5, -30, -30, 14.5, 139, 310.5, 503, 811.5, 1676, 1676, 811.5], [424, 240.1, 94.5, -0.4, -32, 17, 190, 493, 837, 1097, 1286, 1464.5, 1519, 1496.5, 1430],
-                [0, 0, 1489, 1489], [1315, -193, -193, 1315, 1489, 1489], [-189, -189, -13, 1489, 1489, 2], [572, 572, 732, 732], [0, 0, 1489, 1489], [511, 511, 794, 794],
-                [842, -151, -151, 1788, 1788, 981], [642, 447.6, 292.5, 190.9, 157, 157, 190.4, 290.5, 450.4, 663, 857.4, 1012.5, 1114.1, 1148, 1148, 1114.5, 1014, 854],
-                [-402, -417.5, -423, -395.5, -313, -179.8, 1367, 1545, 1560.5, 1566, 1538.5, 1456, 1321.8, -224], [202, 202, 209, 233.4, 306.5, 588, 1104, 1104, 1097, 1072.5, 999, 719],
-                [362, 27, 27, 362, 942, 1277, 1277, 942], [0, 0, 1393, 910], [0, 0, 910, 1393]
-            ];
-            this.KERN_C1 = [
-                '\'', '\'', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '.', '.', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
-                'A', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F',
-                'I', 'J', 'J', 'J', 'J', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L',
-                'L', 'O', 'O', 'O', 'O', 'O', 'O', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'Q', 'Q', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'S',
-                'S', 'S', 'S', 'S', 'S', 'S', 'S', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T',
-                'T', 'T', 'T', 'T', 'T', 'T', 'U', 'U', 'U', 'U', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'W', 'W', 'W', 'W', 'W', 'W',
-                'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
-                'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z',
-                'a', 'a', 'a', 'b', 'b', 'b', 'c', 'c', 'e', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'h', 'h', 'h', 'k', 'k', 'k', 'k', 'm', 'm',
-                'm', 'n', 'n', 'n', 'o', 'o', 'o', 'o', 'o', 'p', 'p', 'p', 'r', 'r', 'r', 'r', 'r', 't', 't', 'v', 'v', 'v', 'v', 'v', 'v', 'v', 'v', 'w', 'w', 'w',
-                'w', 'w', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'z', 'z', 'z', 'z', 'z', 'z', 'z',
-                'z', 'z', '\u00C7', '\u00E7', '\u00D8', '\u00D8', '\u00D8', '\u00D8', '\u00D8', '\u00D8', '\u00F8', '\u00F8', '\u00F8', '\u00F8', '\u00F8'
-            ];
-            this.KERN_C2 = [
-                '\u00C6', 'A', '\u00E6', '\u00C6', 'z', 'y', 'x', 'w', 'v', 'a', 'Z', 'Y', 'X', 'W', 'V', 'T', 'S', 'J', 'I', 'A', '-', ',', 'y', 'w', 'v', 'u', 't',
-                'Y', 'W', 'V', 'U', 'T', 'S', '-', 'T', '.', '-', ',', '-', 'Z', 'Y', 'X', 'W', 'T', '.', ',', '\u00F8', '\u00E6', '\u00C6', 'o', 'e', 'a', 'T', 'A',
-                '?', ';', ':', '.', ',', '-', '\u00C6', 'A', '.', ',', '\u00F8', '\u00E6', '\u00D8', 'y', 'w', 'v', 'u', 'o', 'e', 'a', 'O', '-', '\u00D8', '\u00C7',
-                'y', 'v', 'Y', 'W', 'V', 'T', 'O', 'J', 'G', 'C', '-', '\'', 'Z', 'Y', 'X', 'T', '.', ',', '\u00F8', '\u00E6', '\u00C6', 'o', 'e', 'a', 'Y', 'A',
-                '.', ',', '.', ',', '\u00F8', '\u00E6', 'y', 'u', 'o', 'e', 'a', 'Y', 'T', '-', '\u00C6', 'y', 'w', 'v', 'S', 'A', '.', ',', '\u00F8', '\u00E6',
-                '\u00D8', '\u00C6', '\u00C7', 'z', 'y', 'w', 'v', 'u', 's', 'r', 'o', 'g', 'e', 'c', 'a', 'T', 'S', 'O', 'G', 'C', 'A', '?', ';', ':', '.', '-', ',',
-                '\u00C6', 'A', '.', ',', '\u00F8', '\u00E6', '\u00C6', 'y', 'u', 'o', 'e', 'a', 'A', ';', ':', '.', '-', ',', '\u00F8', '\u00E6', '\u00C6', 'y', 'u',
-                'r', 'o', 'e', 'a', 'A', ';', ':', '.', '-', ',', '\u00F8', '\u00E6', '\u00D8', '\u00C7', 'y', 'u', 'o', 'e', 'a', 'O', 'G', 'C', '-', '\u00F8',
-                '\u00E6', '\u00D8', '\u00C6', 'v', 'u', 's', 'r', 'q', 'p', 'o', 'n', 'm', 'g', 'e', 'd', 'a', 'O', 'A', ';', ':', '.', '-', ',', '\u00F8', '\u00E6',
-                '\u00D8', '\u00C7', 'y', 'w', 'o', 'e', 'a', 'Z', 'O', 'G', 'C', '-', 'y', 'w', 'v', 'y', '.', ',', 'T', '-', 'T', '}', 'y', ']', '\\', '?', '.',
-                '-', ',', '*', ')', '\'', '"', 'y', 'w', 'v', '\u00F8', 'o', 'e', '-', 'y', 'w', 'v', 'y', 'w', 'v', 'y', 'x', 'v', '.', ',', 'y', '.', ',',
-                '\u00E6', 'a', '.', '-', ',', 'y', '-', '\u00F8', '\u00E6', 'o', 'e', 'a', '.', '-', ',', '\u00E6', 'a', '.', '-', ',', '\u00F8', '\u00E7', 'o', 'g',
-                'e', 'd', 'c', '-', '\u00F8', '\u00E6', '\u00E7', 'q', 'o', 'g', 'e', 'd', 'c', 'a', '.', '-', ',', '\u00F8', '\u00E7', 'q', 'o', 'g', 'e', 'd', 'c',
-                '-', '-', '-', 'Z', 'Y', 'X', 'T', '.', ',', 'y', 'x', 'v', '.', ','
-            ];
-            this.KERN_K = [
-                100, 100, 20, 50, 40, 40, 50, 20, 40, 20, 30, 140, 80, 50, 50, 150, 20, 100, 30, 50, 160, 130, 50, 30, 50, 10, 20, 80, 50, 60, 10, 120, 10, 50, 60,
-                20, -10, 20, 50, 20, 20, 10, 20, 50, 50, 50, 50, 100, 110, 50, 50, 100, -30, 100, -60, 60, 60, 300, 300, 30, 10, 10, 20, 20, 70, 60, 20, 80, 70, 80,
-                50, 70, 70, 60, 20, 110, 20, 20, 110, 110, 160, 100, 110, 170, 20, -100, 20, 20, 160, 120, 20, 20, 10, 50, 30, 30, 50, 50, 70, 50, 50, 50, -20, 50,
-                300, 300, 30, 30, 50, 50, 55, 20, 50, 50, 40, 20, 60, 100, 20, 30, 20, 30, 22, 20, 20, 20, 220, 240, 50, 130, 40, 170, 200, 200, 200, 200, 180, 200,
-                220, 210, 220, 220, 240, 70, 12, 50, 40, 40, 120, -60, 200, 200, 290, 150, 290, 20, 10, 20, 20, 100, 100, 70, 65, 60, 100, 100, 100, 60, 80, 80, 290,
-                50, 290, 100, 100, 60, 65, 60, 60, 100, 100, 100, 50, 80, 80, 220, 50, 290, 60, 50, 10, 10, 80, 30, 60, 60, 50, 10, 10, 10, 80, 130, 140, 20, 80,
-                100, 110, 110, 100, 130, 100, 130, 100, 100, 130, 130, 120, 140, 20, 80, 200, 200, 290, 140, 290, 60, 50, 20, 20, 65, 40, 60, 60, 50, 10, 20, 20, 20,
-                60, 16, 10, 16, 5, 20, 30, 60, 20, 140, -100, 10, -100, -100, -110, 120, 50, 130, -50, -100, -60, -60, 20, 10, 20, 20, 20, 20, 100, 20, 10, 20, 20,
-                10, 20, 15, 20, 15, 20, 30, 5, 20, 30, 40, 36, 290, 20, 290, 10, 40, 18, 40, 18, 18, 40, 180, 40, 180, 20, 20, 70, 20, 70, 24, 20, 24, 10, 24, 10,
-                20, 50, 18, 40, 18, 10, 18, 10, 18, 10, 18, 40, 190, 40, 190, 12, 10, 10, 12, 10, 12, 10, 10, 20, 50, 20, 20, 20, 10, 50, 30, 30, 15, 20, 15, 20, 30
-            ];
-            this.pathCache = [];
-            this.pathMissing = null;
-            for (let n = this.GLYPH_DATA.length - 1; n >= 0; n--)
-                this.pathCache[n] = null;
-        }
-        getKerning(ch1, ch2) {
-            const sz = this.KERN_K.length;
-            for (let n = 0; n < sz; n++)
-                if (this.KERN_C1[n] == ch1 && this.KERN_C2[n] == ch2)
-                    return this.KERN_K[n];
-            return 0;
-        }
-        static measureText(txt, size) { return this.main.measureText(txt, size); }
-        measureText(txt, size) {
-            let font = FontData.main;
-            let scale = size / font.UNITS_PER_EM;
-            let dx = 0;
-            for (let n = 0; n < txt.length; n++) {
-                let ch = txt.charAt(n);
-                let i = this.getIndex(ch);
-                if (i < 0) {
-                    dx += font.MISSING_HORZ;
-                    continue;
-                }
-                dx += font.HORIZ_ADV_X[i];
-                if (n < txt.length - 1)
-                    dx += font.getKerning(ch, txt.charAt(n + 1));
-            }
-            return [dx * scale, font.ASCENT * scale * font.ASCENT_FUDGE, -font.DESCENT * scale];
-        }
-        getIndex(ch) {
-            return this.UNICODE.indexOf(ch);
-        }
-        getRawGlyph(idx) {
-            return this.GLYPH_DATA[idx];
-        }
-        getGlyphPath(idx) {
-            let path = this.pathCache[idx];
-            if (path != null)
-                return path;
-            path = new Path2D(this.GLYPH_DATA[idx]);
-            this.pathCache[idx] = path;
-            return path;
-        }
-        getMissingPath() {
-            if (!this.pathMissing)
-                this.pathMissing = new Path2D(this.MISSING_DATA);
-            return this.pathMissing;
-        }
-        getOutlineX(idx) { return this.OUTLINE_X[idx].slice(0); }
-        getOutlineY(idx) { return this.OUTLINE_Y[idx].slice(0); }
-    }
-    FontData.main = new FontData();
-    WebMolKit.FontData = FontData;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    let TextAlign;
-    (function (TextAlign) {
-        TextAlign[TextAlign["Centre"] = 0] = "Centre";
-        TextAlign[TextAlign["Left"] = 1] = "Left";
-        TextAlign[TextAlign["Right"] = 2] = "Right";
-        TextAlign[TextAlign["Baseline"] = 0] = "Baseline";
-        TextAlign[TextAlign["Middle"] = 4] = "Middle";
-        TextAlign[TextAlign["Top"] = 8] = "Top";
-        TextAlign[TextAlign["Bottom"] = 16] = "Bottom";
-    })(TextAlign = WebMolKit.TextAlign || (WebMolKit.TextAlign = {}));
-    class MetaVector {
-        constructor(vec) {
-            this.PRIM_LINE = 1;
-            this.PRIM_RECT = 2;
-            this.PRIM_OVAL = 3;
-            this.PRIM_PATH = 4;
-            this.PRIM_TEXT = 5;
-            this.ONE_THIRD = 1.0 / 3;
-            this.types = [];
-            this.prims = [];
-            this.width = 0;
-            this.height = 0;
-            this.offsetX = 0;
-            this.offsetY = 0;
-            this.scale = 1;
-            this.density = 1;
-            this.charMissing = false;
-            this.lowX = null;
-            this.lowY = null;
-            this.highX = null;
-            this.highY = null;
-            const font = WebMolKit.FontData.main;
-            this.charMask = WebMolKit.Vec.booleanArray(false, font.UNICODE.length);
-            if (vec != null) {
-                if (vec.size != null) {
-                    this.width = vec.size[0];
-                    this.height = vec.size[1];
-                }
-                if (vec.types != null)
-                    this.types = vec.types;
-                if (vec.prims != null)
-                    this.prims = vec.prims;
-                for (let p of this.prims)
-                    if (p[0] == this.PRIM_TEXT) {
-                        let txt = p[4];
-                        for (let n = 0; n < txt.length; n++) {
-                            let i = font.getIndex(txt.charAt(n));
-                            if (i >= 0)
-                                this.charMask[i] = true;
-                            else
-                                this.charMissing = true;
-                        }
-                    }
-            }
-        }
-        drawLine(x1, y1, x2, y2, colour, thickness) {
-            if (thickness == null)
-                thickness = 1;
-            let typeidx = this.findOrCreateType([this.PRIM_LINE, thickness, colour]);
-            const bump = 0.5 * thickness;
-            this.updateBounds(Math.min(x1, x2) - bump, Math.min(y1, y2) - bump);
-            this.updateBounds(Math.max(x1, x2) + bump, Math.max(y1, y2) + bump);
-            this.prims.push([this.PRIM_LINE, typeidx, x1, y1, x2, y2]);
-        }
-        drawRect(x, y, w, h, edgeCol, thickness, fillCol) {
-            if (edgeCol == null)
-                edgeCol = -1;
-            if (fillCol == null)
-                fillCol = -1;
-            if (thickness == null)
-                thickness = 1;
-            let typeidx = this.findOrCreateType([this.PRIM_RECT, edgeCol, fillCol, thickness]);
-            const bump = 0.5 * thickness;
-            this.updateBounds(x - bump, y - bump);
-            this.updateBounds(x + w + bump, y + h + bump);
-            this.prims.push([this.PRIM_RECT, typeidx, x, y, w, h]);
-        }
-        drawOval(cx, cy, rw, rh, edgeCol, thickness, fillCol) {
-            if (edgeCol == null)
-                edgeCol = -1;
-            if (fillCol == null)
-                fillCol = -1;
-            if (thickness == null)
-                thickness = 1;
-            const bump = 0.5 * thickness;
-            this.updateBounds(cx - rw - bump, cy - rh - bump);
-            this.updateBounds(cx + rw + bump, cy + rh + bump);
-            let typeidx = this.findOrCreateType([this.PRIM_OVAL, edgeCol, fillCol, thickness]);
-            this.prims.push([this.PRIM_OVAL, typeidx, cx, cy, rw, rh]);
-        }
-        drawPath(xpoints, ypoints, ctrlFlags, isClosed, edgeCol, thickness, fillCol, hardEdge) {
-            if (edgeCol == null)
-                edgeCol = -1;
-            if (fillCol == null)
-                fillCol = -1;
-            if (thickness == null)
-                thickness = 1;
-            if (hardEdge == null)
-                hardEdge = false;
-            const bump = 0.5 * thickness;
-            for (let n = 0; n < xpoints.length; n++) {
-                this.updateBounds(xpoints[n] - bump, ypoints[n] - bump);
-                if (bump != 0)
-                    this.updateBounds(xpoints[n] + bump, ypoints[n] + bump);
-            }
-            let typeidx = this.findOrCreateType([this.PRIM_PATH, edgeCol, fillCol, thickness, hardEdge]);
-            this.prims.push([this.PRIM_PATH, typeidx, xpoints.length, WebMolKit.clone(xpoints), WebMolKit.clone(ypoints), WebMolKit.clone(ctrlFlags), isClosed]);
-        }
-        drawPoly(xpoints, ypoints, edgeCol, thickness, fillCol, hardEdge) {
-            this.drawPath(xpoints, ypoints, null, true, edgeCol, thickness, fillCol, hardEdge);
-        }
-        drawText(x, y, txt, size, colour, align) {
-            if (align == null)
-                align = TextAlign.Left | TextAlign.Baseline;
-            const font = WebMolKit.FontData.main;
-            for (let n = 0; n < txt.length; n++) {
-                let i = font.getIndex(txt.charAt(n));
-                if (i >= 0)
-                    this.charMask[i] = true;
-                else
-                    this.charMissing = true;
-            }
-            let metrics = font.measureText(txt, size);
-            let bx = 0, by = 0;
-            if ((align & TextAlign.Left) != 0) { }
-            else if ((align & TextAlign.Right) != 0)
-                bx = -metrics[0];
-            else
-                bx = -0.5 * metrics[0];
-            if ((align & TextAlign.Middle) != 0)
-                by += 0.5 * metrics[1];
-            else if ((align & TextAlign.Top) != 0)
-                by += metrics[1];
-            else if ((align & TextAlign.Bottom) != 0)
-                by -= metrics[2];
-            let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
-            let dx = 0;
-            for (let n = 0; n < txt.length; n++) {
-                let ch = txt.charAt(n);
-                let i = font.getIndex(ch);
-                if (i >= 0) {
-                    let outlineX = font.getOutlineX(i), outlineY = font.getOutlineY(i);
-                    x1 = Math.min(x1, dx + WebMolKit.Vec.min(outlineX));
-                    x2 = Math.max(x2, dx + WebMolKit.Vec.max(outlineX));
-                    y1 = Math.min(y1, -WebMolKit.Vec.max(outlineY));
-                    y2 = Math.max(y2, -WebMolKit.Vec.min(outlineY));
-                    dx += font.HORIZ_ADV_X[i];
-                    if (n < txt.length - 1)
-                        dx += font.getKerning(ch, txt.charAt(n + 1));
-                }
-                else
-                    dx += font.MISSING_HORZ;
-            }
-            const mscale = size * font.INV_UNITS_PER_EM;
-            this.updateBounds(x + bx + x1 * mscale, y + by + y1 * mscale);
-            this.updateBounds(x + bx + x2 * mscale, y + by + y2 * mscale);
-            let typeidx = this.findOrCreateType([this.PRIM_TEXT, size, colour]);
-            this.prims.push([this.PRIM_TEXT, typeidx, x + bx, y + by, txt]);
-        }
-        boundLowX() { return this.lowX; }
-        boundLowY() { return this.lowY; }
-        boundHighX() { return this.highX; }
-        boundHighY() { return this.highY; }
-        getBounds() { return new WebMolKit.Box(this.lowX, this.lowY, this.highX - this.lowX, this.highY - this.lowY); }
-        measure() {
-            this.width = Math.ceil(this.highX - this.lowX);
-            this.height = Math.ceil(this.highY - this.lowY);
-        }
-        normalise() {
-            if (this.lowX != 0 || this.lowY != 0)
-                this.transformPrimitives(-this.lowX, -this.lowY, 1, 1);
-            this.width = Math.ceil(this.highX - this.lowX);
-            this.height = Math.ceil(this.highY - this.lowY);
-        }
-        setSize(width, height) { this.width = width; this.height = height; }
-        transformIntoBox(box) {
-            this.transformPrimitives(-this.lowX, -this.lowY, 1, 1);
-            let nw = Math.ceil(this.highX - this.lowX), nh = Math.ceil(this.highY - this.lowY);
-            let scale = 1;
-            if (nw > box.w) {
-                let mod = box.w / nw;
-                nw = box.w;
-                nh *= mod;
-                scale *= mod;
-            }
-            if (nh > box.h) {
-                let mod = box.h / nh;
-                nh = box.h;
-                nw *= mod;
-                scale *= mod;
-            }
-            let ox = 0.5 * (box.w - nw), oy = 0.5 * (box.h - nh);
-            this.transformPrimitives(box.x + ox, box.y + oy, scale, scale);
-        }
-        transformPrimitives(ox, oy, sw, sh) {
-            if (ox == 0 && oy == 0 && sw == 1 && sh == 1)
-                return;
-            for (let a of this.prims) {
-                const type = a[0];
-                if (type == this.PRIM_LINE) {
-                    a[2] = ox + ((a[2] - this.lowX) * sw + this.lowX);
-                    a[3] = oy + ((a[3] - this.lowY) * sh + this.lowY);
-                    a[4] = ox + ((a[4] - this.lowX) * sw + this.lowX);
-                    a[5] = oy + ((a[5] - this.lowY) * sh + this.lowY);
-                }
-                else if (type == this.PRIM_RECT) {
-                    a[2] = ox + ((a[2] - this.lowX) * sw + this.lowX);
-                    a[3] = oy + ((a[3] - this.lowY) * sh + this.lowY);
-                    a[4] = a[4] * sw;
-                    a[5] = a[5] * sh;
-                }
-                else if (type == this.PRIM_OVAL) {
-                    a[2] = ox + ((a[2] - this.lowX) * sw + this.lowX);
-                    a[3] = oy + ((a[3] - this.lowY) * sh + this.lowY);
-                    a[4] *= sw;
-                    a[5] *= sh;
-                }
-                else if (type == this.PRIM_PATH) {
-                    let sz = a[2], px = a[3], py = a[4];
-                    for (let n = 0; n < sz; n++) {
-                        px[n] = ox + ((px[n] - this.lowX) * sw + this.lowX);
-                        py[n] = oy + ((py[n] - this.lowY) * sh + this.lowY);
-                    }
-                }
-                else if (type == this.PRIM_TEXT) {
-                    a[2] = ox + ((a[2] - this.lowX) * sw + this.lowX);
-                    a[3] = oy + ((a[3] - this.lowY) * sh + this.lowY);
-                }
-            }
-            let swsh = 0.5 * (sw + sh);
-            if (swsh != 1)
-                for (let t of this.types) {
-                    const type = t[0];
-                    if (type == this.PRIM_LINE)
-                        t[1] *= swsh;
-                    else if (type == this.PRIM_RECT)
-                        t[3] *= swsh;
-                    else if (type == this.PRIM_OVAL)
-                        t[3] *= swsh;
-                    else if (type == this.PRIM_PATH)
-                        t[3] *= swsh;
-                    else if (type == this.PRIM_TEXT)
-                        t[1] *= swsh;
-                }
-            this.highX = ox + this.lowX + (this.highX - this.lowX) * sw;
-            this.highY = oy + this.lowY + (this.highY - this.lowY) * sh;
-            this.lowX += ox;
-            this.lowY += oy;
-        }
-        renderInto(parent) {
-            let canvas = WebMolKit.newElement(parent, 'canvas', { 'width': this.width, 'height': this.height });
-            this.renderCanvas(canvas);
-            return canvas;
-        }
-        renderCanvas(canvas, clearFirst) {
-            let ctx = canvas.getContext('2d');
-            if (clearFirst)
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            let w = canvas.style.width ? parseInt(canvas.style.width) : canvas.width / this.density;
-            let h = canvas.style.height ? parseInt(canvas.style.height) : canvas.height / this.density;
-            this.density = WebMolKit.pixelDensity();
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
-            canvas.width = w * this.density;
-            canvas.height = h * this.density;
-            this.renderContext(ctx);
-        }
-        renderContext(ctx) {
-            ctx.save();
-            ctx.scale(this.density, this.density);
-            this.typeObj = [];
-            for (let n = 0; n < this.types.length; n++) {
-                let t = this.types[n];
-                if (t[0] == this.PRIM_LINE)
-                    this.typeObj[n] = this.setupTypeLine(t);
-                else if (t[0] == this.PRIM_RECT)
-                    this.typeObj[n] = this.setupTypeRect(t);
-                else if (t[0] == this.PRIM_OVAL)
-                    this.typeObj[n] = this.setupTypeOval(t);
-                else if (t[0] == this.PRIM_PATH)
-                    this.typeObj[n] = this.setupTypePath(t);
-                else if (t[0] == this.PRIM_TEXT)
-                    this.typeObj[n] = this.setupTypeText(t);
-            }
-            for (let n = 0; n < this.prims.length; n++) {
-                let p = this.prims[n];
-                if (p[0] == this.PRIM_LINE)
-                    this.renderLine(ctx, p);
-                else if (p[0] == this.PRIM_RECT)
-                    this.renderRect(ctx, p);
-                else if (p[0] == this.PRIM_OVAL)
-                    this.renderOval(ctx, p);
-                else if (p[0] == this.PRIM_PATH)
-                    this.renderPath(ctx, p);
-                else if (p[0] == this.PRIM_TEXT)
-                    this.renderText(ctx, p);
-            }
-            ctx.restore();
-        }
-        createSVG() {
-            let svg = $('<svg></svg>');
-            svg.attr('xmlns', 'http://www.w3.org/2000/svg');
-            svg.attr('xmlns:xlink', 'http://www.w3.org/1999/xlink');
-            svg.attr('width', this.width);
-            svg.attr('height', this.height);
-            svg.attr('viewBox', '0 0 ' + this.width + ' ' + this.height);
-            this.renderSVG(svg);
-            let tmp = $('<tmp></tmp>');
-            tmp.append(svg);
-            return tmp.html();
-        }
-        renderSVG(svg) {
-            this.typeObj = [];
-            const font = WebMolKit.FontData.main;
-            let defs = $('<defs></defs>').appendTo(svg);
-            if (this.charMissing) {
-                let path = $('<path></path>').appendTo(defs);
-                path.attr('id', 'missing');
-                path.attr('d', font.MISSING_DATA);
-                path.attr('edge', 'none');
-            }
-            for (let n = 0; n < font.UNICODE.length; n++)
-                if (this.charMask[n]) {
-                    let path = $('<path></path>').appendTo(defs);
-                    path.attr('id', 'char' + n);
-                    path.attr('d', font.GLYPH_DATA[n]);
-                    path.attr('edge', 'none');
-                }
-            for (let n = 0; n < this.types.length; n++) {
-                let t = this.types[n];
-                if (t[0] == this.PRIM_LINE)
-                    this.typeObj[n] = this.setupTypeLine(t);
-                else if (t[0] == this.PRIM_RECT)
-                    this.typeObj[n] = this.setupTypeRect(t);
-                else if (t[0] == this.PRIM_OVAL)
-                    this.typeObj[n] = this.setupTypeOval(t);
-                else if (t[0] == this.PRIM_PATH)
-                    this.typeObj[n] = this.setupTypePath(t);
-                else if (t[0] == this.PRIM_TEXT)
-                    this.typeObj[n] = this.setupTypeText(t);
-            }
-            for (let n = 0; n < this.prims.length;) {
-                let p = this.prims[n], num = 1;
-                if (p[0] != this.PRIM_PATH && p[0] != this.PRIM_TEXT) {
-                    for (; n + num < this.prims.length; num++)
-                        if (this.prims[n + num][0] != p[0] || this.prims[n + num][1] != p[1])
-                            break;
-                }
-                if (p[0] == this.PRIM_LINE) {
-                    if (num == 1)
-                        this.svgLine1(svg, p);
-                    else
-                        this.svgLineN(svg, p, n, num);
-                }
-                else if (p[0] == this.PRIM_RECT) {
-                    if (num == 1)
-                        this.svgRect1(svg, p);
-                    else
-                        this.svgRectN(svg, p, n, num);
-                }
-                else if (p[0] == this.PRIM_OVAL) {
-                    if (num == 1)
-                        this.svgOval1(svg, p);
-                    else
-                        this.svgOvalN(svg, p, n, num);
-                }
-                else if (p[0] == this.PRIM_PATH)
-                    this.svgPath(svg, p);
-                else if (p[0] == this.PRIM_TEXT)
-                    this.svgText(svg, p);
-                n += num;
-            }
-        }
-        setupTypeLine(t) {
-            let thickness = t[1] * this.scale;
-            let colour = t[2];
-            return { 'thickness': thickness, 'colour': WebMolKit.colourCanvas(colour) };
-        }
-        setupTypeRect(t) {
-            let edgeCol = t[1];
-            let fillCol = t[2];
-            let thickness = t[3] * this.scale;
-            return { 'edgeCol': WebMolKit.colourCanvas(edgeCol), 'fillCol': WebMolKit.colourCanvas(fillCol), 'thickness': thickness };
-        }
-        setupTypeOval(t) {
-            let edgeCol = t[1];
-            let fillCol = t[2];
-            let thickness = t[3] * this.scale;
-            return { 'edgeCol': WebMolKit.colourCanvas(edgeCol), 'fillCol': WebMolKit.colourCanvas(fillCol), 'thickness': thickness };
-        }
-        setupTypePath(t) {
-            let edgeCol = t[1];
-            let fillCol = t[2];
-            let thickness = t[3] * this.scale;
-            let hardEdge = t[4];
-            return { 'edgeCol': WebMolKit.colourCanvas(edgeCol), 'fillCol': WebMolKit.colourCanvas(fillCol), 'thickness': thickness, 'hardEdge': hardEdge };
-        }
-        setupTypeText(t) {
-            let sz = t[1] * this.scale;
-            let colour = t[2];
-            return { 'colour': WebMolKit.colourCanvas(colour), 'size': sz };
-        }
-        renderLine(ctx, p) {
-            let type = this.typeObj[p[1]];
-            let x1 = p[2], y1 = p[3];
-            let x2 = p[4], y2 = p[5];
-            x1 = this.offsetX + this.scale * x1;
-            y1 = this.offsetY + this.scale * y1;
-            x2 = this.offsetX + this.scale * x2;
-            y2 = this.offsetY + this.scale * y2;
-            if (type.colour != null) {
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.strokeStyle = type.colour;
-                ctx.lineWidth = type.thickness;
-                ctx.lineCap = 'round';
-                ctx.stroke();
-            }
-        }
-        renderRect(ctx, p) {
-            let type = this.typeObj[p[1]];
-            let x = p[2], y = p[3];
-            let w = p[4], h = p[5];
-            x = this.offsetX + this.scale * x;
-            y = this.offsetY + this.scale * y;
-            w *= this.scale;
-            h *= this.scale;
-            if (type.fillCol != null) {
-                ctx.fillStyle = type.fillCol;
-                ctx.fillRect(x, y, w, h);
-            }
-            if (type.edgeCol != null) {
-                ctx.strokeStyle = type.edgeCol;
-                ctx.lineWidth = type.thickness;
-                ctx.lineCap = 'square';
-                ctx.strokeRect(x, y, w, h);
-            }
-        }
-        renderOval(ctx, p) {
-            let type = this.typeObj[p[1]];
-            let cx = p[2], cy = p[3];
-            let rw = p[4], rh = p[5];
-            cx = this.offsetX + this.scale * cx;
-            cy = this.offsetY + this.scale * cy;
-            rw *= this.scale;
-            rh *= this.scale;
-            if (type.fillCol != null) {
-                ctx.fillStyle = type.fillCol;
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI, true);
-                ctx.fill();
-            }
-            if (type.edgeCol != null) {
-                ctx.strokeStyle = type.edgeCol;
-                ctx.lineWidth = type.thickness;
-                ctx.beginPath();
-                ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI, true);
-                ctx.stroke();
-            }
-        }
-        renderPath(ctx, p) {
-            let type = this.typeObj[p[1]];
-            let npts = p[2];
-            if (npts == 0)
-                return;
-            let x = p[3], y = p[4];
-            let ctrl = p[5];
-            let isClosed = p[6];
-            for (let n = 0; n < npts; n++) {
-                x[n] = this.offsetX + this.scale * x[n];
-                y[n] = this.offsetY + this.scale * y[n];
-            }
-            for (let layer = 1; layer <= 2; layer++) {
-                if (layer == 1 && type.fillCol == null)
-                    continue;
-                if (layer == 2 && type.edgeCol == null)
-                    continue;
-                ctx.beginPath();
-                ctx.moveTo(x[0], y[0]);
-                for (let i = 1; i < npts; i++) {
-                    if (!ctrl || !ctrl[i]) {
-                        ctx.lineTo(x[i], y[i]);
-                    }
-                    else if (i < npts - 1 && !ctrl[i + 1]) {
-                        ctx.quadraticCurveTo(x[i], y[i], x[i + 1], y[i + 1]);
-                        i++;
-                    }
-                    else if (i < npts - 1 && !ctrl[i + 2]) {
-                        ctx.bezierCurveTo(x[i], y[i], x[i + 1], y[i + 1], x[i + 2], y[i + 2]);
-                        i += 2;
-                    }
-                }
-                if (isClosed)
-                    ctx.closePath();
-                if (layer == 1) {
-                    ctx.fillStyle = type.fillCol;
-                    ctx.fill();
-                }
-                else {
-                    ctx.strokeStyle = type.edgeCol;
-                    ctx.lineWidth = type.thickness;
-                    ctx.lineCap = type.hardEdge ? 'square' : 'round';
-                    ctx.lineJoin = type.hardEdge ? 'miter' : 'round';
-                    ctx.stroke();
-                }
-            }
-        }
-        renderText(ctx, p) {
-            let type = this.typeObj[p[1]];
-            let x = p[2], y = p[3];
-            let txt = p[4];
-            let sz = type.size;
-            let fill = type.colour;
-            x = this.offsetX + this.scale * x;
-            y = this.offsetY + this.scale * y;
-            let font = WebMolKit.FontData.main;
-            let scale = sz / font.UNITS_PER_EM;
-            let dx = 0;
-            for (let n = 0; n < txt.length; n++) {
-                let ch = txt.charAt(n);
-                let i = font.getIndex(ch);
-                let path = null;
-                if (i < 0) {
-                    dx += font.MISSING_HORZ;
-                    path = font.getMissingPath();
-                }
-                else
-                    path = font.getGlyphPath(i);
-                if (path) {
-                    ctx.save();
-                    ctx.translate(x + dx * scale, y);
-                    ctx.scale(scale, -scale);
-                    ctx.fillStyle = fill;
-                    ctx.fill(path);
-                    ctx.restore();
-                }
-                dx += font.HORIZ_ADV_X[i];
-                if (n < txt.length - 1)
-                    font.getKerning(ch, txt.charAt(n + 1));
-            }
-        }
-        svgLine1(svg, p) {
-            let type = this.typeObj[p[1]];
-            let x1 = p[2], y1 = p[3];
-            let x2 = p[4], y2 = p[5];
-            x1 = this.offsetX + this.scale * x1;
-            y1 = this.offsetY + this.scale * y1;
-            x2 = this.offsetX + this.scale * x2;
-            y2 = this.offsetY + this.scale * y2;
-            if (type.colour != null) {
-                let line = $('<line></line>').appendTo(svg);
-                line.attr('x1', x1);
-                line.attr('y1', y1);
-                line.attr('x2', x2);
-                line.attr('y2', y2);
-                line.attr('stroke', type.colour);
-                line.attr('stroke-width', type.thickness);
-                line.attr('stroke-linecap', 'round');
-            }
-        }
-        svgLineN(svg, p, pos, sz) {
-            let type = this.typeObj[p[1]];
-            if (type.colour == null)
-                return;
-            let g = $('<g></g>').appendTo(svg);
-            g.attr('stroke', type.colour);
-            g.attr('stroke-width', type.thickness);
-            g.attr('stroke-linecap', 'round');
-            for (let n = 0; n < sz; n++) {
-                let p = this.prims[pos + n];
-                let x1 = p[2], y1 = p[3];
-                let x2 = p[4], y2 = p[5];
-                x1 = this.offsetX + this.scale * x1;
-                y1 = this.offsetY + this.scale * y1;
-                x2 = this.offsetX + this.scale * x2;
-                y2 = this.offsetY + this.scale * y2;
-                let line = $('<line></line>').appendTo(g);
-                line.attr('x1', x1);
-                line.attr('y1', y1);
-                line.attr('x2', x2);
-                line.attr('y2', y2);
-            }
-        }
-        svgRect1(svg, p) {
-            let type = this.typeObj[p[1]];
-            let x = p[2], y = p[3];
-            let w = p[4], h = p[5];
-            x = this.offsetX + this.scale * x;
-            y = this.offsetY + this.scale * y;
-            w *= this.scale;
-            h *= this.scale;
-            let rect = $('<rect></rect>').appendTo(svg);
-            rect.attr('x', x);
-            rect.attr('y', y);
-            rect.attr('width', w);
-            rect.attr('height', h);
-            if (type.edgeCol != null) {
-                rect.attr('stroke', type.edgeCol);
-                rect.attr('stroke-width', type.thickness);
-                rect.attr('stroke-linecap', 'square');
-            }
-            else
-                rect.attr('stroke', 'none');
-            rect.attr('fill', type.fillCol == null ? 'none' : type.fillCol);
-        }
-        svgRectN(svg, p, pos, sz) {
-            let type = this.typeObj[p[1]];
-            let g = $('<g></g>').appendTo(svg);
-            if (type.edgeCol != null) {
-                g.attr('stroke', type.edgeCol);
-                g.attr('stroke-width', type.thickness);
-                g.attr('stroke-linecap', 'square');
-            }
-            else
-                g.attr('stroke', 'none');
-            g.attr('fill', type.fillCol == null ? 'none' : type.fillCol);
-            for (let n = 0; n < sz; n++) {
-                let p = this.prims[pos + n];
-                let x = p[2], y = p[3];
-                let w = p[4], h = p[5];
-                x = this.offsetX + this.scale * x;
-                y = this.offsetY + this.scale * y;
-                w *= this.scale;
-                h *= this.scale;
-                let rect = $('<rect></rect>').appendTo(g);
-                rect.attr('x', x);
-                rect.attr('y', y);
-                rect.attr('width', w);
-                rect.attr('height', h);
-            }
-        }
-        svgOval1(svg, p) {
-            let type = this.typeObj[p[1]];
-            let cx = p[2], cy = p[3];
-            let rw = p[4], rh = p[5];
-            cx = this.offsetX + this.scale * cx;
-            cy = this.offsetY + this.scale * cy;
-            rw *= this.scale;
-            rh *= this.scale;
-            let oval = $('<ellipse></ellipse>').appendTo(svg);
-            oval.attr('cx', cx);
-            oval.attr('cy', cy);
-            oval.attr('rx', rw);
-            oval.attr('ry', rh);
-            if (type.edgeCol != null) {
-                oval.attr('stroke', type.edgeCol);
-                oval.attr('stroke-width', type.thickness);
-                oval.attr('stroke-linecap', 'square');
-            }
-            else
-                oval.attr('stroke', 'none');
-            oval.attr('fill', type.fillCol == null ? 'none' : type.fillCol);
-        }
-        svgOvalN(svg, p, pos, sz) {
-            let type = this.typeObj[p[1]];
-            let x = p[2], y = p[3];
-            let w = p[4], h = p[5];
-            let g = $('<g></g>').appendTo(svg);
-            if (type.edgeCol != null) {
-                g.attr('stroke', type.edgeCol);
-                g.attr('stroke-width', type.thickness);
-                g.attr('stroke-linecap', 'square');
-            }
-            else
-                g.attr('stroke', 'none');
-            g.attr('fill', type.fillCol == null ? 'none' : type.fillCol);
-            for (let n = 0; n < sz; n++) {
-                let p = this.prims[pos + n];
-                let cx = p[2], cy = p[3];
-                let rw = p[4], rh = p[5];
-                cx = this.offsetX + this.scale * cx;
-                cy = this.offsetY + this.scale * cy;
-                rw *= this.scale;
-                rh *= this.scale;
-                let oval = $('<ellipse></ellipse>').appendTo(g);
-                oval.attr('cx', cx);
-                oval.attr('cy', cy);
-                oval.attr('rx', rw);
-                oval.attr('ry', rh);
-            }
-        }
-        svgPath(svg, p) {
-            let type = this.typeObj[p[1]];
-            let npts = p[2];
-            if (npts == 0)
-                return;
-            let x = p[3].slice(0), y = p[4].slice(0);
-            let ctrl = p[5];
-            let isClosed = p[6];
-            for (let n = 0; n < npts; n++) {
-                x[n] = this.offsetX + this.scale * x[n];
-                y[n] = this.offsetY + this.scale * y[n];
-            }
-            let shape = 'M ' + x[0] + ' ' + y[0];
-            let n = 1;
-            while (n < npts) {
-                if (!ctrl || !ctrl[n]) {
-                    shape += ' L ' + x[n] + ' ' + y[n];
-                    n++;
-                }
-                else if (ctrl[n] && n < npts - 1 && !ctrl[n + 1]) {
-                    shape += ' Q ' + x[n] + ' ' + y[n] + ' ' + x[n + 1] + ' ' + y[n + 1];
-                    n += 2;
-                }
-                else if (ctrl[n] && n < npts - 2 && ctrl[n + 1] && !ctrl[n + 2]) {
-                    shape += ' C ' + x[n] + ' ' + y[n] + ' ' + x[n + 1] + ' ' + y[n + 1] + ' ' + x[n + 2] + ' ' + y[n + 2];
-                    n += 3;
-                }
-                else
-                    n++;
-            }
-            if (isClosed)
-                shape += ' Z';
-            let path = $('<path></path>').appendTo(svg);
-            path.attr('d', shape);
-            if (type.edgeCol != null) {
-                path.attr('stroke', type.edgeCol);
-                path.attr('stroke-width', type.thickness);
-                path.attr('stroke-linejoin', type.hardEdge ? 'miter' : 'round');
-                path.attr('stroke-linecap', type.hardEdge ? 'square' : 'round');
-            }
-            else
-                path.attr('stroke', 'none');
-            path.attr('fill', type.fillCol == null ? 'none' : type.fillCol);
-        }
-        svgText(svg, p) {
-            let type = this.typeObj[p[1]];
-            let x = p[2], y = p[3];
-            let txt = p[4];
-            let sz = type.size;
-            let fill = type.colour;
-            x = this.offsetX + this.scale * x;
-            y = this.offsetY + this.scale * y;
-            let font = WebMolKit.FontData.main;
-            let scale = sz / font.UNITS_PER_EM;
-            let gdelta = $('<g></g>').appendTo(svg);
-            gdelta.attr('transform', 'translate(' + x + ',' + y + ')');
-            gdelta.attr('fill', fill);
-            let gscale = $('<g></g>').appendTo(gdelta);
-            gscale.attr('transform', 'scale(' + scale + ',' + (-scale) + ')');
-            let dx = 0;
-            for (let n = 0; n < txt.length; n++) {
-                let ch = txt.charAt(n);
-                let i = font.getIndex(ch);
-                let use = $('<use></use>').appendTo(gscale);
-                let ref = i < 0 ? '#missing' : '#char' + i;
-                use.attr('xlink:href', ref);
-                use.attr('x', dx);
-                if (i >= 0) {
-                    dx += font.HORIZ_ADV_X[i];
-                    if (n < txt.length - 1)
-                        dx += font.getKerning(ch, txt.charAt(n + 1));
-                }
-                else
-                    dx += font.MISSING_HORZ;
-            }
-        }
-        findOrCreateType(typeDef) {
-            for (let i = 0; i < this.types.length; i++) {
-                if (this.types[i].length != typeDef.length)
-                    continue;
-                let match = true;
-                for (let j = 0; j < typeDef.length; j++)
-                    if (typeDef[j] != this.types[i][j]) {
-                        match = false;
-                        break;
-                    }
-                if (match)
-                    return i;
-            }
-            this.types.push(typeDef);
-            return this.types.length - 1;
-        }
-        updateBounds(x, y) {
-            if (this.lowX == null) {
-                this.lowX = x;
-                this.lowY = y;
-                this.highX = x;
-                this.highY = y;
-                return;
-            }
-            this.lowX = Math.min(this.lowX, x);
-            this.lowY = Math.min(this.lowY, y);
-            this.highX = Math.max(this.highX, x);
-            this.highY = Math.max(this.highY, y);
-        }
-    }
-    MetaVector.NOCOLOUR = -1;
-    WebMolKit.MetaVector = MetaVector;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -4581,31 +3541,32 @@ var WebMolKit;
             return hc;
         }
         static stripHydrogens(mol, force = false) {
-            for (let n = mol.numAtoms; n >= 1; n--) {
-                if (mol.atomElement(n) != 'H')
-                    continue;
-                if (!force) {
-                    if (mol.atomCharge(n) != 0 || mol.atomUnpaired(n) != 0)
-                        continue;
-                    if (mol.atomIsotope(n) != WebMolKit.Molecule.ISOTOPE_NATURAL)
-                        continue;
-                    if (WebMolKit.Vec.notBlank(mol.atomExtra(n)) || WebMolKit.Vec.notBlank(mol.atomTransient(n)))
-                        continue;
-                    if (mol.atomAdjCount(n) != 1)
-                        continue;
-                    let other = mol.atomAdjList(n)[0];
-                    if (mol.atomElement(other) == 'H')
-                        continue;
-                    let bond = mol.atomAdjBonds(n)[0];
-                    if (mol.bondOrder(bond) != 1 || mol.bondType(bond) != WebMolKit.Molecule.BONDTYPE_NORMAL)
-                        continue;
-                    if (mol.atomHExplicit(other) != WebMolKit.Molecule.HEXPLICIT_UNKNOWN)
-                        continue;
-                    if (WebMolKit.Molecule.HYVALENCE_EL.indexOf(mol.atomElement(other)) < 0)
-                        continue;
-                }
-                mol.deleteAtomAndBonds(n);
-            }
+            for (let n = mol.numAtoms; n >= 1; n--)
+                if ((force && mol.atomElement(n) == 'H') || this.boringHydrogen(mol, n))
+                    mol.deleteAtomAndBonds(n);
+        }
+        static boringHydrogen(mol, atom) {
+            if (mol.atomElement(atom) != 'H')
+                return false;
+            if (mol.atomCharge(atom) != 0 || mol.atomUnpaired(atom) != 0)
+                return false;
+            if (mol.atomIsotope(atom) != WebMolKit.Molecule.ISOTOPE_NATURAL)
+                return false;
+            if (mol.atomExtra(atom) != null || mol.atomTransient(atom) != null)
+                return false;
+            if (mol.atomAdjCount(atom) != 1)
+                return false;
+            let other = mol.atomAdjList(atom)[0];
+            if (mol.atomElement(other) == 'H')
+                return false;
+            let bond = mol.atomAdjBonds(atom)[0];
+            if (mol.bondOrder(bond) != 1 || mol.bondType(bond) != WebMolKit.Molecule.BONDTYPE_NORMAL)
+                return false;
+            if (mol.atomHExplicit(other) != WebMolKit.Molecule.HEXPLICIT_UNKNOWN)
+                return false;
+            if (WebMolKit.Molecule.HYVALENCE_EL.indexOf(mol.atomElement(other)) < 0)
+                return false;
+            return true;
         }
         static createHydrogens(mol, position) {
             if (position == null)
@@ -4847,6 +3808,118 @@ var WebMolKit;
                 grp[cc[n] - 1].push(n);
             return grp;
         }
+        calculateRingBlocks() {
+            let sz = this.numNodes, nbrs = this.nbrs;
+            if (sz == 0)
+                return [[], 0];
+            let rblk = new Array(this.numNodes);
+            let visited = WebMolKit.Vec.booleanArray(false, sz);
+            WebMolKit.Vec.setTo(rblk, 0);
+            let path = new Array(sz + 1);
+            let plen = 0, numVisited = 0;
+            while (true) {
+                let last, current;
+                if (plen == 0) {
+                    last = -1;
+                    for (current = 0; visited[current]; current++) { }
+                }
+                else {
+                    last = path[plen - 1];
+                    current = -1;
+                    for (let n = 0; n < nbrs[last].length; n++)
+                        if (!visited[nbrs[last][n]]) {
+                            current = nbrs[last][n];
+                            break;
+                        }
+                }
+                if (current >= 0 && plen >= 2) {
+                    let back = path[plen - 1];
+                    for (let n = 0; n < nbrs[current].length; n++) {
+                        let join = nbrs[current][n];
+                        if (join != back && visited[join]) {
+                            path[plen] = current;
+                            for (let i = plen; i == plen || path[i + 1] != join; i--) {
+                                let id = rblk[path[i]];
+                                if (id == 0)
+                                    rblk[path[i]] = last;
+                                else if (id != last) {
+                                    for (let j = 0; j < sz; j++)
+                                        if (rblk[j] == id)
+                                            rblk[j] = last;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (current >= 0) {
+                    visited[current] = true;
+                    path[plen++] = current;
+                    numVisited++;
+                }
+                else {
+                    plen--;
+                }
+                if (numVisited == sz)
+                    break;
+            }
+            let nextID = 0;
+            for (let i = 0; i < sz; i++)
+                if (rblk[i] > 0) {
+                    nextID--;
+                    for (let j = sz - 1; j >= i; j--)
+                        if (rblk[j] == rblk[i])
+                            rblk[j] = nextID;
+                }
+            for (let i = 0; i < sz; i++)
+                rblk[i] = -rblk[i];
+            return [rblk, -nextID];
+        }
+        calculateRingBlockGroups() {
+            let [rblk, sz] = this.calculateRingBlocks();
+            if (sz == 0)
+                return [];
+            let cap = WebMolKit.Vec.numberArray(0, sz);
+            for (let n = 0; n < rblk.length; n++)
+                if (rblk[n] > 0)
+                    cap[rblk[n] - 1]++;
+            let grp = new Array(sz);
+            for (let n = 0; n < sz; n++) {
+                grp[n] = new Array(cap[n]);
+                cap[n] = 0;
+            }
+            for (let n = 0; n < rblk.length; n++) {
+                let i = rblk[n] - 1;
+                if (i < 0)
+                    continue;
+                grp[i][cap[i]++] = n;
+            }
+            return grp;
+        }
+        findRingsOfSize(size) {
+            let [rblk, num] = this.calculateRingBlocks();
+            if (num == 0)
+                return [];
+            let rings = [];
+            let mask = new Array(this.numNodes);
+            for (let r = 1; r <= num; r++) {
+                for (let n = 0; n < this.numNodes; n++)
+                    mask[n] = rblk[n] == r;
+                let newRings = this.findRingsOfSizeMask(size, mask);
+                for (let n = 0; n < newRings.length; n++)
+                    rings.push(newRings[n]);
+            }
+            return rings;
+        }
+        findRingsOfSizeMask(size, mask) {
+            let rings = [];
+            for (let n = 0; n < this.numNodes; n++)
+                if (mask[n]) {
+                    let path = new Array(size);
+                    path[0] = n;
+                    this.recursiveRingFind(path, 1, size, mask, rings);
+                }
+            return rings;
+        }
         calculateBFS(idx) {
             let ret = WebMolKit.Vec.numberArray(-1, this.numNodes);
             ret[idx] = 0;
@@ -4871,6 +3944,69 @@ var WebMolKit;
                 curnum++;
             }
             return ret;
+        }
+        recursiveRingFind(path, psize, capacity, mask, rings) {
+            if (psize < capacity) {
+                let last = path[psize - 1];
+                for (let n = 0; n < this.nbrs[last].length; n++) {
+                    let adj = this.nbrs[last][n];
+                    if (!mask[adj])
+                        continue;
+                    let fnd = false;
+                    for (let i = 0; i < psize; i++)
+                        if (path[i] == adj) {
+                            fnd = true;
+                            break;
+                        }
+                    if (!fnd) {
+                        let newPath = WebMolKit.Vec.duplicate(path);
+                        newPath[psize] = adj;
+                        this.recursiveRingFind(newPath, psize + 1, capacity, mask, rings);
+                    }
+                }
+                return;
+            }
+            let last = path[psize - 1];
+            let fnd = false;
+            for (let n = 0; n < this.nbrs[last].length; n++)
+                if (this.nbrs[last][n] == path[0]) {
+                    fnd = true;
+                    break;
+                }
+            if (!fnd)
+                return;
+            for (let n = 0; n < path.length; n++) {
+                let count = 0, p = path[n];
+                for (let i = 0; i < this.nbrs[p].length; i++)
+                    if (path.indexOf(this.nbrs[p][i]) >= 0)
+                        count++;
+                if (count != 2)
+                    return;
+            }
+            let first = 0;
+            for (let n = 1; n < psize; n++)
+                if (path[n] < path[first])
+                    first = n;
+            let fm = (first - 1 + psize) % psize, fp = (first + 1) % psize;
+            let flip = path[fm] < path[fp];
+            if (first != 0 || flip) {
+                let newPath = new Array(psize);
+                for (let n = 0; n < psize; n++)
+                    newPath[n] = path[(first + (flip ? psize - n : n)) % psize];
+                path = newPath;
+            }
+            for (let n = 0; n < rings.length; n++) {
+                let look = rings[n];
+                let same = true;
+                for (let i = 0; i < psize; i++)
+                    if (look[i] != path[i]) {
+                        same = false;
+                        break;
+                    }
+                if (same)
+                    return;
+            }
+            rings.push(path);
         }
     }
     WebMolKit.Graph = Graph;
@@ -5683,7 +4819,7 @@ var WebMolKit;
         }
         parseStream() {
             let ds = this.ds;
-            ds.appendColumn('Molecule', WebMolKit.DataSheet.COLTYPE_MOLECULE, 'Molecular structure');
+            ds.appendColumn('Molecule', "molecule", 'Molecular structure');
             let colName = -1;
             let entry = [];
             while (this.pos < this.lines.length) {
@@ -5719,7 +4855,7 @@ var WebMolKit;
                     ds.setMolecule(rn, 0, mol);
                 if (name) {
                     if (colName < 0)
-                        colName = ds.appendColumn('Name', WebMolKit.DataSheet.COLTYPE_STRING, 'Molecule name');
+                        colName = ds.appendColumn('Name', "string", 'Molecule name');
                     ds.setString(rn, colName, name);
                 }
                 if (rn == 0 && mol != null) {
@@ -5728,7 +4864,7 @@ var WebMolKit;
                         ds.changeColumnName(0, str1.substring(6), ds.colDescr(0));
                     }
                     if (str3.length >= 8 && str3.startsWith('$title=')) {
-                        ds.setTitle(str3.substring(7));
+                        ds.title = str3.substring(7);
                     }
                 }
                 for (; pos + 1 < entry.length; pos += 3) {
@@ -5751,7 +4887,7 @@ var WebMolKit;
                     }
                     let cn = ds.findColByName(key);
                     if (cn < 0)
-                        cn = ds.appendColumn(key, WebMolKit.DataSheet.COLTYPE_STRING, '');
+                        cn = ds.appendColumn(key, "string", '');
                     if (val.length == 0)
                         ds.setToNull(rn, cn);
                     else
@@ -5765,7 +4901,7 @@ var WebMolKit;
         upcastStringColumns() {
             let ds = this.ds;
             for (let i = 0; i < ds.numCols; i++)
-                if (ds.colType(i) == WebMolKit.DataSheet.COLTYPE_STRING) {
+                if (ds.colType(i) == "string") {
                     let allnull = true, allreal = true, allint = true, allbool = true;
                     for (let j = 0; j < ds.numRows; j++) {
                         if (!allreal && !allint && !allbool)
@@ -5791,11 +4927,11 @@ var WebMolKit;
                     }
                     if (allnull) { }
                     else if (allint)
-                        ds.changeColumnType(i, WebMolKit.DataSheet.COLTYPE_INTEGER);
+                        ds.changeColumnType(i, "integer");
                     else if (allreal)
-                        ds.changeColumnType(i, WebMolKit.DataSheet.COLTYPE_REAL);
+                        ds.changeColumnType(i, "real");
                     else if (allbool)
-                        ds.changeColumnType(i, WebMolKit.DataSheet.COLTYPE_BOOLEAN);
+                        ds.changeColumnType(i, "boolean");
                 }
         }
     }
@@ -5803,6 +4939,15 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    let DataSheetColumn;
+    (function (DataSheetColumn) {
+        DataSheetColumn["Molecule"] = "molecule";
+        DataSheetColumn["String"] = "string";
+        DataSheetColumn["Real"] = "real";
+        DataSheetColumn["Integer"] = "integer";
+        DataSheetColumn["Boolean"] = "boolean";
+        DataSheetColumn["Extend"] = "extend";
+    })(DataSheetColumn = WebMolKit.DataSheetColumn || (WebMolKit.DataSheetColumn = {}));
     class DataSheet {
         constructor(data) {
             if (!data)
@@ -5812,11 +4957,11 @@ var WebMolKit;
             if (!data.description)
                 data.description = '';
             if (data.numCols == null)
-                data.numCols = 0;
+                data.numCols = WebMolKit.Vec.arrayLength(data.colData);
             if (data.numRows == null)
-                data.numRows = 0;
+                data.numRows = WebMolKit.Vec.arrayLength(data.rowData);
             if (data.numExtens == null)
-                data.numExtens = 0;
+                data.numExtens = WebMolKit.Vec.arrayLength(data.extData);
             if (data.colData == null)
                 data.colData = [];
             if (data.rowData == null)
@@ -5826,12 +4971,56 @@ var WebMolKit;
             this.data = data;
         }
         clone(withRows = true) {
-            let dup = new DataSheet(WebMolKit.deepClone(this.data));
-            if (!withRows) {
-                dup.data.numRows = 0;
-                dup.data.rowData = [];
-            }
-            return dup;
+            let { numCols, numRows, colData, rowData } = this.data;
+            let data = {
+                'title': this.data.title,
+                'description': this.data.description,
+                'numCols': numCols,
+                'numRows': withRows ? numRows : 0,
+                'numExtens': this.data.numExtens,
+                'colData': WebMolKit.deepClone(colData),
+                'rowData': withRows ? new Array(numRows) : [],
+                'extData': WebMolKit.deepClone(this.data.extData),
+            };
+            if (withRows)
+                for (let r = 0; r < numRows; r++) {
+                    let inRow = rowData[r], outRow = new Array(numCols);
+                    for (let c = 0; c < numCols; c++) {
+                        if (inRow[c] != null && colData[c].type == "molecule" && inRow[c] instanceof WebMolKit.Molecule)
+                            outRow[c] = inRow[c].clone();
+                        else
+                            outRow[c] = inRow[c];
+                    }
+                    data.rowData[r] = outRow;
+                }
+            return new DataSheet(data);
+        }
+        cloneMask(colMask, rowMask = null, inclExtn = true) {
+            let { numCols, numRows, colData, rowData } = this.data;
+            let data = {
+                'title': this.data.title,
+                'description': this.data.description,
+                'numCols': WebMolKit.Vec.maskCount(colMask),
+                'numRows': rowMask ? WebMolKit.Vec.maskCount(rowMask) : 0,
+                'numExtens': inclExtn ? this.data.numExtens : 0,
+                'colData': WebMolKit.deepClone(WebMolKit.Vec.maskGet(colData, colMask)),
+                'rowData': [],
+                'extData': inclExtn ? WebMolKit.deepClone(this.data.extData) : [],
+            };
+            if (rowMask)
+                for (let r = 0; r < numRows; r++)
+                    if (rowMask[r]) {
+                        let inRow = rowData[r], outRow = WebMolKit.Vec.maskGet(inRow, colMask);
+                        data.rowData.push(outRow);
+                    }
+            const { 'colData': outCols, 'rowData': outRows } = data;
+            for (let c = outCols.length - 1; c >= 0; c--)
+                if (outCols[c].type == "molecule") {
+                    for (let r = outRows.length - 1; r >= 0; r--)
+                        if (outRows[r][c] != null && outRows[r][c] instanceof WebMolKit.Molecule)
+                            outRows[r][c] = outRows[r][c].clone();
+                }
+            return new DataSheet(data);
         }
         getData() {
             return this.data;
@@ -5842,18 +5031,10 @@ var WebMolKit;
         get numRows() {
             return this.data.numRows;
         }
-        getTitle() {
-            return this.data.title;
-        }
-        getDescription() {
-            return this.data.description;
-        }
-        setTitle(val) {
-            this.data.title = val;
-        }
-        setDescription(val) {
-            this.data.description = val;
-        }
+        get title() { return this.data.title; }
+        set title(title) { this.data.title = title; }
+        get description() { return this.data.description; }
+        set description(description) { this.data.description = description; }
         get numExtensions() {
             return this.data.numExtens;
         }
@@ -5880,6 +5061,10 @@ var WebMolKit;
             this.data.extData.push({ 'name': name, 'type': type, 'data': data });
             return this.data.numExtens - 1;
         }
+        insertExtension(idx, name, type, data) {
+            this.data.numExtens++;
+            this.data.extData.splice(idx, 0, { 'name': name, 'type': type, 'data': data });
+        }
         deleteExtension(idx) {
             this.data.extData.splice(idx, 1);
         }
@@ -5899,7 +5084,26 @@ var WebMolKit;
                 return null;
             return this.data.rowData[row][col] == null;
         }
-        notNull(row, col) { return !this.isNull(row, col); }
+        notNull(row, col) {
+            return !this.isNull(row, col);
+        }
+        isBlank(row, col) {
+            if (typeof col === 'string')
+                col = this.findColByName(col);
+            if (this.isNull(row, col))
+                return true;
+            let ct = this.colType(col);
+            if (ct == "molecule")
+                return this.getMolecule(row, col).numAtoms == 0;
+            if (ct == "string")
+                return this.getString(row, col).length == 0;
+            if (ct == "extend")
+                return this.getExtend(row, col).length == 0;
+            return false;
+        }
+        notBlank(row, col) {
+            return !this.isBlank(row, col);
+        }
         getObject(row, col) {
             if (typeof col === 'string')
                 col = this.findColByName(col);
@@ -5918,6 +5122,14 @@ var WebMolKit;
                 this.data.rowData[row][col] = datum;
             }
             return datum;
+        }
+        getMoleculeClone(row, col) {
+            let mol = this.getMolecule(row, col);
+            return mol == null ? null : mol.clone();
+        }
+        getMoleculeBlank(row, col) {
+            let mol = this.getMolecule(row, col);
+            return mol ? mol : new WebMolKit.Molecule();
         }
         getString(row, col) {
             if (typeof col === 'string')
@@ -6063,6 +5275,12 @@ var WebMolKit;
                 this.data.rowData[n].push(null);
             return this.data.numCols - 1;
         }
+        insertColumn(col, name, type, descr) {
+            this.data.numCols++;
+            this.data.colData.splice(col, 0, { 'name': name, 'type': type, 'descr': descr });
+            for (let n = 0; n < this.data.numRows; n++)
+                this.data.rowData[n].splice(col, 0, null);
+        }
         deleteColumn(col) {
             this.data.numCols--;
             this.data.colData.splice(col, 1);
@@ -6070,15 +5288,15 @@ var WebMolKit;
                 this.data.rowData[n].splice(col, 1);
         }
         changeColumnName(col, name, descr) {
-            this.data.colData[col].name = col;
+            this.data.colData[col].name = name;
             this.data.colData[col].descr = descr;
         }
         changeColumnType(col, newType) {
             let oldType = this.colType(col);
             if (oldType == newType)
                 return;
-            let incompatible = oldType == DataSheet.COLTYPE_MOLECULE || newType == DataSheet.COLTYPE_MOLECULE ||
-                oldType == DataSheet.COLTYPE_EXTEND || newType == DataSheet.COLTYPE_EXTEND;
+            let incompatible = oldType == "molecule" || newType == "molecule" ||
+                oldType == "extend" || newType == "extend";
             for (let n = this.data.rowData.length - 1; n >= 0; n--) {
                 let row = this.data.rowData[n];
                 if (row[col] == null)
@@ -6088,26 +5306,26 @@ var WebMolKit;
                     continue;
                 }
                 let val = '';
-                if (oldType == DataSheet.COLTYPE_STRING)
+                if (oldType == "string")
                     val = row[col];
-                else if (oldType == DataSheet.COLTYPE_INTEGER)
+                else if (oldType == "integer")
                     val = row[col].toString();
-                else if (oldType == DataSheet.COLTYPE_REAL)
+                else if (oldType == "real")
                     val = row[col].toString();
-                else if (oldType == DataSheet.COLTYPE_BOOLEAN)
+                else if (oldType == "boolean")
                     val = row[col] ? 'true' : 'false';
                 row[col] = null;
-                if (newType == DataSheet.COLTYPE_STRING)
+                if (newType == "string")
                     row[col] = val;
-                else if (newType == DataSheet.COLTYPE_INTEGER) {
+                else if (newType == "integer") {
                     let num = parseInt(val);
                     row[col] = isFinite(num) ? num : null;
                 }
-                else if (newType == DataSheet.COLTYPE_REAL) {
+                else if (newType == "real") {
                     let num = parseFloat(val);
                     row[col] = isFinite(num) ? num : null;
                 }
-                else if (newType == DataSheet.COLTYPE_BOOLEAN)
+                else if (newType == "boolean")
                     row[col] = val.toLowerCase() == 'true' ? true : false;
             }
             this.data.colData[col].type = newType;
@@ -6121,6 +5339,19 @@ var WebMolKit;
                     return n;
                 }
             return this.appendColumn(name, type, descr);
+        }
+        reorderColumns(order) {
+            let identity = true;
+            for (let n = 0; n < order.length - 1; n++)
+                if (order[n] != order[n + 1] - 1) {
+                    identity = false;
+                    break;
+                }
+            if (identity)
+                return;
+            this.data.colData = WebMolKit.Vec.idxGet(this.data.colData, order);
+            for (let n = 0; n < this.data.numRows; n++)
+                this.data.rowData = WebMolKit.Vec.idxGet(this.data.rowData, order);
         }
         appendRow() {
             this.data.numRows++;
@@ -6160,6 +5391,9 @@ var WebMolKit;
             this.data.rowData[row] = this.data.rowData[row + 1];
             this.data.rowData[row + 1] = data;
         }
+        swapRows(row1, row2) {
+            WebMolKit.Vec.swap(this.data.rowData, row1, row2);
+        }
         exciseSingleRow(row) {
             let newData = {
                 'title': this.data.title,
@@ -6193,6 +5427,51 @@ var WebMolKit;
                     return n;
             return -1;
         }
+        copyCell(toRow, toCol, fromDS, fromRow, fromCol) {
+            this.setToNull(toRow, toCol);
+            if (fromDS.isNull(fromRow, fromCol))
+                return;
+            let obj = fromDS.getObject(fromRow, fromCol);
+            this.setObject(toRow, toCol, DataSheet.convertType(obj, fromDS.colType(fromCol), this.colType(toCol)));
+        }
+        static convertType(obj, fromType, toType) {
+            const ft = fromType, tt = toType;
+            if (obj == null || ft == tt || (typeof obj == 'string' && obj == ''))
+                return obj;
+            if (tt == "string") {
+                if (ft == "integer")
+                    return obj.toSring();
+                else if (ft == "real")
+                    return obj.toString();
+                else if (ft == "boolean")
+                    return obj ? 'true' : 'false';
+            }
+            else if (tt == "real") {
+                if (ft == "string")
+                    return WebMolKit.safeFloat(obj, null);
+                else if (ft == "integer")
+                    return obj;
+                else if (ft == "boolean")
+                    return obj ? 1 : 0;
+            }
+            else if (tt == "integer") {
+                if (ft == "string")
+                    return WebMolKit.safeInt(obj, null);
+                else if (ft == "real")
+                    return Math.round(obj);
+                else if (ft == "boolean")
+                    return obj ? 1 : 0;
+            }
+            else if (tt == "boolean") {
+                if (ft == "string")
+                    return obj.toLowerCase() == 'true';
+                else if (ft == "integer")
+                    return obj > 0;
+                else if (ft == "real")
+                    return obj >= 0.5;
+            }
+            return null;
+        }
         toString(row, col) {
             if (typeof col === 'string')
                 col = this.findColByName(col);
@@ -6212,12 +5491,6 @@ var WebMolKit;
             return obj == null ? null : parseFloat(obj);
         }
     }
-    DataSheet.COLTYPE_MOLECULE = 'molecule';
-    DataSheet.COLTYPE_STRING = 'string';
-    DataSheet.COLTYPE_REAL = 'real';
-    DataSheet.COLTYPE_INTEGER = 'integer';
-    DataSheet.COLTYPE_BOOLEAN = 'boolean';
-    DataSheet.COLTYPE_EXTEND = 'extend';
     WebMolKit.DataSheet = DataSheet;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
@@ -6753,7 +6026,7 @@ var WebMolKit;
         }
         write() {
             let ds = this.ds, lines = this.lines;
-            let colMol = this.ds.firstColOfType(WebMolKit.DataSheet.COLTYPE_MOLECULE);
+            let colMol = this.ds.firstColOfType("molecule");
             for (let i = 0; i < ds.numRows; i++) {
                 let mol = colMol < 0 ? null : ds.getMolecule(i, colMol);
                 if (mol != null) {
@@ -6764,13 +6037,13 @@ var WebMolKit;
                     if (j != colMol && ds.notNull(i, j)) {
                         let ct = ds.colType(j);
                         let val = '';
-                        if (ct == WebMolKit.DataSheet.COLTYPE_STRING)
+                        if (ct == "string")
                             val = ds.getString(i, j);
-                        else if (ct == WebMolKit.DataSheet.COLTYPE_INTEGER)
+                        else if (ct == "integer")
                             val = ds.getInteger(i, j).toString();
-                        else if (ct == WebMolKit.DataSheet.COLTYPE_REAL)
+                        else if (ct == "real")
                             val = ds.getReal(i, j).toString();
-                        else if (ct == WebMolKit.DataSheet.COLTYPE_BOOLEAN)
+                        else if (ct == "boolean")
                             val = ds.getBoolean(i, j) ? 'true' : 'false';
                         if (val != '') {
                             lines.push('> <' + ds.colName(j) + '>');
@@ -6849,10 +6122,14 @@ var WebMolKit;
                 mol.setAtomTransient(num, trans);
             }
             for (let n = 0; n < numBonds; n++) {
-                bits = lines[1 + numAtoms + n].split(/[-=,]/);
-                let num = mol.addBond(parseInt(bits[0]), parseInt(bits[1]), parseInt(bits[2]), parseInt(bits[3]));
+                bits = lines[1 + numAtoms + n].split(/[=,]/);
+                let frto = bits[0].split('-');
+                let bfr = parseInt(frto[0].trim()), bto = parseInt(frto[1].trim());
+                if (bfr == bto)
+                    continue;
+                let num = mol.addBond(bfr, bto, parseInt(bits[1]), parseInt(bits[2]));
                 let extra = new Array(), trans = new Array();
-                for (let i = 4; i < bits.length; i++) {
+                for (let i = 3; i < bits.length; i++) {
                     let ch = bits[i].charAt(0);
                     if (bits[i].charAt(0) == 'x')
                         extra.push(MoleculeStream.sk_unescape(bits[i]));
@@ -7231,6 +6508,7 @@ var WebMolKit;
         bondType(idx) { return this.getBond(idx).type; }
         bondExtra(idx) { return this.getBond(idx).extra.slice(0); }
         bondTransient(idx) { return this.getBond(idx).transient.slice(0); }
+        bondFromTo(idx) { let b = this.getBond(idx); return [b.from, b.to]; }
         addAtom(element, x, y, charge = 0, unpaired = 0) {
             let a = new Atom();
             a.element = element;
@@ -7311,7 +6589,6 @@ var WebMolKit;
                     b.to = a2;
             }
             this.trashGraph();
-            this.trashTransient();
         }
         addBond(from, to, order, type = Molecule.BONDTYPE_NORMAL) {
             let b = new Bond();
@@ -7631,6 +6908,13 @@ var WebMolKit;
         trashGraph() {
             this.graph = null;
             this.graphBond = null;
+            this.ringID = null;
+            this.compID = null;
+            this.ring3 = null;
+            this.ring4 = null;
+            this.ring5 = null;
+            this.ring6 = null;
+            this.ring7 = null;
         }
         trashTransient() {
             if (this.keepTransient || !this.hasTransient)
@@ -7836,7 +7120,1697 @@ var WebMolKit;
     Molecule.BONDTYPE_UNKNOWN = 3;
     Molecule.HYVALENCE_EL = ['C', 'N', 'O', 'S', 'P'];
     Molecule.HYVALENCE_VAL = [4, 3, 2, 2, 3];
+    Molecule.PREFIX_EXTRA = 'x';
+    Molecule.PREFIX_TRANSIENT = 'y';
     WebMolKit.Molecule = Molecule;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class RenderPolicy {
+        constructor(data) {
+            if (!data) {
+                data =
+                    {
+                        'name': 'default',
+                        'pointScale': 20,
+                        'resolutionDPI': 100,
+                        'fontSize': 0.65,
+                        'lineSize': 0.075,
+                        'bondSep': 0.2,
+                        'defaultPadding': 0.2,
+                        'foreground': 0x000000,
+                        'background': 0xFFFFFF,
+                        'atomCols': new Array(112)
+                    };
+                for (let n = 0; n <= 111; n++)
+                    data.atomCols[n] = 0x000000;
+                this.data = data;
+            }
+            else {
+                this.data = WebMolKit.clone(data);
+            }
+        }
+        static defaultBlackOnWhite(pixPerAng) {
+            let policy = new RenderPolicy();
+            if (pixPerAng)
+                policy.data.pointScale = pixPerAng;
+            return policy;
+        }
+        static defaultWhiteOnBlack(pixPerAng) {
+            let policy = new RenderPolicy();
+            if (pixPerAng)
+                policy.data.pointScale = pixPerAng;
+            policy.data.foreground = 0xFFFFFF;
+            policy.data.background = 0x000000;
+            for (let n = 0; n <= 111; n++)
+                policy.data.atomCols[n] = 0xFFFFFF;
+            return policy;
+        }
+        static defaultColourOnWhite(pixPerAng) {
+            let policy = RenderPolicy.defaultBlackOnWhite(pixPerAng);
+            policy.data.atomCols[0] = 0x404040;
+            policy.data.atomCols[1] = 0x808080;
+            policy.data.atomCols[6] = 0x000000;
+            policy.data.atomCols[7] = 0x0000FF;
+            policy.data.atomCols[8] = 0xFF0000;
+            policy.data.atomCols[9] = 0xFF8080;
+            policy.data.atomCols[15] = 0xFF8000;
+            policy.data.atomCols[16] = 0x808000;
+            policy.data.atomCols[17] = 0x00C000;
+            policy.data.atomCols[35] = 0xC04000;
+            return policy;
+        }
+        static defaultColourOnBlack(pixPerAng) {
+            let policy = RenderPolicy.defaultWhiteOnBlack(pixPerAng);
+            policy.data.atomCols[0] = 0xA0A0A0;
+            policy.data.atomCols[1] = 0x808080;
+            policy.data.atomCols[6] = 0xFFFFFF;
+            policy.data.atomCols[7] = 0x4040FF;
+            policy.data.atomCols[8] = 0xFF4040;
+            policy.data.atomCols[9] = 0xFF8080;
+            policy.data.atomCols[15] = 0xFF8000;
+            policy.data.atomCols[16] = 0xFFFF00;
+            policy.data.atomCols[17] = 0x40FF40;
+            policy.data.atomCols[35] = 0xFF8040;
+            return policy;
+        }
+        static defaultPrintedPublication() {
+            let policy = RenderPolicy.defaultBlackOnWhite(9.6);
+            policy.data.resolutionDPI = 600;
+            policy.data.fontSize = 0.80;
+            policy.data.bondSep = 0.27;
+            policy.data.lineSize = 0.0625;
+            return policy;
+        }
+    }
+    WebMolKit.RenderPolicy = RenderPolicy;
+    class RenderEffects {
+        constructor() {
+            this.colAtom = {};
+            this.colBond = {};
+            this.dottedRectOutline = {};
+            this.dottedBondCross = {};
+            this.hideAtoms = new Set();
+            this.hideBonds = new Set();
+            this.atomFrameDotSz = [];
+            this.atomFrameCol = [];
+            this.atomCircleSz = [];
+            this.atomCircleCol = [];
+            this.atomDecoText = [];
+            this.atomDecoCol = [];
+            this.atomDecoSize = [];
+            this.bondDecoText = [];
+            this.bondDecoCol = [];
+            this.bondDecoSize = [];
+            this.overlapAtoms = [];
+        }
+    }
+    WebMolKit.RenderEffects = RenderEffects;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class FontData {
+        constructor() {
+            this.UNITS_PER_EM = 2048;
+            this.INV_UNITS_PER_EM = 1.0 / this.UNITS_PER_EM;
+            this.PANOSE_1 = '2 11 6 4 3 5 4 4 2 4';
+            this.ASCENT = 1638;
+            this.DESCENT = -410;
+            this.MISSING_HORZ = 2048;
+            this.MISSING_DATA = 'M256 0v1536h1536v-1536h-1536zM384 128h1280v1280h-1280v-1280z';
+            this.ASCENT_FUDGE = 0.9;
+            this.UNICODE = [
+                ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<',
+                '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+                '[', '\\', ']', '^', '_', '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
+                'x', 'y', 'z', '{', '|', '}', '~', '\u00A0', '\u00A1', '\u00A2', '\u00A3', '\u00A4', '\u00A5', '\u00A6', '\u00A7', '\u00A8', '\u00A9', '\u00AA',
+                '\u00AB', '\u00AC', '\u00AD', '\u00AE', '\u00AF', '\u00B0', '\u00B1', '\u00B2', '\u00B3', '\u00B4', '\u00B5', '\u00B6', '\u00B7', '\u00B8', '\u00B9',
+                '\u00BA', '\u00BB', '\u00BC', '\u00BD', '\u00BE', '\u00BF', '\u00C0', '\u00C1', '\u00C2', '\u00C3', '\u00C4', '\u00C5', '\u00C6', '\u00C7', '\u00C8',
+                '\u00C9', '\u00CA', '\u00CB', '\u00CC', '\u00CD', '\u00CE', '\u00CF', '\u00D0', '\u00D1', '\u00D2', '\u00D3', '\u00D4', '\u00D5', '\u00D6', '\u00D7',
+                '\u00D8', '\u00D9', '\u00DA', '\u00DB', '\u00DC', '\u00DD', '\u00DE', '\u00DF', '\u00E0', '\u00E1', '\u00E2', '\u00E3', '\u00E4', '\u00E5', '\u00E6',
+                '\u00E7', '\u00E8', '\u00E9', '\u00EA', '\u00EB', '\u00EC', '\u00ED', '\u00EE', '\u00EF', '\u00F0', '\u00F1', '\u00F2', '\u00F3', '\u00F4', '\u00F5',
+                '\u00F6', '\u00F7', '\u00F8', '\u00F9', '\u00FA', '\u00FB', '\u00FC', '\u00FD', '\u00FE', '\u037E', '\u0384', '\u0385', '\u0386', '\u0387', '\u0388',
+                '\u0389', '\u038A', '\u038C', '\u038E', '\u038F', '\u0390', '\u0391', '\u0392', '\u0393', '\u0394', '\u0395', '\u0396', '\u0397', '\u0398', '\u0399',
+                '\u039A', '\u039B', '\u039C', '\u039D', '\u039E', '\u039F', '\u03A0', '\u03A1', '\u03A3', '\u03A4', '\u03A5', '\u03A6', '\u03A7', '\u03A8', '\u03A9',
+                '\u03AA', '\u03AB', '\u03AC', '\u03AD', '\u03AE', '\u03AF', '\u03B0', '\u03B1', '\u03B2', '\u03B3', '\u03B4', '\u03B5', '\u03B6', '\u03B7', '\u03B8',
+                '\u03B9', '\u03BA', '\u03BB', '\u03BC', '\u03BD', '\u03BE', '\u03BF', '\u03C0', '\u03C1', '\u03C2', '\u03C3', '\u03C4', '\u03C5', '\u03C6', '\u03C7',
+                '\u03C8', '\u03C9', '\u03CA', '\u03CB', '\u03CC', '\u03CD', '\u03CE', '\u2202', '\u2206', '\u220F', '\u2211', '\u2212', '\u2215', '\u2219', '\u221A',
+                '\u221E', '\u222B', '\u2248', '\u2260', '\u2264', '\u2265'
+            ];
+            this.HORIZ_ADV_X = [
+                720, 806, 940, 1676, 1302, 2204, 1488, 550, 930, 930, 1302, 1676, 745, 930, 745, 930, 1302, 1302, 1302, 1302, 1302, 1302, 1302, 1302, 1302, 1302,
+                930, 930, 1676, 1676, 1676, 1117, 2048, 1400, 1404, 1430, 1578, 1295, 1177, 1588, 1539, 862, 931, 1419, 1140, 1726, 1532, 1612, 1235, 1612, 1424,
+                1400, 1262, 1499, 1400, 2025, 1403, 1260, 1403, 930, 930, 930, 1676, 1302, 1302, 1230, 1276, 1067, 1276, 1220, 720, 1276, 1296, 562, 705, 1212, 562,
+                1992, 1296, 1243, 1276, 1276, 874, 1067, 807, 1296, 1212, 1676, 1212, 1212, 1076, 1300, 930, 1300, 1676, 720, 806, 1302, 1302, 1302, 1302, 930, 1302,
+                1302, 2048, 1117, 1320, 1676, 930, 2048, 1302, 1110, 1676, 1110, 1110, 1302, 1314, 1302, 745, 1302, 1110, 1117, 1320, 2048, 2048, 2048, 1117, 1400,
+                1400, 1400, 1400, 1400, 1400, 2016, 1430, 1295, 1295, 1295, 1295, 862, 862, 862, 862, 1588, 1532, 1612, 1612, 1612, 1612, 1612, 1676, 1612, 1499,
+                1499, 1499, 1499, 1260, 1240, 1270, 1230, 1230, 1230, 1230, 1230, 1230, 1956, 1067, 1220, 1220, 1220, 1220, 562, 562, 562, 562, 1253, 1296, 1243,
+                1243, 1243, 1243, 1243, 1676, 1243, 1296, 1296, 1296, 1296, 1212, 1276, 930, 1302, 1302, 1400, 930, 1538, 1782, 1105, 1804, 1543, 1859, 562, 1400,
+                1404, 1160, 1440, 1295, 1403, 1539, 1612, 862, 1419, 1404, 1726, 1532, 1329, 1612, 1539, 1235, 1377, 1262, 1260, 1677, 1403, 1783, 1676, 862, 1260,
+                1276, 1050, 1296, 562, 1293, 1276, 1270, 1212, 1245, 1050, 937, 1296, 1278, 562, 1212, 1212, 1310, 1212, 1030, 1243, 1305, 1280, 1040, 1291, 1016,
+                1293, 1618, 1208, 1683, 1666, 562, 1293, 1243, 1293, 1666, 1302, 1489, 1676, 1489, 1676, 740, 745, 1676, 2048, 1302, 1676, 1676, 1676, 1676
+            ];
+            this.GLYPH_DATA = [
+                '',
+                'M515 1489l-26 -1079h-170l-28 1079h224zM505 0h-204v211h204v-211z',
+                'M772 1556l-43 -579h-132l-43 579h218zM386 1556l-43 -579h-132l-43 579h218z',
+                'M1481 932h-333l-92 -376h308v-135h-343l-104 -421h-129l104 421h-270l-104 -421h-129l104 421h-298v135h333l92 376h-308v135h343l105 422h129l-105 -422h270l105 422h129l-105 -422h298v-135zM1022 934h-274l-94 -380h274z',
+                'M1160 380q0 -155 -121 -257.5t-317 -121.5v-362h-118v357q-132 1 -248 25.5t-201 63.5v198h16q19 -14 68 -40.5t95 -43.5q52 -19 121.5 -35.5t148.5 -19.5v433q-40 8 -74 15.5t-63 15.5q-163 41 -234 123.5t-71 203.5q0 148 116.5 250t325.5 119v272h118v-270 q101 -2 207 -24t178 -51v-196h-14q-75 46 -156.5 81.5t-214.5 44.5v-431q30 -5 65 -13.5t61 -13.5q149 -32 230.5 -110t81.5 -213zM604 747v413q-107 -8 -180 -58.5t-73 -140.5q0 -91 54 -137t199 -77zM971 354q0 94 -58.5 137.5t-190.5 68.5v-414q120 12 184.5 61t64.5 147 z',
+                'M884 1076q0 -224 -94.5 -333t-272.5 -109q-182 0 -275 109t-93 332q0 224 95 333t273 109q181 0 274 -110t93 -331zM1575 1489l-780 -1489h-165l780 1489h165zM2055 413q0 -224 -95 -333t-273 -109q-181 0 -274 110t-93 331q0 224 94.5 333t272.5 109q182 0 275 -109 t93 -332zM706 1076q0 172 -44.5 240t-144.5 68q-102 0 -146 -68t-44 -241t44 -240.5t146 -67.5q100 0 144.5 67.5t44.5 241.5zM1877 413q0 172 -44.5 240t-144.5 68q-102 0 -146 -68t-44 -241t44 -240.5t146 -67.5q100 0 144.5 67.5t44.5 241.5z',
+                'M792 1191q0 95 -56.5 149.5t-144.5 54.5q-92 0 -150 -61.5t-58 -150.5q0 -75 39.5 -133t170.5 -137q98 35 148.5 102.5t50.5 175.5zM986 315l-478 466q-31 -15 -62 -39.5t-62 -66.5q-28 -39 -46 -94t-18 -124q0 -146 85.5 -235.5t242.5 -89.5q93 0 184.5 45.5 t153.5 137.5zM1287 909v-96q0 -96 -25 -216t-85 -229l378 -368h-246l-229 224q-115 -142 -235 -198.5t-247 -56.5q-208 0 -345.5 121.5t-137.5 318.5q0 92 26 159t61 116q35 47 87 88.5t105 72.5q-110 72 -158.5 145t-48.5 184q0 67 26.5 127.5t79.5 110.5q50 48 130.5 78 t177.5 30q173 0 280 -87.5t107 -221.5q0 -44 -12 -99.5t-41 -99.5q-32 -49 -91 -94t-153 -77l371 -362q14 40 21 88t8 100q2 56 1.5 125t-0.5 117h195z',
+                'M386 1556l-43 -579h-136l-43 579h222z',
+                'M783 -412h-229q-177 203 -275 443t-98 541t98 541t275 443h229v-10q-81 -73 -154.5 -168.5t-136.5 -222.5q-60 -123 -97.5 -271t-37.5 -312q0 -171 36.5 -313t98.5 -270q60 -123 137 -222.5t154 -168.5v-10z',
+                'M749 572q0 -301 -98 -541t-275 -443h-229v10q77 69 154.5 168.5t136.5 222.5q62 128 98.5 270t36.5 313q0 164 -37 312t-98 271q-63 127 -136.5 222.5t-154.5 168.5v10h229q177 -203 275 -443t98 -541z',
+                'M1137 887l-64 -110l-362 213l6 -360h-129l5 360l-361 -214l-65 110l381 207l-381 207l65 110l362 -213l-6 359h129l-7 -359l363 212l64 -110l-380 -205z',
+                'M1466 572h-545v-545h-166v545h-545v160h545v545h166v-545h545v-160z',
+                'M575 285l-282 -655h-146l174 655h254z',
+                'M777 561h-624v181h624v-181z',
+                'M492 0h-239v285h239v-285z',
+                'M860 1556l-717 -1860h-173l714 1860h176z',
+                'M1167 745q0 -401 -125.5 -588.5t-389.5 -187.5q-268 0 -391.5 190t-123.5 584q0 397 125 586.5t390 189.5q268 0 391.5 -192.5t123.5 -581.5zM904 291q35 81 47.5 190.5t12.5 263.5q0 152 -12.5 264t-48.5 190q-35 77 -95.5 116t-155.5 39q-94 0 -155.5 -39t-97.5 -118 q-34 -74 -46.5 -193t-12.5 -261q0 -156 11 -261t47 -188q33 -78 93.5 -119t160.5 -41q94 0 156 39t96 118z',
+                'M1084 0h-806v152h310v998h-310v136q63 0 135 10.5t109 30.5q46 25 72.5 63.5t30.5 103.5h155v-1342h304v-152z',
+                'M1169 0h-1008v209q105 90 210.5 180t196.5 179q192 186 263 295.5t71 236.5q0 116 -76.5 181.5t-213.5 65.5q-91 0 -197 -32t-207 -98h-10v210q71 35 189.5 64t229.5 29q229 0 359 -110.5t130 -299.5q0 -85 -21.5 -158.5t-63.5 -139.5q-39 -62 -91.5 -122t-127.5 -133 q-107 -105 -221 -203.5t-213 -182.5h801v-171z',
+                'M1038 717q48 -43 79 -108t31 -168q0 -102 -37 -187t-104 -148q-75 -70 -176.5 -103.5t-222.5 -33.5q-124 0 -244 29.5t-197 64.5v209h15q85 -56 200 -93t222 -37q63 0 134 21t115 62q46 44 68.5 97t22.5 134q0 80 -25.5 132.5t-70.5 82.5q-45 31 -109 42.5t-138 11.5h-90 v166h70q152 0 242.5 63.5t90.5 185.5q0 54 -23 94.5t-64 66.5q-43 26 -92 36t-111 10q-95 0 -202 -34t-202 -96h-10v209q71 35 189.5 64.5t229.5 29.5q109 0 192 -20t150 -64q72 -48 109 -116t37 -159q0 -124 -87.5 -216.5t-206.5 -116.5v-14q48 -8 110 -33.5t105 -63.5z ',
+                'M1203 419h-221v-419h-192v419h-713v230l721 840h184v-910h221v-160zM790 579v672l-577 -672h577z',
+                'M1157 473q0 -104 -38 -199t-104 -160q-72 -70 -171.5 -107.5t-230.5 -37.5q-122 0 -235 25.5t-191 61.5v211h14q82 -52 192 -88.5t216 -36.5q71 0 137.5 20t118.5 70q44 43 66.5 103t22.5 139q0 77 -26.5 130t-73.5 85q-52 38 -126.5 53.5t-166.5 15.5q-88 0 -169.5 -12 t-140.5 -24v767h896v-175h-703v-396q43 4 88 6t78 2q121 0 212 -20.5t167 -72.5q80 -55 124 -142t44 -218z',
+                'M1191 483q0 -227 -149.5 -370.5t-366.5 -143.5q-110 0 -200 34t-159 101q-86 83 -132.5 220t-46.5 330q0 198 42.5 351t135.5 272q88 113 227 176.5t324 63.5q59 0 99 -5t81 -18v-191h-10q-28 15 -84.5 28.5t-115.5 13.5q-215 0 -343 -134.5t-149 -363.5 q84 51 165.5 77.5t188.5 26.5q95 0 167.5 -17.5t148.5 -70.5q88 -61 132.5 -154t44.5 -226zM988 475q0 93 -27.5 154t-90.5 106q-46 32 -102 42t-117 10q-85 0 -158 -20t-150 -62q-2 -22 -3 -42.5t-1 -51.5q0 -158 32.5 -249.5t89.5 -144.5q46 -44 99.5 -64.5t116.5 -20.5 q145 0 228 88.5t83 254.5z',
+                'M1173 1266l-674 -1266h-214l717 1314h-848v175h1019v-223z',
+                'M1180 415q0 -193 -150.5 -321t-378.5 -128q-242 0 -385.5 125t-143.5 320q0 124 72 224.5t203 159.5v6q-120 64 -177.5 140t-57.5 190q0 168 138 280t351 112q223 0 356 -107t133 -272q0 -101 -63 -198.5t-185 -152.5v-6q140 -60 214 -148t74 -224zM943 1142 q0 107 -82.5 170.5t-210.5 63.5q-126 0 -206.5 -60t-80.5 -162q0 -72 40.5 -124.5t122.5 -93.5q37 -18 106.5 -47t135.5 -48q99 66 137 137t38 164zM974 396q0 92 -40.5 147.5t-158.5 111.5q-47 22 -103 41t-149 53q-90 -49 -144.5 -133t-54.5 -190q0 -135 93 -223t236 -88 q146 0 233.5 75t87.5 206z',
+                'M1167 834q0 -195 -44.5 -354t-134.5 -271q-91 -114 -228 -176t-322 -62q-52 0 -98 5.5t-82 17.5v191h10q29 -15 82 -28.5t118 -13.5q221 0 346.5 132.5t145.5 365.5q-93 -56 -175 -80t-179 -24q-92 0 -166.5 18t-149.5 70q-88 61 -132.5 155t-44.5 225q0 228 150 371 t366 143q108 0 200 -33.5t161 -100.5q85 -83 131 -213.5t46 -337.5zM965 877q0 155 -32 249t-88 146q-47 45 -101 64.5t-117 19.5q-144 0 -227.5 -90t-83.5 -253q0 -95 27 -155t91 -105q45 -31 99 -41.5t120 -10.5q78 0 158 21t150 61q1 21 2.5 41.5t1.5 52.5z',
+                'M585 832h-239v285h239v-285zM585 0h-239v285h239v-285z',
+                'M585 832h-239v285h239v-285zM658 285l-282 -655h-146l174 655h254z',
+                'M1408 77l-1154 513v124l1154 513v-180l-910 -395l910 -395v-180z',
+                'M1431 782h-1186v160h1186v-160zM1431 362h-1186v160h1186v-160z',
+                'M1422 590l-1154 -513v180l910 395l-910 395v180l1154 -513v-124z',
+                'M1005 1139q0 -98 -35 -174.5t-92 -135.5q-56 -57 -129 -107t-155 -97v-225h-179v305q65 37 140.5 81t123.5 89q58 52 90 107.5t32 141.5q0 113 -76.5 168.5t-197.5 55.5q-108 0 -204.5 -34t-152.5 -69h-10v204q70 27 177.5 48.5t203.5 21.5q215 0 339.5 -104.5 t124.5 -275.5zM610 0h-204v211h204v-211z',
+                'M1870 663q0 -139 -40.5 -269t-115.5 -237h-440l-27 116q-74 -60 -142 -92t-156 -32q-168 0 -268.5 127t-100.5 355q0 227 123 362t294 135q73 0 129 -16.5t121 -49.5v48h159v-842h243q42 75 63.5 187.5t21.5 201.5q0 164 -45.5 298t-133.5 230t-218 147.5t-295 51.5 q-160 0 -292.5 -58t-227.5 -156q-96 -98 -150.5 -234.5t-54.5 -290.5q0 -165 52 -301.5t147 -233.5q99 -101 232 -152.5t290 -51.5q86 0 177.5 11t175.5 35v-142q-97 -21 -181 -28.5t-173 -7.5q-186 0 -345 63.5t-273 177.5q-115 115 -179 276t-64 356q0 185 67 344.5 t183 276.5t275 184t340 67q196 0 350 -62t260 -174t162.5 -269.5t56.5 -350.5zM1245 408v518q-63 29 -113 41.5t-107 12.5q-129 0 -202 -90t-73 -256q0 -163 58 -246.5t181 -83.5q67 0 134 31t122 73z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523z',
+                'M1323 458q0 -111 -42 -196t-113 -140q-84 -66 -184.5 -94t-255.5 -28h-528v1489h441q163 0 244 -12t155 -50q82 -43 119 -110.5t37 -161.5q0 -106 -54 -180.5t-144 -119.5v-8q151 -31 238 -132.5t87 -256.5zM990 1129q0 54 -18 91t-58 60q-47 27 -114 33.5t-166 6.5h-236 v-430h256q93 0 148 9.5t102 39.5t66.5 77.5t19.5 112.5zM1117 450q0 90 -27 143t-98 90q-48 25 -116.5 32.5t-166.5 7.5h-311v-554h262q130 0 213 13.5t136 49.5q56 39 82 89t26 129z',
+                'M1350 108q-55 -24 -99.5 -45t-116.5 -44q-61 -19 -132.5 -32.5t-157.5 -13.5q-162 0 -294.5 45.5t-230.5 142.5q-96 95 -150 241.5t-54 340.5q0 184 52 329t150 245q95 97 229.5 148t298.5 51q120 0 239.5 -29t265.5 -102v-235h-15q-123 103 -244 150t-259 47 q-113 0 -203.5 -36.5t-161.5 -113.5q-69 -75 -107.5 -189.5t-38.5 -264.5q0 -157 42.5 -270t109.5 -184q70 -74 163.5 -109.5t197.5 -35.5q143 0 268 49t234 147h14v-232z',
+                'M1458 743q0 -203 -88.5 -368t-235.5 -256q-102 -63 -227.5 -91t-330.5 -28h-376v1489h372q218 0 346.5 -31.5t217.5 -86.5q152 -95 237 -253t85 -375zM1251 746q0 175 -61 295t-182 189q-88 50 -187 69.5t-237 19.5h-186v-1149h186q143 0 249.5 21t195.5 78 q111 71 166.5 187t55.5 290z',
+                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176z',
+                'M1151 1313h-753v-420h647v-176h-647v-717h-198v1489h951v-176z',
+                'M1442 110q-122 -56 -266.5 -97.5t-279.5 -41.5q-174 0 -319 48t-247 144q-103 97 -159 242.5t-56 340.5q0 357 208.5 563.5t572.5 206.5q127 0 259.5 -30.5t285.5 -103.5v-235h-18q-31 24 -90 63t-116 65q-69 31 -156.5 51.5t-198.5 20.5q-250 0 -395.5 -160.5 t-145.5 -434.5q0 -289 152 -449.5t414 -160.5q96 0 191.5 19t167.5 49v365h-399v174h595v-639z',
+                'M1339 0h-198v729h-743v-729h-198v1489h198v-584h743v584h198v-1489z',
+                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152z',
+                'M746 387q0 -196 -119.5 -302t-320.5 -106q-48 0 -128 8.5t-134 20.5v185h11q41 -14 101 -29t123 -15q92 0 146.5 21t80.5 60q27 40 34.5 98t7.5 134v869h-315v158h513v-1102z',
+                'M1397 0h-257l-589 663l-148 -158v-505h-198v1489h198v-777l723 777h240l-665 -700z',
+                'M1142 0h-942v1489h198v-1313h744v-176z',
+                'M1526 0h-198v1283l-414 -873h-118l-411 873v-1283h-185v1489h270l397 -829l384 829h275v-1489z',
+                'M1336 0h-245l-706 1332v-1332h-185v1489h307l644 -1216v1216h185v-1489z',
+                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5z',
+                'M1174 1039q0 -99 -34.5 -183.5t-96.5 -146.5q-77 -77 -182 -115.5t-265 -38.5h-198v-555h-198v1489h404q134 0 227 -22.5t165 -70.5q85 -57 131.5 -142t46.5 -215zM968 1034q0 77 -27 134t-82 93q-48 31 -109.5 44.5t-155.5 13.5h-196v-595h167q120 0 195 21.5t122 68.5 q47 48 66.5 101t19.5 119z',
+                'M1528 -365q-60 -15 -118.5 -21.5t-119.5 -6.5q-174 0 -279.5 95.5t-114.5 273.5q-24 -4 -46.5 -5.5t-43.5 -1.5q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5 q91 -100 139.5 -245t48.5 -329q0 -273 -111.5 -460t-299.5 -262q4 -114 54 -177t182 -63q41 0 97.5 12.5t80.5 22.5h27v-182zM1292 744q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5z',
+                'M1432 0h-257l-498 592h-279v-592h-198v1489h417q135 0 225 -17.5t162 -62.5q81 -51 126.5 -128.5t45.5 -196.5q0 -161 -81 -269.5t-223 -163.5zM969 1070q0 64 -22.5 113.5t-74.5 83.5q-43 29 -102 40.5t-139 11.5h-233v-562h200q94 0 164 16.5t119 61.5q45 42 66.5 96.5 t21.5 138.5z',
+                'M1282 425q0 -87 -40.5 -172t-113.5 -144q-80 -64 -186.5 -100t-256.5 -36q-161 0 -289.5 30t-261.5 89v248h14q113 -94 261 -145t278 -51q184 0 286.5 69t102.5 184q0 99 -48.5 146t-147.5 73q-75 20 -162.5 33t-185.5 33q-198 42 -293.5 143.5t-95.5 264.5 q0 187 158 306.5t401 119.5q157 0 288 -30t232 -74v-234h-14q-85 72 -223.5 119.5t-283.5 47.5q-159 0 -255.5 -66t-96.5 -170q0 -93 48 -146t169 -81q64 -14 182 -34t200 -41q166 -44 250 -133t84 -249z',
+                'M1262 1313h-532v-1313h-198v1313h-532v176h1262v-176z',
+                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891z',
+                'M1374 1489l-542 -1489h-264l-542 1489h212l467 -1310l467 1310h202z',
+                'M1933 1489l-387 -1489h-223l-313 1236l-306 -1236h-218l-394 1489h203l313 -1238l308 1238h201l311 -1250l311 1250h194z',
+                'M1336 1489l-514 -736l513 -753h-229l-406 613l-416 -613h-216l519 744l-507 745h228l401 -605l410 605h217z',
+                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211z',
+                'M1288 0h-1162v184l913 1129h-879v176h1106v-179l-922 -1134h944v-176z',
+                'M759 -392h-520v1948h520v-143h-346v-1662h346v-143z',
+                'M960 -304h-173l-717 1860h176z',
+                'M691 -392h-520v143h346v1662h-346v143h520v-1948z',
+                'M1490 684h-198l-455 627l-454 -629h-197l589 807h126z',
+                'M1306 -300h-1310v120h1310v-120z',
+                'M762 1302h-149l-273 374h243z',
+                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5z',
+                'M1168 567q0 -140 -39.5 -252t-106.5 -188q-71 -79 -156 -118.5t-187 -39.5q-95 0 -166 22.5t-140 60.5l-12 -52h-176v1556h188v-556q79 65 168 106.5t200 41.5q198 0 312.5 -152t114.5 -429zM974 562q0 200 -66 303.5t-213 103.5q-82 0 -166 -35.5t-156 -91.5v-640 q80 -36 137.5 -50t130.5 -14q156 0 244.5 102.5t88.5 321.5z',
+                'M1011 70q-94 -45 -178.5 -70t-179.5 -25q-121 0 -222 35.5t-173 107.5q-73 72 -113 182t-40 257q0 274 150.5 430t397.5 156q96 0 188.5 -27t169.5 -66v-209h-10q-86 67 -177.5 103t-178.5 36q-160 0 -252.5 -107.5t-92.5 -315.5q0 -202 90.5 -310.5t254.5 -108.5 q57 0 116 15t106 39q41 21 77 44.5t57 40.5h10v-207z',
+                'M1091 0h-188v117q-81 -70 -169 -109t-191 -39q-200 0 -317.5 154t-117.5 427q0 142 40.5 253t109.5 189q68 76 158.5 116t187.5 40q88 0 156 -18.5t143 -57.5v484h188v-1556zM903 275v641q-76 34 -136 47t-131 13q-158 0 -246 -110t-88 -312q0 -199 68 -302.5t218 -103.5 q80 0 162 35.5t153 91.5z',
+                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640z',
+                'M786 1374h-10q-31 9 -81 18.5t-88 9.5q-121 0 -175.5 -53.5t-54.5 -193.5v-38h339v-158h-333v-959h-188v959h-127v158h127v37q0 199 99 305.5t286 106.5q63 0 113.5 -6t92.5 -14v-172z',
+                'M1091 127q0 -284 -129 -417t-397 -133q-89 0 -173.5 12.5t-166.5 35.5v192h10q46 -18 146 -44.5t200 -26.5q96 0 159 23t98 64q35 39 50 94t15 123v102q-85 -68 -162.5 -101.5t-197.5 -33.5q-200 0 -317.5 144.5t-117.5 407.5q0 144 40.5 248.5t110.5 180.5 q65 71 158 110.5t185 39.5q97 0 162.5 -19.5t138.5 -59.5l12 48h176v-990zM903 307v609q-75 34 -139.5 48.5t-128.5 14.5q-155 0 -244 -104t-89 -302q0 -188 66 -285t219 -97q82 0 164.5 31.5t151.5 84.5z',
+                'M1119 0h-188v636q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1556h188v-563q88 73 182 114t193 41q181 0 276 -109t95 -314v-725z',
+                'M387 1304h-212v195h212v-195zM375 0h-188v1117h188v-1117z',
+                'M533 1304h-212v195h212v-195zM521 -27q0 -196 -100 -296t-268 -100q-40 0 -105.5 8t-109.5 20v179h10q28 -11 75.5 -25t92.5 -14q72 0 116 20t66 60t28.5 96.5t6.5 137.5v900h-233v158h421v-1144z',
+                'M1199 0h-248l-448 489l-122 -116v-373h-188v1556h188v-998l543 559h237l-519 -516z',
+                'M375 0h-188v1556h188v-1556z',
+                'M1815 0h-188v636q0 72 -6.5 139t-27.5 107q-23 43 -66 65t-124 22q-79 0 -158 -39.5t-158 -100.5q3 -23 5 -53.5t2 -60.5v-715h-188v636q0 74 -6.5 140.5t-27.5 106.5q-23 43 -66 64.5t-124 21.5q-77 0 -154.5 -38t-154.5 -97v-834h-188v1117h188v-124q88 73 175.5 114 t186.5 41q114 0 193.5 -48t118.5 -133q114 96 208 138.5t201 42.5q184 0 271.5 -111.5t87.5 -311.5v-725z',
+                'M1119 0h-188v636q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-725z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z',
+                'M1168 572q0 -136 -39 -248.5t-110 -190.5q-66 -74 -155.5 -114.5t-189.5 -40.5q-87 0 -157.5 19t-143.5 59v-468h-188v1529h188v-117q75 63 168.5 105.5t199.5 42.5q202 0 314.5 -152.5t112.5 -423.5zM974 567q0 202 -69 302t-212 100q-81 0 -163 -35t-157 -92v-633 q80 -36 137.5 -49t130.5 -13q157 0 245 106t88 314z',
+                'M1091 -412h-188v538q-87 -75 -173 -111.5t-186 -36.5q-199 0 -317.5 153.5t-118.5 423.5q0 144 41.5 254.5t109.5 185.5q66 73 155 113t188 40q90 0 159.5 -20t141.5 -59l12 48h176v-1529zM903 284v632q-78 35 -138 49t-130 14q-163 0 -248 -110.5t-85 -304.5 q0 -196 68.5 -301.5t215.5 -105.5q82 0 164 35.5t153 91.5z',
+                'M882 912h-10q-42 10 -81.5 14.5t-93.5 4.5q-87 0 -168 -38.5t-156 -99.5v-793h-188v1117h188v-165q112 90 197.5 127.5t174.5 37.5q49 0 71 -2.5t66 -9.5v-193z',
+                'M983 322q0 -153 -126.5 -251t-345.5 -98q-124 0 -227.5 29.5t-173.5 64.5v211h10q89 -67 198 -106.5t209 -39.5q124 0 194 40t70 126q0 66 -38 100t-146 58q-40 9 -104.5 21t-117.5 26q-147 39 -208.5 114.5t-61.5 185.5q0 69 28.5 130t86.5 109q56 47 142.5 74.5 t193.5 27.5q100 0 202.5 -24.5t170.5 -59.5v-201h-10q-72 53 -175 89.5t-202 36.5q-103 0 -174 -39.5t-71 -117.5q0 -69 43 -104q42 -35 136 -57q52 -12 116.5 -24t107.5 -22q131 -30 202 -103q71 -74 71 -196z',
+                'M765 10q-53 -14 -115.5 -23t-111.5 -9q-171 0 -260 92t-89 295v594h-127v158h127v321h188v-321h388v-158h-388v-509q0 -88 4 -137.5t28 -92.5q22 -40 60.5 -58.5t117.5 -18.5q46 0 96 13.5t72 22.5h10v-169z',
+                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117z',
+                'M1151 1117l-452 -1117h-189l-449 1117h204l346 -889l343 889h197z',
+                'M1590 1117l-291 -1117h-174l-287 861l-285 -861h-173l-294 1117h196l205 -865l279 865h155l286 -865l194 865h189z',
+                'M1152 0h-237l-317 429l-319 -429h-219l436 557l-432 560h237l315 -422l316 422h220l-439 -550z',
+                'M1151 1117l-652 -1529h-201l208 466l-445 1063h204l343 -828l346 828h197z',
+                'M995 0h-902v139l651 821h-637v157h871v-134l-654 -824h671v-159z',
+                'M1113 -392h-150q-179 0 -290.5 99.5t-111.5 287.5v149q0 169 -83 264.5t-254 95.5h-51v156h51q171 0 254 95.5t83 264.5v149q0 188 111.5 287.5t290.5 99.5h150v-138h-114q-136 0 -197.5 -63t-61.5 -203v-175q0 -139 -77 -233.5t-214 -149.5v-24q137 -55 214 -149.5 t77 -233.5v-175q0 -140 61.5 -203t197.5 -63h114v-138z',
+                'M552 -392h-174v1948h174v-1948z',
+                'M1127 504h-51q-171 0 -254 -95.5t-83 -264.5v-149q0 -188 -111.5 -287.5t-290.5 -99.5h-150v138h114q136 0 197.5 63t61.5 203v175q0 139 77 233.5t214 149.5v24q-137 55 -214 149.5t-77 233.5v175q0 140 -61.5 203t-197.5 63h-114v138h150q179 0 290.5 -99.5 t111.5 -287.5v-149q0 -169 83 -264.5t254 -95.5h51v-156z',
+                'M1489 927q-2 -99 -22.5 -195t-65.5 -171q-46 -77 -111 -121t-165 -44q-94 0 -167 39.5t-157 141.5q-102 125 -148 157t-96 32q-94 0 -144 -87.5t-59 -283.5h-167q2 100 22.5 194.5t64.5 171.5q43 74 112 119.5t165 45.5q93 0 166.5 -38.5t158.5 -142.5q80 -98 131 -143.5 t112 -45.5q103 0 151.5 101t51.5 270h167z',
+                '',
+                'M505 1278h-204v211h204v-211zM515 0h-224l26 1079h170z',
+                'M1120 74q-71 -30 -161 -53.5t-194 -26.5v-355h-118v359q-227 21 -357.5 165t-130.5 394q0 242 133.5 391.5t354.5 171.5v355h118v-351q104 -3 197 -25t158 -53v-203h-11q-55 44 -142 85t-202 50v-839q120 10 206.5 52.5t137.5 83.5h11v-201zM647 142v834 q-135 -20 -216 -125t-81 -294q0 -181 76 -286t221 -129z',
+                'M1163 0h-1026v207q118 32 169.5 126.5t51.5 279.5h-176v138h176v310q0 200 126.5 328.5t331.5 128.5q105 0 181 -17t140 -34v-206h-10q-62 42 -138 66t-162 24q-140 0 -209.5 -82.5t-69.5 -226.5v-291h415v-138h-415v-61q0 -126 -62 -219.5t-160 -150.5v-11h837v-171z ',
+                'M1168 257l-110 -110l-236 234q-44 -26 -81 -37t-89 -11q-46 0 -89.5 12.5t-79.5 35.5l-236 -236l-109 113l233 234q-23 37 -35 81.5t-12 87.5q0 52 11 88.5t37 79.5l-234 237l111 110l235 -235q36 23 79.5 35.5t88.5 12.5q44 0 88 -12t81 -35l234 234l113 -109l-235 -237 q24 -38 36 -79.5t12 -89.5q0 -45 -12.5 -89t-35.5 -80zM832 661q0 73 -52.5 129t-127.5 56q-73 0 -126.5 -55t-53.5 -130q0 -74 52.5 -129.5t127.5 -55.5q73 0 126.5 54.5t53.5 130.5z',
+                'M1191 1489l-448 -831v-94h372v-138h-370v-426h-188v426h-370v138h372v73l-451 852h212l332 -659l336 659h203z',
+                'M552 758h-174v798h174v-798zM552 -392h-174v798h174v-798z',
+                'M1128 601q0 -106 -59 -187t-158 -136v-7q97 -46 141 -118.5t44 -162.5q0 -77 -33 -146t-98 -119q-72 -56 -169 -83t-221 -27q-87 0 -170.5 13.5t-175.5 44.5v194h10q79 -37 169 -62t198 -25q134 0 215 48.5t81 135.5q0 56 -19.5 88.5t-64.5 57.5q-41 23 -113 41.5 t-154 38.5q-214 52 -296 133q-83 81 -83 210q0 98 57 182.5t159 141.5v7q-101 48 -143 121t-42 162q0 81 32 146.5t99 117.5q64 50 163.5 79t227.5 29q87 0 171 -14t175 -43v-194h-10q-58 27 -152.5 57t-215.5 30q-127 0 -211.5 -46t-84.5 -133q0 -57 21.5 -92.5t64.5 -58.5 t109 -41.5t157 -39.5q200 -46 290 -125q89 -79 89 -218zM881 399q28 33 43 65.5t15 90.5q0 51 -16.5 86t-45.5 58q-28 24 -67 39.5t-83 27.5q-39 11 -85.5 21.5t-116.5 30.5q-18 -9 -49 -31.5t-53 -46.5q-24 -26 -43 -69t-19 -92q0 -50 15.5 -85t44.5 -59q27 -23 67.5 -39 t84.5 -27q38 -10 86 -22t115 -31q20 11 53 34.5t54 48.5z',
+                'M958 1304h-199v195h199v-195zM545 1304h-199v195h199v-195z',
+                'M1889 655q0 -358 -253.5 -611.5t-611.5 -253.5t-611.5 253.5t-253.5 611.5t253.5 611.5t611.5 253.5t611.5 -253.5t253.5 -611.5zM1773 655q0 310 -219.5 532t-529.5 222t-529.5 -222t-219.5 -532t219.5 -532t529.5 -222t529.5 222t219.5 532zM1375 258 q-86 -39 -165.5 -58.5t-157.5 -19.5q-227 0 -359 123t-132 357q0 225 134.5 354t356.5 129q89 0 175 -24t148 -52v-181h-16q-54 40 -138.5 75t-173.5 35q-142 0 -221.5 -85.5t-79.5 -250.5q0 -159 76.5 -246t224.5 -87q83 0 161.5 29t150.5 81h16v-179z',
+                'M944 554h-170v94q-28 -20 -52.5 -38.5t-68.5 -37.5q-45 -20 -85.5 -30.5t-113.5 -10.5q-128 0 -215.5 85t-87.5 217q0 106 46.5 173.5t123.5 103.5q78 36 197.5 51.5t255.5 21.5v18q0 53 -18 85t-51 51q-34 18 -77.5 23t-91.5 5q-84 0 -168 -24t-123 -38h-14v172 q45 13 137 29t169 16q217 0 312 -84.5t95 -243.5v-638zM774 796v245q-69 -4 -160.5 -12t-145.5 -23q-64 -18 -103 -56.5t-39 -106.5q0 -76 45.5 -114t139.5 -38q82 0 147.5 33.5t115.5 71.5z',
+                'M1146 191l-528 419v85l528 418v-188l-357 -273l357 -273v-188zM716 162l-550 446v89l550 445v-196l-371 -294l371 -294v-196z',
+                'M1456 57h-171v545h-1075v160h1246v-705z',
+                'M777 561h-624v181h624v-181z',
+                'M1889 655q0 -358 -253.5 -611.5t-611.5 -253.5t-611.5 253.5t-253.5 611.5t253.5 611.5t611.5 253.5t611.5 -253.5t253.5 -611.5zM1773 655q0 310 -219.5 532t-529.5 222t-529.5 -222t-219.5 -532t219.5 -532t529.5 -222t529.5 222t219.5 532zM1581 215h-223l-331 355 h-162v-355h-165v915h312q94 0 155 -8t120 -39q63 -34 92.5 -82.5t29.5 -121.5q0 -97 -56.5 -161.5t-155.5 -102.5zM1229 868q0 36 -14 64t-47 46q-31 17 -66 22t-88 5h-149v-309h127q62 0 107 9.5t74 32.5q31 25 43.5 55t12.5 75z',
+                'M1306 1668h-1305l-5 120h1310v-120z',
+                'M956 1116q0 -168 -116 -284t-285 -116t-285 115.5t-116 284.5q0 168 116 284t285 116q170 0 285.5 -116t115.5 -284zM791 1116q0 102 -67 171.5t-169 69.5t-169 -69.5t-67 -171.5q0 -104 68.5 -172.5t167.5 -68.5q102 0 169 70t67 171z',
+                'M1461 179h-1246v158h540v422h-540v158h540v545h166v-545h540v-158h-540v-422h540v-158z',
+                'M967 566h-760v156q100 62 183.5 117t134.5 96q131 103 168 154.5t37 135.5q0 69 -53.5 107t-143.5 38q-89 0 -175 -30.5t-134 -61.5h-13v180q71 26 158.5 43.5t174.5 17.5q180 0 273.5 -78.5t93.5 -203.5q0 -99 -48.5 -174.5t-163.5 -165.5q-55 -43 -132.5 -94 t-143.5 -92h544v-145z',
+                'M956 817q0 -75 -33 -131.5t-89 -90.5q-57 -35 -131 -51.5t-163 -16.5q-94 0 -176.5 15t-156.5 43v179h14q41 -36 138.5 -65.5t190.5 -29.5q100 0 166.5 35.5t66.5 110.5q0 85 -59 115t-171 30h-143v141h128q112 0 165.5 38.5t53.5 106.5q0 61 -49.5 96.5t-153.5 35.5 q-77 0 -174.5 -31t-141.5 -67h-14v178q74 27 160.5 44.5t176.5 17.5q175 0 271.5 -68t96.5 -174q0 -89 -55 -146t-144 -83v-8q95 -17 160.5 -72.5t65.5 -151.5z',
+                'M963 1676l-273 -374h-149l179 374h243z',
+                'M1124 0h-178l-10 118q-59 -65 -123.5 -102t-155.5 -37q-86 0 -149.5 35t-129.5 99v-525h-188v1529h188v-838q32 -39 109.5 -80t168.5 -41q93 0 159.5 33.5t120.5 93.5v832h188v-1117z',
+                'M1106 -363h-148v1722h-214v-1722h-149v956q-206 5 -332 129t-126 328q0 207 130 323t373 116h466v-1852z',
+                'M492 511h-239v283h239v-283z',
+                'M880 -89q0 -162 -91.5 -248t-237.5 -86q-37 0 -95 7t-103 19v160h9q26 -10 70 -23t94 -13q104 0 153 39t49 127q0 29 -3 65.5t-6 61.5h153q2 -19 5 -45t3 -64z',
+                'M914 566h-615v122h234v568h-242v112q45 0 99 6.5t84 18.5q37 16 59 38t25 62h135v-805h221v-122z',
+                'M996 1025q0 -235 -122 -364.5t-315 -129.5q-201 0 -319.5 132.5t-118.5 361.5t118.5 362t319.5 133q193 0 315 -130t122 -365zM814 1025q0 172 -67.5 258t-187.5 86q-122 0 -189 -87t-67 -257t67 -256.5t189 -86.5q120 0 187.5 85.5t67.5 257.5z',
+                'M1154 608l-550 -446v196l371 294l-371 294v196l550 -445v-89zM702 610l-528 -419v188l357 273l-357 273v188l528 -418v-85z',
+                'M545 565h-165v681h-209v117q102 0 165 22t72 108h137v-928zM1410 1489l-780 -1489h-165l780 1489h165zM1857 220h-163v-220h-150v220h-465v185l466 539h149v-591h163v-133zM1548 353v400l-353 -400h353z',
+                'M545 565h-165v681h-209v117q102 0 165 22t72 108h137v-928zM1410 1489l-780 -1489h-165l780 1489h165zM1955 0h-688v148q91 69 158 121t106 89q109 103 141 157.5t32 136.5q0 70 -44 107t-120 37q-70 0 -141.5 -30t-112.5 -62h-15v179q65 27 140.5 44t152.5 17 q157 0 241.5 -79t84.5 -201q0 -93 -41 -167t-147 -168q-49 -43 -119.5 -96t-125.5 -94h498v-139z',
+                'M793 826q0 -71 -30 -127t-78 -90q-53 -37 -114.5 -53t-140.5 -16q-82 0 -153.5 15t-136.5 43v175h17q37 -35 114 -64.5t156 -29.5q84 0 139 36.5t55 108.5q0 83 -50 112.5t-141 29.5h-140v139h125q87 0 134.5 38t47.5 104q0 60 -41 95.5t-128 35.5q-66 0 -142.5 -31 t-113.5 -66h-17v175q64 27 139 44t154 17q152 0 237 -70t85 -168q0 -87 -48.5 -143.5t-125.5 -82.5v-8q80 -16 138.5 -70.5t58.5 -148.5zM1500 1489l-780 -1489h-165l780 1489h165zM1913 220h-163v-220h-150v220h-465v185l466 539h149v-591h163v-133zM1604 353v400 l-353 -400h353z',
+                'M712 1278h-204v211h204v-211zM958 40q-83 -30 -176 -50t-205 -20q-215 0 -339.5 104.5t-124.5 275.5q0 98 34.5 173t93.5 137q58 62 136.5 112.5t146.5 91.5v225h179v-305q-60 -33 -139 -81.5t-125 -88.5q-54 -47 -88 -109t-34 -140q0 -113 76.5 -168.5t197.5 -55.5 q103 0 201.5 33t155.5 70h10v-204z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM862 1675h-149l-273 374h243z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM955 2049l-273 -374h-149l179 374h243z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM1033 1670h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM1119 1992q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5 t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM1005 1677h-199v195h199v-195zM592 1677h-199v195h199v-195z',
+                'M1374 0h-211l-148 415h-640l-148 -415h-201l519 1407q-89 44 -142.5 123.5t-53.5 181.5q0 143 102 240t248 97q147 0 248.5 -97t101.5 -240q0 -100 -52.5 -181.5t-141.5 -123.5zM899 1710q0 86 -57 143.5t-143 57.5t-143 -58t-57 -143q0 -86 57.5 -143.5t142.5 -57.5 q86 0 143 57.5t57 143.5zM953 585l-258 715l-259 -715h517z',
+                'M1901 0h-944v556h-524l-212 -556h-207l594 1489h1293v-176h-749v-408h749v-176h-749v-553h749v-176zM957 723v601h-219l-239 -601h458z',
+                'M1350 108q-55 -24 -99.5 -45t-116.5 -44q-11 -3 -24 -7.5t-31 -7.5q2 -19 3.5 -44.5t1.5 -48.5q0 -162 -93.5 -248t-240.5 -86q-38 0 -97.5 7t-104.5 19v162h9q26 -10 71.5 -24t95.5 -14q106 0 155 40t49 126q0 19 -1 41.5t-3 42.5q-19 -2 -40.5 -3t-39.5 -1 q-162 0 -294.5 45.5t-230.5 142.5q-96 95 -150 241.5t-54 340.5q0 184 52 329t150 245q95 97 229.5 148t298.5 51q120 0 239.5 -29t265.5 -102v-235h-15q-123 103 -244 150t-259 47q-113 0 -203.5 -36.5t-161.5 -113.5q-69 -75 -107.5 -189.5t-38.5 -264.5q0 -157 42.5 -270 t109.5 -184q70 -74 163.5 -109.5t197.5 -35.5q143 0 268 49t234 147h14v-232z',
+                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM822 1675h-149l-273 374h243z',
+                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM993 2049l-273 -374h-149l179 374h243z',
+                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM1031 1670h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM1038 1677h-199v195h199v-195zM625 1677h-199v195h199v-195z',
+                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM568 1675h-149l-273 374h243z',
+                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM725 2049l-273 -374h-149l179 374h243z',
+                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM776 1670h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM738 1677h-199v195h199v-195zM325 1677h-199v195h199v-195z',
+                'M1468 743q0 -203 -88.5 -368t-235.5 -256q-102 -63 -227.5 -91t-330.5 -28h-376v740h-196v143h196v606h372q218 0 347 -31.5t217 -86.5q152 -95 237 -253t85 -375zM1261 746q0 175 -61 295t-182 189q-88 50 -187 69.5t-237 19.5h-188v-436h361v-143h-361v-570h188 q143 0 249.5 21t195.5 78q111 71 166.5 187t55.5 290z',
+                'M1336 0h-245l-706 1332v-1332h-185v1489h307l644 -1216v1216h185v-1489zM1208 1992q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5 q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
+                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM932 1675h-149l-273 374h243z',
+                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1083 2049l-273 -374h-149l179 374h243z',
+                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1136 1670h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1207 1992q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228 t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
+                'M1307 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1289 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1108 1677h-199v195h199v-195zM695 1677h-199v195h199v-195z',
+                'M1385 216l-111 -111l-436 440l-436 -440l-111 111l440 436l-440 436l111 111l436 -440l436 440l111 -111l-440 -436z',
+                'M1498 744q0 -184 -49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-115 0 -215.5 29t-179.5 84l-159 -228h-132l205 294q-101 100 -155.5 250t-54.5 346q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q118 0 215 -27.5t179 -82.5l142 201h132 l-188 -268q101 -100 156.5 -248.5t55.5 -350.5zM1097 1260q-57 46 -129 68.5t-161 22.5q-110 0 -200 -38.5t-156 -116.5q-64 -76 -98.5 -190.5t-34.5 -261.5q0 -140 29.5 -252t87.5 -188zM1295 744q0 139 -30 253t-88 189l-664 -957q60 -45 132.5 -68t161.5 -23 q110 0 201.5 40t153.5 116q67 82 100 194.5t33 255.5z',
+                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM932 1675h-149l-273 374h243z',
+                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM1073 2049l-273 -374h-149l179 374h243z',
+                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM1084 1670h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1321 598q0 -162 -35.5 -282.5t-116.5 -200.5q-77 -76 -180 -111t-240 -35q-140 0 -244 37t-175 109q-81 82 -116.5 198t-35.5 285v891h198v-901q0 -121 16.5 -191t55.5 -127q44 -65 119.5 -98t181.5 -33q107 0 182 32.5t120 98.5q39 57 55.5 130.5t16.5 182.5v906h198 v-891zM1056 1677h-199v195h199v-195zM643 1677h-199v195h199v-195z',
+                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211zM935 2049l-273 -374h-149l179 374h243z',
+                'M1174 787q0 -92 -35 -176.5t-95 -141.5q-78 -75 -187.5 -111t-260.5 -36h-198v-322h-198v1489h198v-270h205q133 0 230 -22.5t164 -66.5q83 -53 130 -138t47 -205zM968 782q0 72 -26 125.5t-82 88.5q-48 30 -112 42.5t-154 12.5h-196v-563h167q119 0 195 20.5t123 65.5 q44 41 64.5 92t20.5 116z',
+                'M1165 481q0 -214 -135.5 -359.5t-354.5 -145.5q-44 0 -101.5 7.5t-93.5 20.5v165h10q42 -24 91.5 -33t105.5 -9q74 0 129 29t88 78q35 52 50.5 115.5t15.5 139.5q0 166 -105.5 250.5t-303.5 84.5v150q157 0 234 59.5t77 188.5q0 35 -11 68t-41 64q-27 29 -71 46.5 t-105 17.5q-57 0 -103 -14.5t-86 -53.5q-37 -36 -59.5 -102t-22.5 -161v-1087h-188v1080q0 124 36 215.5t100 153.5q60 58 149.5 87.5t183.5 29.5q183 0 297.5 -87t114.5 -238q0 -112 -71 -201t-184 -121v-9q164 -37 259 -148.5t95 -280.5z',
+                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM738 1302h-149l-273 374h243z',
+                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM934 1676l-273 -374h-149l179 374h243z',
+                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM961 1297h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM1038 1619q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5 q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
+                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM926 1304h-199v195h199v-195zM513 1304h-199v195h199v-195z',
+                'M1053 0h-187v119q-25 -17 -67.5 -47.5t-82.5 -48.5q-47 -23 -108 -38.5t-143 -15.5q-151 0 -256 100t-105 255q0 127 54.5 205.5t155.5 123.5q102 45 245 61t307 24v29q0 64 -22.5 106t-64.5 66q-40 23 -96 31t-117 8q-74 0 -165 -19.5t-188 -56.5h-10v191q55 15 159 33 t205 18q118 0 205.5 -19.5t151.5 -66.5q63 -46 96 -119t33 -181v-758zM866 275v311q-86 -5 -202.5 -15t-184.5 -29q-81 -23 -131 -71.5t-50 -133.5q0 -96 58 -144.5t177 -48.5q99 0 181 38.5t152 92.5zM956 1630q0 -143 -102 -242t-248 -99q-144 0 -247 98.5t-103 242.5 q0 143 102 241t248 98q147 0 248.5 -98t101.5 -241zM811 1630q0 86 -58.5 145.5t-146.5 59.5t-146.5 -59t-58.5 -146t59 -146t146 -59q88 0 146.5 59t58.5 146z',
+                'M1855 559h-819q0 -114 30 -195t85 -133q52 -48 123 -70.5t157 -22.5q111 0 217.5 41.5t172.5 93.5h12v-205q-78 -35 -184.5 -64.5t-215.5 -29.5q-166 0 -284.5 52t-194.5 155q-21 -19 -67 -59t-96 -68q-63 -36 -137 -59.5t-189 -23.5q-150 0 -255.5 97t-105.5 249 q0 124 54 200.5t155 118.5q95 39 241 53t308 17v61q0 65 -23 107.5t-64 65.5q-40 23 -96 31.5t-116 8.5q-79 0 -168.5 -21t-179.5 -57h-13v191q55 15 158 34t204 19q159 0 264.5 -46.5t162.5 -137.5q69 82 170 134t226 52q217 0 342.5 -128t125.5 -379v-82zM1673 703 q-5 68 -23.5 119t-50.5 88q-34 39 -88.5 61t-133.5 22q-133 0 -223 -75t-115 -215h634zM894 298q-20 53 -30.5 119t-10.5 141q-105 -3 -201 -7.5t-178 -25.5q-79 -20 -127.5 -65.5t-48.5 -128.5q0 -95 58 -141t176 -46q99 0 195.5 43t166.5 111z',
+                'M1011 70q-33 -15 -71.5 -30.5t-67.5 -24.5q3 -19 5.5 -47.5t2.5 -56.5q0 -162 -91.5 -248t-237.5 -86q-37 0 -95 7t-103 19v160h9q26 -10 70 -23t94 -13q104 0 153 39t49 127q0 22 -1.5 45t-3.5 43q-16 -2 -30.5 -4t-39.5 -2q-121 0 -222 35.5t-173 107.5 q-73 72 -113 182t-40 257q0 274 150.5 430t397.5 156q96 0 188.5 -27t169.5 -66v-209h-10q-86 67 -177.5 103t-178.5 36q-160 0 -252.5 -107.5t-92.5 -315.5q0 -202 90.5 -310.5t254.5 -108.5q57 0 116 15t106 39q41 21 77 44.5t57 40.5h10v-207z',
+                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM759 1302h-149l-273 374h243z',
+                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM960 1676l-273 -374h-149l179 374h243z',
+                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM986 1297h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1120 539h-823q0 -103 31 -179.5t85 -125.5q52 -48 123.5 -72t157.5 -24q114 0 229.5 45.5t164.5 89.5h10v-205q-95 -40 -194 -67t-208 -27q-278 0 -434 150.5t-156 427.5q0 274 149.5 435t393.5 161q226 0 348.5 -132t122.5 -375v-102zM937 683q-1 148 -74.5 229 t-223.5 81q-151 0 -240.5 -89t-101.5 -221h640zM951 1304h-199v195h199v-195zM538 1304h-199v195h199v-195z',
+                'M375 0h-188v1117h188v-1117zM401 1302h-149l-273 374h243z',
+                'M375 0h-188v1117h188v-1117zM582 1676l-273 -374h-149l179 374h243z',
+                'M572 1297h-151l-143 267l-142 -267h-147l178 379h227zM375 0h-188v1117h188v-1117z',
+                'M557 1304h-189v195h189v-195zM194 1304h-189v195h189v-195zM375 0h-188v1117h188v-1117z',
+                'M1137 637q0 -324 -142 -496t-383 -172q-229 0 -367.5 135t-138.5 380q0 226 137 358t339 132q108 0 185.5 -26.5t163.5 -79.5q-32 112 -99.5 219t-154.5 181l-264 -162l-66 97l237 142q-84 67 -156 107.5t-165 87.5v16h295q35 -25 84 -58.5t86 -59.5l210 128l66 -97 l-186 -109q153 -147 236 -325.5t83 -397.5zM847 226q49 59 75 143.5t26 234.5q0 32 -1.5 59.5t-3.5 57.5q-75 45 -157.5 66.5t-168.5 21.5q-147 0 -231.5 -87.5t-84.5 -239.5q0 -180 84.5 -267t227.5 -87q66 0 127.5 22t106.5 76z',
+                'M1119 0h-188v636q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-725zM1075 1619q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5 t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M732 1302h-149l-273 374h243z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M933 1676l-273 -374h-149l179 374h243z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M963 1297h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M1038 1619q-11 -152 -77 -229t-177 -77q-54 0 -100 19.5t-87 56.5q-47 43 -79.5 64.5t-71.5 21.5q-52 0 -78 -45t-30 -121h-131q8 151 79 228t174 77q50 0 96.5 -19.5t88.5 -55.5q47 -41 83.5 -61.5t69.5 -20.5q51 0 79.5 46t31.5 116h129z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M928 1304h-199v195h199v-195zM515 1304h-199v195h199v-195z',
+                'M957 1022h-238v275h238v-275zM1466 572h-1256v160h1256v-160zM957 7h-238v275h238v-275z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-84 0 -155.5 21t-130.5 60l-133 -198h-110l171 256q-75 77 -116.5 190t-41.5 260q0 273 139.5 431.5t376.5 158.5q87 0 158 -22t125 -57l116 172h111l-155 -231q76 -76 118 -188t42 -264zM813 930q-37 29 -86.5 43.5t-104.5 14.5 q-155 0 -240 -110t-85 -320q0 -97 17 -171t52 -128zM946 558q0 97 -17.5 173t-51.5 130l-448 -671q39 -31 86.5 -46t106.5 -15q150 0 237 108.5t87 320.5z',
+                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM764 1302h-149l-273 374h243z',
+                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM945 1676l-273 -374h-149l179 374h243z',
+                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM985 1297h-159l-185 256l-184 -256h-155l228 379h227z',
+                'M1111 0h-188v124q-95 -75 -182 -115t-192 -40q-176 0 -274 107.5t-98 315.5v725h188v-636q0 -85 8 -145.5t34 -103.5q27 -44 70 -64t125 -20q73 0 159.5 38t161.5 97v834h188v-1117zM955 1304h-199v195h199v-195zM542 1304h-199v195h199v-195z',
+                'M1151 1117l-652 -1529h-201l208 466l-445 1063h204l343 -828l346 828h197zM928 1676l-273 -374h-149l179 374h243z',
+                'M1168 572q0 -136 -39 -248.5t-110 -190.5q-66 -74 -155.5 -114.5t-189.5 -40.5q-87 0 -157.5 19t-143.5 59v-468h-188v1968h188v-556q75 63 168.5 105.5t199.5 42.5q202 0 314.5 -152.5t112.5 -423.5zM974 567q0 202 -69 302t-212 100q-81 0 -163 -35t-157 -92v-633 q80 -36 137.5 -49t130.5 -13q157 0 245 106t88 314z',
+                'M585 832h-239v285h239v-285zM658 285l-282 -655h-146l174 655h254z',
+                'M773 1676l-49 -384h-145l-49 384h243z',
+                'M765 1676l-49 -384h-128l-49 384h226zM1048 1304h-191v195h191v-195zM447 1304h-191v195h191v-195z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523zM250 1489l-49 -384h-145l-49 384h243z',
+                'M585 832h-239v285h239v-285z',
+                'M1424 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176zM243 1489l-49 -384h-145l-49 384h243z',
+                'M1582 0h-198v729h-743v-729h-198v1489h198v-584h743v584h198v-1489zM243 1489l-49 -384h-145l-49 384h243z',
+                'M968 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM243 1489l-49 -384h-145l-49 384h243z',
+                'M1501 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1483 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM243 1489l-49 -384h-145l-49 384h243z',
+                'M1537 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211zM243 1489l-49 -384h-145l-49 384h243z',
+                'M1751 0h-576v387q60 38 119.5 82t103.5 101q45 59 71 138.5t26 185.5q0 206 -127 330.5t-347 124.5t-347 -124.5t-127 -330.5q0 -106 26 -185.5t71 -138.5q45 -57 104 -101t119 -82v-387h-576v174h410v124q-157 90 -258.5 246t-101.5 350q0 276 187.5 451t492.5 175 t492.5 -175t187.5 -451q0 -194 -101.5 -350t-258.5 -246v-124h410v-174zM243 1489l-49 -384h-145l-49 384h243z',
+                'M375 0h-188v1117h188v-1117zM379 1676l-56 -384h-84l-56 384h196zM615 1304h-171v195h171v-195zM118 1304h-171v195h171v-195z',
+                'M1374 0h-211l-146 415h-644l-146 -415h-201l542 1489h264zM956 585l-261 731l-262 -731h523z',
+                'M1323 458q0 -111 -42 -196t-113 -140q-84 -66 -184.5 -94t-255.5 -28h-528v1489h441q163 0 244 -12t155 -50q82 -43 119 -110.5t37 -161.5q0 -106 -54 -180.5t-144 -119.5v-8q151 -31 238 -132.5t87 -256.5zM990 1129q0 54 -18 91t-58 60q-47 27 -114 33.5t-166 6.5h-236 v-430h256q93 0 148 9.5t102 39.5t66.5 77.5t19.5 112.5zM1117 450q0 90 -27 143t-98 90q-48 25 -116.5 32.5t-166.5 7.5h-311v-554h262q130 0 213 13.5t136 49.5q56 39 82 89t26 129z',
+                'M1162 1313h-764v-1313h-198v1489h962v-176z',
+                'M1414 0h-1388l562 1489h264zM1147 168l-432 1147l-431 -1147h863z',
+                'M1181 0h-981v1489h981v-176h-783v-408h783v-176h-783v-553h783v-176z',
+                'M1288 0h-1162v184l913 1129h-879v176h1106v-179l-922 -1134h944v-176z',
+                'M1339 0h-198v729h-743v-729h-198v1489h198v-584h743v584h198v-1489z',
+                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5zM1120 713h-627v179h627v-179z',
+                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152z',
+                'M1397 0h-257l-589 663l-148 -158v-505h-198v1489h198v-777l723 777h240l-665 -700z',
+                'M1378 0h-213l-468 1285l-468 -1285h-203l556 1489h240z',
+                'M1526 0h-198v1283l-414 -873h-118l-411 873v-1283h-185v1489h270l397 -829l384 829h275v-1489z',
+                'M1336 0h-245l-706 1332v-1332h-185v1489h307l644 -1216v1216h185v-1489z',
+                'M1215 1313h-1101v176h1101v-176zM1163 729h-997v176h997v-176zM1215 0h-1101v176h1101v-176z',
+                'M1310 1318q91 -100 139.5 -245t48.5 -329t-49.5 -329.5t-138.5 -242.5q-92 -101 -217.5 -152t-286.5 -51q-157 0 -285.5 52t-218.5 151t-138.5 243t-48.5 329q0 182 48 326.5t140 247.5q88 98 218.5 150t284.5 52q160 0 287.5 -52.5t216.5 -149.5zM1292 744 q0 290 -130 447.5t-355 157.5q-227 0 -356.5 -157.5t-129.5 -447.5q0 -293 132 -448.5t354 -155.5t353.5 155.5t131.5 448.5z',
+                'M1339 0h-198v1313h-743v-1313h-198v1489h1139v-1489z',
+                'M1174 1039q0 -99 -34.5 -183.5t-96.5 -146.5q-77 -77 -182 -115.5t-265 -38.5h-198v-555h-198v1489h404q134 0 227 -22.5t165 -70.5q85 -57 131.5 -142t46.5 -215zM968 1034q0 77 -27 134t-82 93q-48 31 -109.5 44.5t-155.5 13.5h-196v-595h167q120 0 195 21.5t122 68.5 q47 48 66.5 101t19.5 119z',
+                'M1280 0h-1162v184l620 600l-600 526v179h1096v-176h-832l586 -506v-26l-630 -605h922v-176z',
+                'M1262 1313h-532v-1313h-198v1313h-532v176h1262v-176z',
+                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211z',
+                'M1572 755q0 -140 -44.5 -248.5t-123.5 -181.5q-85 -79 -207 -125.5t-260 -49.5v-166h-197v166q-134 3 -257 48t-210 127q-79 74 -123.5 182t-44.5 248q0 136 43 238t119 178q81 81 202.5 128t270.5 51v155h197v-155q148 -3 271 -52t202 -127q75 -73 118.5 -177t43.5 -239 zM1366 763q0 99 -32 182t-91 140q-58 56 -129 82t-177 28v-890q94 2 171 30.5t127 75.5q65 60 98 147t33 205zM740 305v890q-106 -1 -177 -28t-129 -82t-90.5 -140t-32.5 -182q0 -112 33.5 -203t97.5 -149q49 -45 126.5 -75t171.5 -31z',
+                'M1336 1489l-514 -736l513 -753h-229l-406 613l-416 -613h-216l519 744l-507 745h228l401 -605l410 605h217z',
+                'M1604 910q0 -157 -40.5 -264.5t-117.5 -174.5q-80 -69 -192.5 -104t-263.5 -45v-322h-197v322q-154 11 -267 47t-188 102q-78 69 -118.5 176t-40.5 263v579h198v-602q0 -109 29.5 -180t81.5 -115q53 -45 130 -68.5t175 -30.5v996h197v-996q97 8 175 30.5t131 68.5 q56 49 83 115.5t27 179.5v602h198v-579z',
+                'M1568 0h-576v387q60 38 119.5 82t103.5 101q45 59 71 138.5t26 185.5q0 206 -127 330.5t-347 124.5t-347 -124.5t-127 -330.5q0 -106 26 -185.5t71 -138.5q45 -57 104 -101t119 -82v-387h-576v174h410v124q-157 90 -258.5 246t-101.5 350q0 276 187.5 451t492.5 175 t492.5 -175t187.5 -451q0 -194 -101.5 -350t-258.5 -246v-124h410v-174z',
+                'M725 0h-588v152h195v1185h-195v152h588v-152h-195v-1185h195v-152zM738 1677h-199v195h199v-195zM325 1677h-199v195h199v-195z',
+                'M1254 1489l-524 -836v-653h-198v632l-526 857h219l407 -666l411 666h211zM939 1677h-199v195h199v-195zM526 1677h-199v195h199v-195z',
+                'M1091 0h-188v117q-81 -70 -169 -109t-191 -39q-200 0 -317.5 154t-117.5 427q0 142 40.5 253t109.5 189q68 76 158.5 116t187.5 40q88 0 156 -22t143 -61v52h188v-1117zM903 275v636q-76 34 -136 49.5t-131 15.5q-158 0 -246 -110t-88 -312q0 -199 68 -302.5t218 -103.5 q80 0 162 35.5t153 91.5zM743 1676l-49 -384h-145l-49 384h243z',
+                'M1006 64q-107 -48 -210 -69t-218 -21q-79 0 -161 16t-152 56q-69 39 -112.5 102.5t-43.5 157.5q0 96 56.5 168t177.5 110v7q-91 24 -145 90t-54 158q0 89 47.5 147.5t112.5 92.5q64 33 145 49t160 16q98 0 180 -16.5t172 -44.5v-207h-13q-66 51 -163.5 79t-197.5 28 q-45 0 -84 -5.5t-81 -25.5q-35 -15 -60.5 -48.5t-25.5 -77.5q0 -61 28 -95t76 -49q45 -14 97 -15.5t105 -1.5h111v-166h-158q-62 0 -112 -4.5t-92 -21.5q-41 -17 -65.5 -54t-24.5 -96q0 -53 26 -90t67 -58q37 -19 87.5 -29t106.5 -10q102 0 218 36t187 98h13v-206zM721 1676 l-49 -384h-145l-49 384h243z',
+                'M1119 -412h-188v1048q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-1137zM802 1676l-49 -384h-145l-49 384h243z',
+                'M375 0h-188v1117h188v-1117zM403 1676l-49 -384h-145l-49 384h243z',
+                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710zM760 1676l-49 -384h-128l-49 384h226zM1043 1304h-191 v195h191v-195zM442 1304h-191v195h191v-195z',
+                'M1091 0h-188v117q-81 -70 -169 -109t-191 -39q-200 0 -317.5 154t-117.5 427q0 142 40.5 253t109.5 189q68 76 158.5 116t187.5 40q88 0 156 -22t143 -61v52h188v-1117zM903 275v636q-76 34 -136 49.5t-131 15.5q-158 0 -246 -110t-88 -312q0 -199 68 -302.5t218 -103.5 q80 0 162 35.5t153 91.5z',
+                'M1165 444q0 -202 -134.5 -334t-339.5 -132q-79 0 -167 22t-151 64v-476h-188v1490q0 224 126.5 351t349.5 127q90 0 164.5 -21.5t133.5 -67.5q57 -43 91 -112t34 -160q0 -127 -69.5 -221.5t-196.5 -131.5v-17q159 -26 253 -125.5t94 -255.5zM971 449q0 89 -34.5 144.5 t-92.5 86.5q-59 32 -132 43t-146 11h-36v160h36q66 0 131 14.5t104 44.5q46 34 68.5 83t22.5 134q0 112 -69 170t-178 58q-73 0 -125 -26.5t-85 -70.5q-32 -44 -47 -102.5t-15 -120.5v-862q66 -38 141 -53.5t147 -15.5q149 0 229.5 78.5t80.5 223.5z',
+                'M1151 1117l-457 -1061v-468h-188v468l-445 1061h204l343 -828l346 828h197z',
+                'M1139 551q0 -272 -138.5 -427t-376.5 -155q-241 0 -379.5 151.5t-138.5 413.5q0 141 43 239.5t107 162.5q69 72 159 113t182 58q-76 63 -166 130.5t-192 139.5v179h810v-158h-561v-10q68 -46 179 -124t204 -162q150 -136 209 -261.5t59 -289.5zM945 551q0 135 -55 249 t-165 200q-66 -8 -138.5 -32t-138.5 -77q-63 -50 -105.5 -137t-42.5 -214q0 -201 85 -305t241 -104q153 0 236 105.5t83 314.5z',
+                'M1006 64q-107 -48 -210 -69t-218 -21q-79 0 -161 16t-152 56q-69 39 -112.5 102.5t-43.5 157.5q0 96 56.5 168t177.5 110v7q-91 24 -145 90t-54 158q0 89 47.5 147.5t112.5 92.5q64 33 145 49t160 16q98 0 180 -16.5t172 -44.5v-207h-13q-66 51 -163.5 79t-197.5 28 q-45 0 -84 -5.5t-81 -25.5q-35 -15 -60.5 -48.5t-25.5 -77.5q0 -61 28 -95t76 -49q45 -14 97 -15.5t105 -1.5h111v-166h-158q-62 0 -112 -4.5t-92 -21.5q-41 -17 -65.5 -54t-24.5 -96q0 -53 26 -90t67 -58q37 -19 87.5 -29t106.5 -10q102 0 218 36t187 98h13v-206z',
+                'M922 75q32 -40 46 -85.5t14 -85.5q0 -84 -45 -168.5t-112 -147.5h-179v14q90 79 128 138.5t38 128.5q0 57 -30.5 95t-77.5 38h-145q-229 0 -340 116t-111 345q0 140 46 268t124 247q75 112 173.5 214.5t206.5 196.5v9h-460v158h744v-135q-117 -78 -231.5 -181 t-204.5 -223q-89 -117 -146 -257t-57 -283q0 -34 3 -70t15 -76q10 -38 34.5 -75.5t63.5 -61.5q36 -22 96.5 -24.5t116.5 -2.5h86q71 0 122 -26t82 -66z',
+                'M1119 -412h-188v1048q0 77 -9 144.5t-33 105.5q-25 42 -72 62.5t-122 20.5q-77 0 -161 -38t-161 -97v-834h-188v1117h188v-124q88 73 182 114t193 41q181 0 276 -109t95 -314v-1137z',
+                'M1141 768q0 -190 -23 -316.5t-59 -210.5q-58 -135 -163 -203.5t-257 -68.5t-257 68.5t-163 203.5q-37 84 -59.5 210.5t-22.5 316.5q0 174 22.5 305.5t60.5 214.5q57 130 162.5 199t256.5 69t256.5 -69t162.5 -199q37 -84 60 -215t23 -305zM952 858q-4 143 -28.5 250 t-56.5 161q-41 70 -95 98.5t-133 28.5t-133 -28.5t-95 -98.5q-34 -55 -57.5 -161.5t-27.5 -249.5h626zM952 697h-626q0 -142 23 -258.5t59 -178.5q40 -69 96 -100t135 -31t135 31t96 100q36 62 59 178.5t23 258.5z',
+                'M375 0h-188v1117h188v-1117z',
+                'M1192 0h-248l-451 489l-112 -109v-380h-188v1117h188v-550l384 417q72 79 135.5 107t126.5 28q28 0 58 -1t37 -1v-166h-11q-16 2 -39.5 3t-36.5 1q-47 0 -85.5 -23.5t-67.5 -56.5l-251 -271z',
+                'M1151 0h-205l-328 829l-361 -829h-196l465 1056l-215 500h211z',
+                'M1125 0h-186v118q-74 -78 -141.5 -108.5t-145.5 -30.5q-75 0 -135 27t-144 107v-525h-188v1529h188v-838q32 -39 111 -80t170 -41q93 0 161 33.5t122 93.5v832h188v-1117z',
+                'M1151 1117l-452 -1117h-189l-449 1117h204l346 -889l343 889h197z',
+                'M1041 -96q0 -85 -45.5 -169t-111.5 -147h-180v14q92 79 129.5 139t37.5 128q0 55 -29 94t-75 39h-140q-140 0 -232.5 27t-155.5 84q-66 60 -100.5 135.5t-34.5 163.5q0 78 25 144t73 119q44 49 112.5 83.5t144.5 53.5v11q-125 28 -200 110.5t-75 186.5q0 83 43.5 150.5 t133.5 125.5v6h-228v154h824v-158h-256q-68 0 -122.5 -14.5t-102.5 -48.5q-45 -32 -72 -83t-27 -118q0 -79 32.5 -128t83.5 -75q45 -23 104 -34t139 -11h170v-165h-295q-66 0 -118.5 -20t-99.5 -59q-43 -37 -68.5 -90t-25.5 -112q0 -102 37.5 -159t101.5 -82 q63 -25 139.5 -28.5t166.5 -3.5h28q68 0 119.5 -23.5t84.5 -60.5q31 -35 48 -82.5t17 -96.5z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z',
+                'M1120 0h-188v955h-559v-955h-188v1117h935v-1117z',
+                'M1172 577q0 -258 -138.5 -428.5t-360.5 -170.5q-65 0 -146.5 18t-153.5 61v-469h-188v1058q0 123 35.5 215.5t101.5 158.5q62 62 155.5 95t195.5 33q243 0 371 -147t128 -424zM978 565q0 218 -80 320t-226 102q-158 0 -228.5 -96t-70.5 -278v-403q73 -34 132.5 -48.5 t134.5 -14.5q162 0 250 111t88 307z',
+                'M1018 -96q0 -87 -47 -172t-109 -144h-177v14q86 75 124.5 135.5t38.5 131.5q0 54 -30 93.5t-75 39.5h-92q-117 0 -216 30t-174 97q-73 66 -114.5 170t-41.5 250q0 270 155.5 432t414.5 162q84 0 164 -18.5t147 -45.5v-211h-12q-94 62 -172.5 87t-146.5 25 q-166 0 -260.5 -119t-94.5 -312q0 -112 28.5 -183t78.5 -116q50 -44 114.5 -63.5t139.5 -19.5h100q115 0 186 -76.5t71 -186.5z',
+                'M1137 558q0 -281 -140.5 -435t-373.5 -154q-241 0 -379 158t-138 431q0 275 141 432.5t378 157.5q55 0 108 -11t82 -20h480v-165h-288q62 -73 96 -170t34 -224zM943 558q0 215 -82 322t-236 107q-161 0 -243 -112t-82 -317q0 -209 83.5 -318t239.5 -109q152 0 236 107.5 t84 319.5z',
+                'M1006 952h-404v-952h-188v952h-404v165h996v-165z',
+                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710z',
+                'M1514 576q0 -259 -171.5 -417t-440.5 -173v-398h-187v398q-130 6 -240.5 46.5t-191.5 109.5q-85 74 -132 172t-47 232q0 159 59 296t192 275h229v-17q-136 -99 -210 -232t-74 -300q0 -189 112.5 -304t301.5 -121v1000q33 2 70.5 2.5t76.5 0.5q304 0 478.5 -149.5 t174.5 -420.5zM1319 586q0 184 -112 293.5t-305 109.5v-846q206 10 311.5 126t105.5 317z',
+                'M1160 -412h-213l-346 619l-350 -619h-203l444 770l-433 759h213l335 -600l339 600h203l-433 -751z',
+                'M1507 446q0 -114 -48 -198t-127 -137q-82 -55 -182 -82.5t-215 -32.5v-408h-187v408q-115 6 -214.5 32t-182.5 83q-80 54 -127.5 137.5t-47.5 197.5v671h188v-612q0 -113 37.5 -180.5t89.5 -102.5q56 -38 123 -53t134 -19v967h187v-967q67 5 134 19t123 53 q59 40 93 101.5t34 181.5v612h188v-671z',
+                'M1553 503q0 -96 -23.5 -192.5t-74.5 -171.5q-55 -80 -133.5 -124.5t-193.5 -44.5q-96 0 -177 49.5t-118 116.5h-6q-39 -68 -113 -117t-176 -49q-113 0 -194.5 46.5t-132.5 122.5t-74.5 171.5t-23.5 192.5q0 170 57 308.5t201 305.5h228v-17q-135 -108 -214.5 -262 t-79.5 -337q0 -66 8 -122.5t38 -119.5q26 -55 72.5 -91.5t117.5 -36.5q51 0 86.5 12.5t55.5 29.5q22 18 36.5 40t20.5 37v584h186v-584q9 -17 23 -39t35 -39q24 -19 52.5 -30t86.5 -11q70 0 117 35.5t74 92.5q25 55 36 116t11 126q0 182 -78.5 336t-215.5 263v17h228 q144 -167 201 -305.5t57 -308.5z',
+                'M557 1304h-189v195h189v-195zM194 1304h-189v195h189v-195zM375 0h-188v1117h188v-1117z',
+                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710zM953 1304h-199v195h199v-195zM540 1304h-199v195h199 v-195z',
+                'M1137 558q0 -273 -140 -431t-375 -158q-237 0 -376.5 158t-139.5 431t139.5 431.5t376.5 158.5q235 0 375 -158.5t140 -431.5zM943 558q0 217 -85 322.5t-236 105.5q-153 0 -237.5 -105.5t-84.5 -322.5q0 -210 85 -318.5t237 -108.5q150 0 235.5 107.5t85.5 319.5z M743 1676l-49 -384h-145l-49 384h243z',
+                'M1116 407q0 -218 -122 -327.5t-348 -109.5q-223 0 -346 107.5t-123 329.5v710h188v-641q0 -93 10 -153t42 -106q31 -43 84.5 -64.5t145.5 -21.5q86 0 143.5 22t87.5 66q29 44 39.5 105.5t10.5 151.5v641h188v-710zM768 1676l-49 -384h-145l-49 384h243z',
+                'M1553 503q0 -96 -23.5 -192.5t-74.5 -171.5q-55 -80 -133.5 -124.5t-193.5 -44.5q-96 0 -177 49.5t-118 116.5h-6q-39 -68 -113 -117t-176 -49q-113 0 -194.5 46.5t-132.5 122.5t-74.5 171.5t-23.5 192.5q0 170 57 308.5t201 305.5h228v-17q-135 -108 -214.5 -262 t-79.5 -337q0 -66 8 -122.5t38 -119.5q26 -55 72.5 -91.5t117.5 -36.5q51 0 86.5 12.5t55.5 29.5q22 18 36.5 40t20.5 37v584h186v-584q9 -17 23 -39t35 -39q24 -19 52.5 -30t86.5 -11q70 0 117 35.5t74 92.5q25 55 36 116t11 126q0 182 -78.5 336t-215.5 263v17h228 q144 -167 201 -305.5t57 -308.5zM955 1676l-49 -384h-145l-49 384h243z',
+                'M1145 837q0 -164 -39 -344t-121 -303q-85 -124 -186.5 -173t-214.5 -49q-192 0 -313.5 126.5t-121.5 329.5q0 228 134.5 372.5t336.5 144.5q90 0 169.5 -26t158.5 -91q2 26 3 55.5t1 55.5q0 217 -79 318t-231 101q-78 0 -169.5 -31.5t-169.5 -86.5h-11v194 q81 44 181.5 66.5t196.5 22.5q137 0 239.5 -54.5t164.5 -178.5q42 -86 56.5 -189t14.5 -260zM942 678q-60 47 -136 74t-148 27q-141 0 -225 -91t-84 -261q0 -145 67.5 -221.5t179.5 -76.5q128 0 209.5 97t115.5 287q6 33 11.5 73t9.5 92z',
+                'M1438 0h-1388l562 1489h264zM1171 168l-432 1147l-431 -1147h863z',
+                'M1532 1315h-200v-1508h-198v1508h-592v-1508h-198v1508h-200v174h1388v-174z',
+                'M1369 -189h-1182v191l673 668l-663 631v188h1133v-176h-891l648 -601v-72l-666 -653h948v-176z',
+                'M1456 572h-1236v160h1236v-160z',
+                'M843 1489l-780 -1489h-165l780 1489h165z',
+                'M492 511h-239v283h239v-283z',
+                'M1737 1788l-880 -1939h-102l-384 993h-237v139h393l313 -821l730 1628h167z',
+                'M1887 663q0 -239 -122.5 -372.5t-329.5 -133.5q-133 0 -244 76.5t-180 222.5q-79 -151 -184.5 -225t-248.5 -74q-191 0 -304 135.5t-113 349.5q0 238 125 372t327 134q134 0 245 -77t179 -222q79 150 185.5 224.5t247.5 74.5q191 0 304 -135.5t113 -349.5zM967 729 q-63 117 -155 175.5t-188 58.5q-138 0 -216 -83.5t-78 -237.5q0 -133 63.5 -216t182.5 -83q110 0 172 48.5t119 142.5q34 57 52.5 92.5t47.5 102.5zM1718 663q0 134 -64 216.5t-182 82.5q-88 0 -152.5 -35.5t-138.5 -155.5q-30 -48 -55.5 -99.5t-44.5 -95.5 q60 -115 153.5 -174.5t189.5 -59.5q138 0 216 83t78 238z',
+                'M1168 1367h-10q-32 8 -89.5 18.5t-89.5 10.5q-129 0 -181 -61q-53 -61 -53 -210v-1123q0 -206 -104 -315q-105 -110 -293 -110q-52 0 -106.5 5.5t-103.5 15.5v178h10q33 -8 87 -18.5t88 -10.5q129 0 182 61q52 61 52 210v1123q0 204 104 315q104 110 293 110 q58 0 109 -5.5t105 -15.5v-178z',
+                'M1431 1104q-20 -194 -111 -293t-249 -99q-77 0 -147 37.5t-126 82.5q-65 52 -117 79.5t-96 27.5q-75 0 -117 -48t-70 -172h-155q23 182 112.5 280t248.5 98q72 0 143 -37t130 -83q61 -48 114.5 -77.5t98.5 -29.5q76 0 120.5 54.5t63.5 179.5h157zM1432 588 q-25 -184 -112 -281.5t-250 -97.5q-72 0 -144 37.5t-129 82.5q-39 31 -103 69t-110 38q-78 0 -121 -55t-63 -179h-157q19 192 110.5 292t249.5 100q77 0 146 -37t127 -83q35 -28 97 -67.5t116 -39.5q75 0 117 49.5t69 171.5h157z',
+                'M1431 362h-608l-104 -335h-153l104 335h-425v156h474l84 268h-558v156h606l105 335h153l-105 -335h427v-156h-476l-83 -268h559v-156z',
+                'M1408 303l-1154 483v124l1154 483v-183l-889 -362l889 -362v-183zM1408 0h-1154v160h1154v-160z',
+                'M1422 786l-1154 -483v183l889 362l-889 362v183l1154 -483v-124zM1422 0h-1154v160h1154v-160z'
+            ];
+            this.OUTLINE_X = [
+                [], [291, 301, 505, 515], [168, 211, 729, 772, 554], [195, 389, 917, 1364, 1481, 1481, 1288, 760, 312, 195],
+                [155, 604, 722, 1129.8, 1160, 1107, 722, 604, 278.5, 191.1, 162, 155], [149, 172.3, 242, 630, 1687, 1844.3, 1960, 2031.3, 2055, 2031.8, 1962, 1575, 517, 359.8, 244, 172.8],
+                [115, 149.4, 252.5, 407.6, 598, 1555, 1287, 961.3, 881, 757.5, 601, 423.5, 293, 213.5, 187], [164, 207, 343, 386], [181, 205.5, 279, 554, 783, 783, 554, 279, 205.5],
+                [147, 376, 651, 724.5, 749, 724.5, 651, 376, 147], [167, 232, 588, 717, 1073, 1137, 1137, 1073, 717, 588, 232, 167], [210, 755, 921, 1466, 1466, 921, 755, 210],
+                [147, 293, 575, 321], [153, 777, 777, 153], [253, 492, 492, 253], [-30, 143, 860, 684],
+                [137, 167.9, 260.5, 420.1, 652, 881.4, 1041.5, 1135.6, 1167, 1136.1, 1043.5, 883.9, 652, 422, 262, 168.3], [278, 1084, 1084, 780, 625, 278],
+                [161, 1169, 1169, 1106, 1073.5, 976, 821.3, 617, 387.5, 198, 161], [167, 364, 608, 830.5, 1007, 1111, 1148, 1117, 1080, 971, 821, 629, 399.5, 210, 167],
+                [77, 790, 982, 1203, 1203, 982, 798, 77], [187, 378, 613, 843.5, 1015, 1119, 1157, 1147, 251, 187],
+                [137, 183.5, 316, 475, 675, 875.1, 1041.5, 1153.6, 1191, 1046, 965, 866, 542, 315, 179.5], [154, 285, 499, 1173, 1173, 154],
+                [122, 157.9, 265.5, 433.6, 651, 859.6, 1029.5, 1142.4, 1180, 1140, 1106.8, 1007, 851.5, 651, 456.8, 300, 196.5, 162],
+                [113, 258, 340, 438, 760, 988, 1122.5, 1167, 1121, 990, 829, 629, 429.5, 263, 150.5], [346, 585, 585, 346], [230, 376, 658, 585, 346], [254, 1408, 1408, 254],
+                [245, 1431, 1431, 245], [268, 1422, 1422, 268], [160, 406, 610, 970, 1005, 973.9, 880.5, 733.4, 541, 337.5, 160],
+                [176, 240, 419, 692, 1037, 1210, 1391, 1714, 1829.5, 1870, 1813.5, 1651, 1391, 1041, 701, 426, 243], [26, 1374, 832, 568],
+                [200, 728, 983.5, 1168, 1281, 1323, 1196, 1159, 1040, 885, 641, 200], [115, 169, 319, 549.5, 844, 1001.5, 1134, 1250.5, 1350, 1350, 1084.5, 845, 546.5, 317, 167],
+                [200, 576, 906.5, 1134, 1369.5, 1458, 1373, 1136, 918.5, 572, 200], [200, 1181, 1181, 200], [200, 398, 1045, 1151, 1151, 200],
+                [115, 171, 330, 577, 896, 1175.5, 1442, 1442, 1441, 1155.5, 896, 570.9, 323.5, 167.1], [200, 1339, 1339, 200], [137, 725, 725, 137],
+                [44, 178, 306, 486.6, 626.5, 716.1, 746, 746, 233, 44], [205, 1397, 1366, 205], [200, 1142, 1142, 398, 200], [200, 1526, 1526, 200], [200, 1336, 1336, 200],
+                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163], [200, 398, 1043, 1139.5, 1174, 1127.5, 996, 831, 604, 200],
+                [115, 163.5, 302, 520.5, 1010.5, 1133.1, 1290, 1409.5, 1528, 1528, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163], [200, 1432, 1130.5, 1004, 842, 617, 200],
+                [134, 395.5, 685, 941.5, 1128, 1241.5, 1282, 1222, 990, 702, 480.3, 301, 182.5, 143, 134], [0, 532, 730, 1262, 1262, 0],
+                [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 178], [26, 568, 832, 1374, 238], [92, 486, 1546, 1933, 295], [68, 1335, 1336, 80], [6, 532, 730, 1254, 225],
+                [126, 1288, 1288, 1266, 160, 126], [239, 759, 759, 239], [70, 787, 960, 246], [171, 691, 691, 171], [186, 383, 1490, 901, 775], [-4, 1306, 1306, -4], [340, 613, 762, 583],
+                [104, 130.3, 209, 325.5, 465, 1053, 1053, 1020, 924, 772.5, 567, 362, 203], [185, 679, 866, 1022, 1128.5, 1168, 1139.4, 1053.5, 918.1, 373, 185],
+                [105, 145, 258, 431, 653, 832.5, 1011, 1011, 841.5, 653, 430.1, 255.5, 142.6], [108, 137.4, 225.5, 363.6, 543, 1091, 1091, 903, 258, 148.5],
+                [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 997.5, 849.1, 649, 428.6, 255.5, 143.4], [68, 195, 383, 716, 786, 786, 693.5, 580, 415, 294, 68],
+                [108, 225, 391.5, 565, 798.3, 962, 1058.8, 1091, 1091, 602, 417, 259, 148.5], [185, 1119, 1119, 1095.3, 1024, 373, 185], [175, 187, 375, 387, 387, 175],
+                [-62, 47.5, 153, 304, 421, 496, 521, 533, 533, 321, 100, -62], [193, 1199, 1161, 381, 193], [187, 375, 375, 187], [185, 1815, 1815, 1793.1, 1727.5, 1615.9, 1456, 735, 185],
+                [185, 1119, 1119, 1095.3, 1024, 907.5, 748, 185], [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 997, 833.3, 622, 409.4, 245.5, 140.9],
+                [185, 373, 1019, 1129, 1168, 1139.9, 1055.5, 920.6, 741, 185], [108, 137.6, 226.5, 365.1, 903, 1091, 1091, 602, 414, 259, 149.5], [185, 373, 882, 882, 816, 745, 185],
+                [110, 283.5, 511, 706.9, 856.5, 951.4, 983, 939, 768.5, 566, 372.5, 230, 143.5, 115, 110], [62, 211.3, 278, 387.5, 538, 649.5, 765, 765, 377, 189, 62],
+                [177, 201.5, 275, 392.5, 549, 1111, 1111, 177], [61, 510, 699, 1151, 265], [86, 380, 1299, 1590, 766], [60, 1152, 1152, 64], [61, 298, 499, 1151, 265],
+                [93, 995, 995, 978, 107, 93], [173, 588.9, 672.5, 800.9, 963, 1113, 1113, 963, 800.9, 672.5, 588.9, 173], [378, 552, 552, 378],
+                [187, 337, 499.1, 627.5, 711.1, 1127, 1127, 711.1, 627.5, 499.1, 337, 187], [187, 354, 1125, 1290, 1401, 1466.5, 1489, 1322, 551, 386, 274, 209.5], [], [291, 515, 505, 301],
+                [159, 191.6, 289.5, 647, 765, 1120, 1120, 765, 647, 292.5, 192.4], [137, 1163, 1163, 1137, 997, 816, 630.6, 484.5, 389.6, 182, 137],
+                [138, 247, 1058, 1168, 1168, 1055, 249, 138], [108, 187, 557, 745, 1115, 1191, 320], [378, 552, 552, 378],
+                [172, 229, 404.5, 575, 796, 965, 1063, 1096, 1128, 1071, 896, 725, 497.5, 334, 235, 203], [346, 958, 958, 346],
+                [159, 222.4, 412.5, 692.1, 1024, 1355.9, 1635.5, 1825.6, 1889, 1825.6, 1635.5, 1355.9, 1024, 692.1, 412.5, 222.4],
+                [151, 238.5, 454, 944, 944, 920.3, 849, 723.5, 537, 368, 231], [166, 716, 1146, 1146, 716, 166], [210, 1285, 1456, 1456, 210], [153, 777, 777, 153],
+                [159, 222.4, 412.5, 692.1, 1024, 1355.9, 1635.5, 1825.6, 1889, 1825.6, 1635.5, 1355.9, 1024, 692.1, 412.5, 222.4], [-4, 1, 1306, 1306],
+                [154, 183, 270, 399.3, 555, 710.8, 840, 927, 956, 927.1, 840.5, 711.4, 555, 399.3, 270, 183], [215, 1461, 1461, 921, 755, 215],
+                [207, 967, 967, 911, 887.6, 817.5, 544, 369.5, 211, 207], [207, 363.5, 540, 703, 834, 923, 956, 929, 904.9, 832.5, 561, 384.5, 224, 207], [541, 690, 963, 720],
+                [190, 378, 1124, 1124, 190], [137, 168.5, 595, 1106, 1106, 640, 425.3, 267, 169.5], [253, 492, 492, 253], [353, 456, 551, 788.5, 857.1, 880, 877, 872, 719, 353],
+                [291, 299, 914, 914, 693, 558, 291], [121, 150.6, 239.5, 378.6, 559, 734.3, 874, 965.5, 996, 965.5, 874, 734.3, 559, 378.6, 239.5, 150.6], [174, 604, 1154, 1154, 604, 174],
+                [171, 465, 1694, 1857, 1857, 1694, 1410, 545, 408, 171], [171, 465, 1955, 1955, 1890, 1805.5, 1410, 545, 408, 171], [140, 555, 1750, 1913, 1913, 1750, 1500, 448, 294, 155, 140],
+                [113, 144.1, 237.5, 384.6, 577, 782, 958, 958, 712, 508, 147.5], [26, 1374, 862, 683, 440], [26, 1374, 955, 712, 533], [26, 1374, 1033, 805, 578, 350],
+                [26, 1374, 1119, 990, 541, 367, 288], [26, 1374, 1005, 806, 393], [26, 1374, 1049, 1023.6, 947.5, 834.6, 699, 564, 451, 374.5, 349], [14, 1901, 1901, 608],
+                [115, 169, 548, 652.5, 750, 990.5, 1350, 1350, 1084.5, 845, 546.5, 317, 167], [200, 1181, 1181, 643, 400, 200], [200, 1181, 1181, 993, 750, 200],
+                [200, 1181, 1181, 803, 576, 200], [200, 1181, 1181, 1038, 426, 200], [137, 725, 725, 389, 146, 137], [137, 725, 725, 482, 137], [93, 137, 725, 776, 548, 321],
+                [126, 137, 725, 738, 738, 126], [14, 210, 586, 916.5, 1144, 1379.5, 1468, 1383, 1146, 929, 582, 210, 14], [200, 1336, 1336, 1208, 1079, 630, 456, 200],
+                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 753, 510, 163], [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1083, 840, 303, 163],
+                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1136, 908, 681, 453, 163],
+                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1207, 1078, 629, 455, 163],
+                [112, 160.5, 299, 517.5, 803, 1089.5, 1307, 1445.5, 1495, 1446.5, 1108, 909, 496, 160], [291, 402, 1274, 1385, 1385, 1274, 402, 291],
+                [115, 120, 252, 1092.5, 1310, 1448.5, 1498, 1474, 1342, 806, 521.5, 303, 163], [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 753, 510, 178],
+                [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 1073, 830, 178], [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 856, 629, 178],
+                [178, 213.5, 330, 505, 749, 989, 1169, 1285.5, 1321, 1321, 1056, 444, 178], [6, 532, 730, 1254, 935, 692], [200, 398, 1044, 1139, 1174, 1127, 997, 398, 200],
+                [185, 675, 873.1, 1029.5, 1131.1, 1165, 1066, 1037.4, 951.5, 819.9, 654, 470.5, 321, 221, 185], [104, 130.3, 209, 325.5, 465, 1053, 1053, 1020, 559, 316, 203],
+                [104, 130.3, 209, 325.5, 465, 1053, 1053, 934, 691, 203], [104, 130.3, 209, 325.5, 465, 1053, 1053, 961, 733, 506, 278, 203],
+                [104, 130.3, 209, 325.5, 465, 1053, 1053, 1038, 909, 460, 286, 207], [104, 130.3, 209, 325.5, 465, 1053, 1053, 926, 314, 203],
+                [104, 130.3, 209, 325.5, 465, 1053, 1053, 956, 930.6, 854.5, 741.6, 606, 471, 358, 281.5, 256],
+                [104, 130.4, 209.5, 326.1, 465, 1433, 1648.5, 1833, 1855, 1855, 1823.6, 1729.5, 1581.1, 1387, 564, 360, 202],
+                [105, 145, 353, 456, 551, 788.5, 857.1, 1011, 1011, 841.5, 653, 430.1, 255.5, 142.6], [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 997.5, 580, 337, 143.4],
+                [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 960, 717, 255.5, 143.4], [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 986, 758, 531, 303, 143.4],
+                [106, 145, 262, 448.5, 696, 904, 1098, 1120, 1120, 1089.4, 951, 339, 143.4], [-21, 187, 375, 401, 222], [160, 187, 375, 582, 339], [-11, 187, 375, 572, 394, 167],
+                [5, 187, 375, 557, 557, 5], [106, 140.6, 244.5, 405.6, 612, 828.3, 995, 1101.5, 1137, 1004, 938, 263], [185, 1119, 1119, 1075, 946, 497, 323, 244, 185],
+                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 997, 553, 310, 140.9], [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 933, 690, 245.5, 140.9],
+                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 963, 735, 508, 280, 140.9], [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1038, 909, 460, 286, 207],
+                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 928, 729, 316, 140.9], [210, 719, 957, 1466, 1466, 957, 719, 210],
+                [93, 203, 833.3, 997, 1102, 1137, 1132, 1021, 409.4, 245.5, 140.9, 106], [177, 201.5, 275, 392.5, 549, 1111, 1111, 585, 342, 177],
+                [177, 201.5, 275, 392.5, 549, 1111, 1111, 945, 702, 177], [177, 201.5, 275, 392.5, 549, 1111, 1111, 757, 530, 177], [177, 201.5, 275, 392.5, 549, 1111, 1111, 955, 343, 177],
+                [61, 298, 499, 1151, 928, 685], [185, 373, 1019, 1129, 1168, 1139.9, 1055.5, 920.6, 373, 185], [230, 376, 658, 585, 346], [530, 579, 724, 773],
+                [256, 588, 716, 1048, 1048, 765, 539, 256], [7, 26, 1374, 832], [346, 585, 585, 346], [0, 49, 443, 1424, 1424, 443], [0, 49, 443, 1582, 1582, 443], [0, 49, 380, 968, 968, 380],
+                [0, 49, 354.5, 493, 711.5, 997, 1283.5, 1501, 1639.5, 1689, 1640.5, 1501, 1284.5, 997], [0, 49, 815, 1013, 1537, 289],
+                [0, 49, 291, 1751, 1751, 1701, 1654.1, 1513.5, 1296.6, 1021], [-53, 187, 375, 615, 615, 379, 183, -53], [26, 1374, 832, 568],
+                [200, 728, 983.5, 1168, 1281, 1323, 1196, 1159, 1040, 885, 641, 200], [200, 398, 1162, 1162, 200], [26, 1414, 852, 588], [200, 1181, 1181, 200],
+                [126, 1288, 1288, 1266, 160, 126], [200, 1339, 1339, 200], [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163],
+                [137, 725, 725, 137], [205, 1397, 1366, 205], [26, 1378, 822, 582], [200, 1526, 1526, 200], [200, 1336, 1336, 200], [114, 1215, 1215, 114],
+                [115, 163.5, 302, 520.5, 806, 1092.5, 1310, 1448.5, 1498, 1449.5, 1310, 1093.5, 806, 521.5, 303, 163], [200, 1339, 1339, 200],
+                [200, 398, 1043, 1139.5, 1174, 1127.5, 996, 831, 604, 200], [118, 1280, 1280, 1234, 138, 118], [0, 532, 730, 1262, 1262, 0], [6, 532, 730, 1254, 225],
+                [105, 149.5, 273, 740, 937, 1404, 1527.5, 1572, 1528.5, 1410, 937, 740, 267, 148], [68, 1335, 1336, 80], [179, 219.5, 338, 793, 990, 1446, 1563.5, 1604, 1604, 179],
+                [108, 1568, 1568, 1518, 1471.1, 1330.5, 1113.6, 838, 562.4, 345.5, 204.9, 158, 108], [126, 137, 725, 738, 738, 126], [6, 532, 730, 1254, 939, 740, 327],
+                [108, 137.4, 225.5, 363.6, 543, 1091, 1091, 743, 500, 148.5], [109, 152.5, 265, 417, 578, 796, 1006, 1006, 961, 721, 478, 191.5, 144],
+                [185, 931, 1119, 1119, 1095.3, 802, 559, 185], [160, 187, 375, 403], [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 1043, 760, 534, 251, 177],
+                [108, 137.4, 225.5, 363.6, 543, 1091, 1091, 604, 416.5, 258, 148.5], [185, 373, 1030.5, 1131.4, 1165, 1084, 1050, 959, 825.5, 661, 462.1, 311.5, 216.6, 185],
+                [61, 506, 694, 1151, 265], [106, 140.6, 244.5, 408.6, 624, 837.1, 1000.5, 1104.4, 1139, 1049, 239],
+                [109, 152.5, 265, 417, 578, 796, 1006, 1006, 961, 789, 609, 449, 304, 191.5, 144], [108, 135.8, 219, 646, 825, 937, 982, 942, 198],
+                [185, 931, 1119, 1119, 1095.3, 1024, 907.5, 748, 185], [137, 159.5, 219, 382, 639, 896, 1059, 1118, 1141, 1118, 1058, 895.5, 639, 382.5, 220, 159.5], [187, 375, 375, 187],
+                [193, 1192, 1122, 1085, 1027, 193], [61, 1151, 522, 311], [185, 373, 1125, 1125, 185], [61, 510, 699, 1151, 265], [104, 138.5, 239, 704, 884, 995.5, 1041, 957, 133],
+                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 997, 833.3, 622, 409.4, 245.5, 140.9], [185, 1120, 1120, 185],
+                [185, 373, 1033.5, 1137.4, 1172, 1140, 1044, 887.3, 673, 477.5, 322, 220.5, 185], [105, 146.5, 261, 685, 862, 971, 1018, 986, 839, 675, 441.9, 260.5, 143.9],
+                [106, 140.5, 244, 407.8, 623, 832.9, 996.5, 1101.9, 1295, 1295, 625, 412, 247, 141.3], [10, 414, 602, 1006, 1006, 10],
+                [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 177], [104, 151, 283, 715, 902, 1342.5, 1471.1, 1514, 1470.4, 1339.5, 1132.6, 861, 784.5, 714, 355, 163],
+                [48, 1160, 1149, 59], [176, 223.5, 748, 935, 1459, 1507, 1507, 176], [113, 136.5, 211, 343.5, 538, 1128, 1321.5, 1455, 1529.5, 1553, 1496, 1295, 371, 170],
+                [5, 187, 375, 557, 557, 5], [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 953, 341, 177],
+                [106, 140.9, 245.5, 409.4, 622, 833.3, 997, 1102, 1137, 1102, 743, 500, 140.9], [177, 207.8, 300, 448, 646, 846, 994, 1085.5, 1116, 1116, 768, 525, 177],
+                [113, 136.5, 211, 343.5, 538, 1128, 1321.5, 1455, 1529.5, 1553, 1496, 955, 712, 170],
+                [149, 179.4, 270.5, 409.6, 584, 798.5, 985, 1106, 1145, 1130.5, 1074, 909.5, 670, 473.5, 292], [50, 1438, 876, 612], [144, 344, 1332, 1532, 1532, 144],
+                [187, 1369, 1369, 1330, 197, 187], [220, 1456, 1456, 220], [-102, 63, 843, 678], [253, 492, 492, 253], [134, 755, 857, 1737, 1570, 134],
+                [161, 189.3, 274, 406.5, 578, 1435, 1620.9, 1764.5, 1856.4, 1887, 1858.8, 1774, 1641.5, 1470, 613, 430.3, 286, 192.3],
+                [138, 241.5, 348, 515.3, 641, 719, 1168, 1168, 1063, 954, 786.3, 661, 583, 138], [243, 400, 1070, 1214, 1320, 1432, 1431, 1274, 604, 462.4, 355.5, 243],
+                [245, 566, 719, 1431, 1431, 1109, 956, 245], [254, 1408, 1408, 254], [268, 1422, 1422, 268]
+            ];
+            this.OUTLINE_Y = [
+                [], [1489, 0, 0, 1489], [1556, 977, 977, 1556, 1556], [421, 0, 0, 421, 932, 1067, 1489, 1489, 1067, 556],
+                [85, -361, -361, 238.1, 380, 1231, 1576, 1576, 1185, 1071.5, 935, 283], [1075, 880.5, 743, 0, -29, -1.8, 80, 217.8, 413, 607.5, 745, 1489, 1517, 1489.8, 1408, 1270.3],
+                [409, 230.9, 90.5, -0.6, -31, 0, 909, 1333.4, 1432.5, 1498.1, 1520, 1490, 1412, 1301.5, 1174], [1556, 977, 977, 1556], [572, 286.3, 31, -412, -412, 1556, 1556, 1113, 857.8],
+                [-412, -412, 31, 286.3, 572, 857.8, 1113, 1556, 1556], [886, 776, 630, 630, 777, 887, 1299, 1409, 1556, 1556, 1410, 1300], [572, 27, 27, 572, 732, 1277, 1277, 732],
+                [-370, -370, 285, 285], [561, 561, 742, 742], [0, 0, 285, 285], [-304, -304, 1556, 1556],
+                [743, 400, 159, 16.5, -31, 15.9, 156.5, 397.4, 745, 1084.9, 1326.5, 1470.9, 1519, 1471.6, 1329.5, 1088.1], [0, 0, 152, 1494, 1494, 1286],
+                [0, 0, 171, 1110, 1279.4, 1409.5, 1492.4, 1520, 1491, 1427, 209], [63, -1.5, -31, 2.5, 106, 254, 441, 1161, 1320, 1436, 1500, 1520, 1490.5, 1426, 272],
+                [419, 0, 0, 419, 579, 1489, 1489, 649], [56, -5.5, -31, 6.5, 114, 274, 473, 1489, 1489, 267],
+                [654, 324, 104, 3, -31, 4.9, 112.5, 276.9, 483, 1494, 1512, 1517, 1453.5, 1277, 1005], [1314, 0, 0, 1266, 1489, 1489],
+                [411, 233.5, 91, -2.8, -34, -2, 94, 238.3, 415, 1144, 1294.5, 1416, 1496.3, 1523, 1495, 1411, 1285, 1131],
+                [1005, -6, -23.5, -29, 33, 209, 480, 834, 1171.5, 1385, 1485.5, 1519, 1483.3, 1376, 1211.8], [0, 0, 1117, 1117], [-370, -370, 285, 1117, 1117], [590, 77, 1227, 714],
+                [362, 362, 942, 942], [77, 590, 714, 1227], [1245, 0, 0, 964.5, 1139, 1293.4, 1414.5, 1492.9, 1519, 1497.5, 1449],
+                [647, 291, 15, -162.5, -226, -218.5, -190, 157, 394, 663, 1013.5, 1283, 1457, 1519, 1452, 1268, 991.5], [0, 0, 1489, 1489],
+                [0, 0, 28, 122, 262, 458, 1155, 1316.5, 1427, 1477, 1489, 1489], [743, 402.5, 161, 18.5, -27, -13.5, 19, 63, 108, 1385, 1487, 1516, 1465, 1317, 1072],
+                [0, 0, 28, 119, 375, 743, 1118, 1371, 1457.5, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 717, 1313, 1489, 1489],
+                [746, 405.5, 163, 19, -29, 12.5, 110, 749, 1382, 1485.5, 1516, 1464.4, 1309.5, 1065.4], [0, 0, 1489, 1489], [0, 0, 1489, 1489],
+                [8, -12.5, -21, 5.5, 85, 213.5, 387, 1489, 1489, 193], [0, 0, 1489, 1489], [0, 0, 176, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489],
+                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 709, 855.5, 1039, 1254, 1396, 1466.5, 1489, 1489],
+                [744, 415, 172, 21, -297.5, -369.1, -393, -386.5, -365, -183, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 1280.5, 1409, 1471.5, 1489, 1489],
+                [92, 3, -27, 9, 109, 253, 425, 1412, 1486, 1516, 1486.1, 1396.5, 1260.1, 1090, 340], [1313, 0, 0, 1313, 1489, 1489], [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 1489],
+                [1489, 0, 0, 1489, 1489], [1489, 0, 0, 1489, 1489], [0, 0, 1489, 1489], [1489, 0, 0, 1489, 1489], [0, 0, 176, 1489, 1489, 184], [-392, -392, 1556, 1556],
+                [1556, -304, -304, 1556], [-392, -392, 1556, 1556], [682, 682, 684, 1489, 1489], [-300, -300, -180, -180], [1676, 1302, 1302, 1676],
+                [324, 182.8, 69, -6, -31, 0, 758, 939, 1058, 1124.5, 1144, 1126, 1093], [0, -31, 8.5, 127, 315, 567, 812.8, 996, 1110, 1556, 1556],
+                [557, 300, 118, 10.5, -25, 0, 70, 1050, 1116, 1143, 1104, 987, 801.5], [550, 306.8, 123, 7.5, -31, 0, 1556, 1556, 992, 803],
+                [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1016, 1115, 1148, 1107.8, 987, 797.8], [959, 0, 0, 959, 1374, 1546, 1560, 1566, 1539.4, 1459.5, 1117],
+                [569, -375, -410.5, -423, -389.8, -290, -119.3, 127, 1117, 1148, 1108.5, 998, 817.5], [0, 0, 725, 906, 1039, 1556, 1556], [1304, 0, 0, 1304, 1499, 1499],
+                [-395, -415, -423, -398, -323, -199, -27, 1304, 1499, 1499, 1117, -216], [0, 0, 1117, 1556, 1556], [0, 0, 1556, 1556], [0, 0, 725, 902.9, 1036.5, 1120.1, 1148, 1148, 1117],
+                [0, 0, 725, 906, 1039, 1120.8, 1148, 1117], [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 989.5, 1108.4, 1148, 1108.4, 989.5, 802.4],
+                [-412, -412, 133, 323.5, 572, 813.4, 995.5, 1109.9, 1148, 1117], [555, 314.1, 131.5, 16.4, -412, -412, 1117, 1148, 1108, 995, 809.5], [0, 0, 912, 1105, 1114.5, 1117, 1117],
+                [67, 2.5, -27, -2.5, 71, 182.8, 322, 1060, 1119.5, 1144, 1116.5, 1042, 933, 803, 278], [959, 189.8, 70, 1, -22, -13, 10, 1117, 1438, 1438, 1117],
+                [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1117], [1117, 0, 0, 1117, 1117], [1117, 0, 0, 1117, 1117], [0, 0, 1117, 1117], [1117, -412, -412, 1117, 1117],
+                [0, 0, 159, 1117, 1117, 139], [504, -170.9, -292.5, -367.1, -392, -392, 1556, 1556, 1531.1, 1456.5, 1334.9, 660], [-392, -392, 1556, 1556],
+                [-392, -392, -367.1, -292.5, -170.9, 504, 660, 1334.9, 1456.5, 1531.1, 1556, 1556], [395, 395, 396, 440, 561, 732, 927, 927, 926, 880.5, 761, 589.5], [], [0, 0, 1489, 1489],
+                [557, 333.5, 163, -361, -361, 74, 1046, 1475, 1475, 948.5, 775.9], [0, 0, 171, 1467, 1501, 1518, 1485.9, 1389.5, 1243.1, 751, 207],
+                [258, 145, 147, 257, 1067, 1176, 1176, 1066], [1489, 426, 0, 0, 426, 1489, 1489], [-392, -392, 1556, 1556],
+                [533, -327, -371.5, -385, -358, -275, -156, -10, 601, 1462, 1505, 1519, 1490, 1411, 1293.5, 1147], [1304, 1304, 1499, 1499],
+                [655, 323.1, 43.5, -146.6, -210, -146.6, 43.5, 323.1, 655, 986.9, 1266.5, 1456.6, 1520, 1456.6, 1266.5, 986.9],
+                [833, 616, 531, 554, 1192, 1332.4, 1435.5, 1498.9, 1520, 1504, 1475], [608, 162, 191, 1113, 1142, 697], [602, 57, 57, 762, 762], [561, 561, 742, 742],
+                [655, 323.1, 43.5, -146.6, -210, -146.6, 43.5, 323.1, 655, 986.9, 1266.5, 1456.6, 1520, 1456.6, 1266.5, 986.9], [1788, 1668, 1668, 1788],
+                [1116, 960.4, 831.5, 744.9, 716, 745, 832, 961, 1116, 1271, 1400, 1487, 1516, 1487, 1400, 1271], [179, 179, 917, 1462, 1462, 917],
+                [566, 566, 711, 1237, 1350.4, 1440.5, 1519, 1501.5, 1458, 722], [585, 542, 527, 543.5, 595, 685.5, 817, 1278, 1374.5, 1452, 1520, 1502.5, 1458, 764],
+                [1302, 1302, 1676, 1676], [-412, -412, 0, 1117, 1117], [1050, 866, -363, -363, 1489, 1489, 1460, 1373, 1234.3], [511, 511, 794, 794],
+                [-397, -416, -423, -337, -232, -89, -25, 20, 20, -237], [1256, 566, 566, 688, 1493, 1493, 1368],
+                [1025, 820.1, 663.5, 564.1, 531, 563.4, 660.5, 816.4, 1025, 1233.8, 1390, 1487.5, 1520, 1486.8, 1387, 1230], [191, 162, 608, 697, 1142, 1113],
+                [1246, 0, 0, 220, 353, 944, 1489, 1493, 1493, 1363], [1246, 0, 0, 139, 664, 865, 1489, 1493, 1493, 1363], [598, 0, 0, 220, 353, 944, 1489, 1517, 1500, 1456, 773],
+                [350, 195.6, 74.5, -3.9, -30, -10, 40, 244, 1489, 1489, 523], [0, 0, 1675, 2049, 2049], [0, 0, 2049, 2049, 1675], [0, 0, 1670, 2049, 2049, 1670],
+                [0, 0, 1992, 1992, 1987, 1910, 1682], [0, 0, 1872, 1872, 1872], [0, 0, 1712, 1843.5, 1952, 2024.8, 2049, 2024.8, 1952, 1843.5, 1712], [0, 0, 1489, 1489],
+                [743, 402.5, -397, -416, -423, -337, 108, 1385, 1487, 1516, 1465, 1317, 1072], [0, 0, 1489, 2049, 2049, 1489], [0, 0, 1489, 2049, 2049, 1489], [0, 0, 1489, 2049, 2049, 1489],
+                [0, 0, 1489, 1872, 1872, 1489], [0, 0, 1489, 2049, 2049, 1489], [0, 0, 2049, 2049, 1489], [1670, 0, 0, 1670, 2049, 2049], [1677, 0, 0, 1677, 1872, 1872],
+                [740, 0, 0, 28, 119, 375, 743, 1118, 1371, 1457.5, 1489, 1489, 883], [0, 0, 1489, 1992, 1992, 1987, 1910, 1489],
+                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 2049, 2049, 1070.5], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 2049, 2049, 1318, 1070.5],
+                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1670, 2049, 2049, 1670, 1070.5], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1992, 1992, 1987, 1910, 1070.5],
+                [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1872, 1872, 1872, 1070.5], [216, 105, 105, 216, 1088, 1199, 1199, 1088],
+                [744, -146, -146, 20, 172, 414.5, 744, 1611, 1611, 1520, 1468, 1318, 1070.5], [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 2049, 2049, 1489],
+                [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 2049, 2049, 1489], [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 2049, 2049, 1489],
+                [598, 313, 115, 6, -31, 4, 115, 315.5, 598, 1489, 1872, 1872, 1489], [1489, 0, 0, 1489, 2049, 2049], [0, 0, 469, 610.5, 787, 992, 1130, 1489, 1489],
+                [0, -24, 12.4, 121.5, 284.1, 481, 1241, 1376, 1479, 1544.3, 1566, 1536.5, 1449, 1295.5, 1080], [324, 182.8, 69, -6, -31, 0, 758, 939, 1676, 1676, 1093],
+                [324, 182.8, 69, -6, -31, 0, 758, 1676, 1676, 1093], [324, 182.8, 69, -6, -31, 0, 758, 1297, 1676, 1676, 1297, 1093],
+                [324, 182.8, 69, -6, -31, 0, 758, 1619, 1619, 1614, 1537, 1309], [324, 182.8, 69, -6, -31, 0, 758, 1499, 1499, 1093],
+                [324, 182.8, 69, -6, -31, 0, 758, 1630, 1761.8, 1871, 1944.5, 1969, 1944.5, 1871, 1761.8, 1630],
+                [317, 178.8, 68, -4.8, -29, -26, 3.5, 68, 559, 641, 861.3, 1020, 1116, 1148, 1146, 1127, 1093], [557, 300, -397, -416, -423, -337, -232, 70, 1050, 1116, 1143, 1104, 987, 801.5],
+                [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1016, 1676, 1676, 797.8], [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1676, 1676, 987, 797.8],
+                [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1297, 1676, 1676, 1297, 797.8], [552, 306.6, 124.5, 11.6, -26, 1, 68, 539, 641, 856.3, 1499, 1499, 797.8],
+                [1676, 0, 0, 1302, 1676], [1302, 0, 0, 1676, 1676], [1297, 0, 0, 1297, 1676, 1676], [1304, 0, 0, 1304, 1499, 1499],
+                [484, 266.5, 104, 2.8, -31, 12, 141, 351, 637, 1469, 1566, 1556], [0, 0, 725, 1619, 1619, 1614, 1537, 1309, 1117],
+                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 989.5, 1676, 1676, 802.4], [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1676, 1676, 989.5, 802.4],
+                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1297, 1676, 1676, 1297, 802.4], [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 1619, 1619, 1614, 1537, 1309],
+                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1499, 1499, 1499, 802.4], [572, 7, 7, 572, 732, 1297, 1297, 732],
+                [-148, -148, 8.5, 127, 313.8, 558, 1241, 1241, 1108.4, 989.5, 802.4, 558], [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1676, 1676, 1117],
+                [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1676, 1676, 1117], [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1676, 1676, 1117], [392, 209.1, 76.5, -4.1, -31, 0, 1117, 1499, 1499, 1117],
+                [1117, -412, -412, 1117, 1676, 1676], [-412, -412, 133, 323.5, 572, 813.4, 995.5, 1109.9, 1556, 1556], [-370, -370, 285, 1117, 1117], [1676, 1292, 1292, 1676],
+                [1304, 1292, 1292, 1304, 1499, 1676, 1676, 1499], [1489, 0, 0, 1489], [832, 832, 1117, 1117], [1489, 1105, 0, 0, 1489, 1489], [1489, 1105, 0, 0, 1489, 1489],
+                [1489, 1105, 0, 0, 1489, 1489], [1489, 1105, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520], [1489, 1105, 0, 0, 1489, 1489],
+                [1489, 1105, 0, 0, 174, 894, 1144.8, 1345, 1476.3, 1520], [1304, 0, 0, 1304, 1499, 1676, 1676, 1499], [0, 0, 1489, 1489],
+                [0, 0, 28, 122, 262, 458, 1155, 1316.5, 1427, 1477, 1489, 1489], [0, 0, 1313, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 176, 1489, 1489, 184],
+                [0, 0, 1489, 1489], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489],
+                [0, 0, 1489, 1489], [0, 0, 1489, 1489], [0, 0, 1489, 1489], [744, 415, 172, 21, -31, 20, 172, 414.5, 744, 1073, 1318, 1467.5, 1520, 1468, 1318, 1070.5], [0, 0, 1489, 1489],
+                [0, 0, 709, 855.5, 1039, 1254, 1396, 1466.5, 1489, 1489], [0, 0, 176, 1489, 1489, 184], [1313, 0, 0, 1313, 1489, 1489], [1489, 0, 0, 1489, 1489],
+                [755, 507, 325, -16, -16, 325, 506.5, 755, 994, 1171, 1505, 1505, 1171, 993], [0, 0, 1489, 1489], [910, 647, 471, 0, 0, 471, 645.5, 910, 1489, 1489],
+                [0, 0, 174, 894, 1144.8, 1345, 1476.3, 1520, 1476.3, 1345, 1144.8, 894, 174], [1677, 0, 0, 1677, 1872, 1872], [1489, 0, 0, 1489, 1872, 1872, 1872],
+                [550, 306.8, 123, 7.5, -31, 0, 1117, 1676, 1676, 803], [306, 148.5, 46, -10, -26, -5, 64, 270, 1083, 1676, 1676, 986.5, 839], [0, -412, -412, 725, 906, 1676, 1676, 1117],
+                [1676, 0, 0, 1676], [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1499, 1676, 1676, 1499, 1117], [550, 306.8, 123, 7.5, -31, 0, 1117, 1148, 1108, 992, 803],
+                [-412, -412, 110, 259.5, 444, 1195, 1355, 1467, 1534.5, 1556, 1524.3, 1429, 1277.8, 1078], [1117, -412, -412, 1117, 1117],
+                [534, 299.6, 120.5, 6.9, -31, 7.8, 124, 308.3, 551, 1556, 1556], [306, 148.5, 46, -10, -26, -5, 64, 270, 1083, 1127.5, 1144, 1128, 1079, 986.5, 839],
+                [463, 262.3, 118, -412, -412, -264.5, -96, 1556, 1556], [0, -412, -412, 725, 906, 1039, 1120.8, 1148, 1117],
+                [768, 451.5, 241, 37.5, -31, 37.5, 241, 451.5, 768, 1073, 1288, 1487, 1556, 1487, 1288, 1073.5], [0, 0, 1117, 1117], [0, 0, 1117, 1118, 1119, 1117], [0, 0, 1556, 1556],
+                [-412, -412, 0, 1117, 1117], [1117, 0, 0, 1117, 1117], [412, 248.5, 113, -412, -412, -265, -96, 1556, 1556],
+                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 989.5, 1108.4, 1148, 1108.4, 989.5, 802.4], [0, 0, 1117, 1117],
+                [-412, -412, 148.5, 340.9, 577, 821.5, 1001, 1111.3, 1148, 1115, 1020, 861.5, 646], [549, 299, 129, -412, -412, -268, -96, 1079, 1124.5, 1143, 1102.5, 981, 792],
+                [558, 313.8, 127, 8.5, -31, 7.5, 123, 308.8, 952, 1117, 1148, 1108.6, 990.5, 803.6], [952, 0, 0, 952, 1117, 1117],
+                [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1117], [546, 314, 142, -412, -412, 159, 342.3, 576, 816.6, 996.5, 1108.6, 1146, 1145.5, 1143, 1117, 842],
+                [-412, -412, 1117, 1117], [446, 248.5, -412, -412, 248, 446, 1117, 1117], [503, 310.5, 139, 16.5, -30, -30, 14.5, 139, 310.5, 503, 811.5, 1117, 1117, 811.5],
+                [1304, 0, 0, 1304, 1499, 1499], [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1499, 1499, 1117],
+                [558, 313.8, 127, 8.5, -31, 8.5, 127, 313.8, 558, 802.4, 1676, 1676, 802.4], [407, 213.6, 77.5, -3.1, -30, -2.6, 79.5, 216.1, 407, 1117, 1676, 1676, 1117],
+                [503, 310.5, 139, 16.5, -30, -30, 14.5, 139, 310.5, 503, 811.5, 1676, 1676, 811.5], [424, 240.1, 94.5, -0.4, -32, 17, 190, 493, 837, 1097, 1286, 1464.5, 1519, 1496.5, 1430],
+                [0, 0, 1489, 1489], [1315, -193, -193, 1315, 1489, 1489], [-189, -189, -13, 1489, 1489, 2], [572, 572, 732, 732], [0, 0, 1489, 1489], [511, 511, 794, 794],
+                [842, -151, -151, 1788, 1788, 981], [642, 447.6, 292.5, 190.9, 157, 157, 190.4, 290.5, 450.4, 663, 857.4, 1012.5, 1114.1, 1148, 1148, 1114.5, 1014, 854],
+                [-402, -417.5, -423, -395.5, -313, -179.8, 1367, 1545, 1560.5, 1566, 1538.5, 1456, 1321.8, -224], [202, 202, 209, 233.4, 306.5, 588, 1104, 1104, 1097, 1072.5, 999, 719],
+                [362, 27, 27, 362, 942, 1277, 1277, 942], [0, 0, 1393, 910], [0, 0, 910, 1393]
+            ];
+            this.KERN_C1 = [
+                '\'', '\'', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-', '.', '.', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
+                'A', 'A', 'A', 'A', 'A', 'B', 'B', 'B', 'B', 'C', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F', 'F',
+                'I', 'J', 'J', 'J', 'J', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'K', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L', 'L',
+                'L', 'O', 'O', 'O', 'O', 'O', 'O', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', 'Q', 'Q', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'S',
+                'S', 'S', 'S', 'S', 'S', 'S', 'S', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T', 'T',
+                'T', 'T', 'T', 'T', 'T', 'T', 'U', 'U', 'U', 'U', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'V', 'W', 'W', 'W', 'W', 'W', 'W',
+                'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y',
+                'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Y', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z', 'Z',
+                'a', 'a', 'a', 'b', 'b', 'b', 'c', 'c', 'e', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'f', 'h', 'h', 'h', 'k', 'k', 'k', 'k', 'm', 'm',
+                'm', 'n', 'n', 'n', 'o', 'o', 'o', 'o', 'o', 'p', 'p', 'p', 'r', 'r', 'r', 'r', 'r', 't', 't', 'v', 'v', 'v', 'v', 'v', 'v', 'v', 'v', 'w', 'w', 'w',
+                'w', 'w', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'y', 'z', 'z', 'z', 'z', 'z', 'z', 'z',
+                'z', 'z', '\u00C7', '\u00E7', '\u00D8', '\u00D8', '\u00D8', '\u00D8', '\u00D8', '\u00D8', '\u00F8', '\u00F8', '\u00F8', '\u00F8', '\u00F8'
+            ];
+            this.KERN_C2 = [
+                '\u00C6', 'A', '\u00E6', '\u00C6', 'z', 'y', 'x', 'w', 'v', 'a', 'Z', 'Y', 'X', 'W', 'V', 'T', 'S', 'J', 'I', 'A', '-', ',', 'y', 'w', 'v', 'u', 't',
+                'Y', 'W', 'V', 'U', 'T', 'S', '-', 'T', '.', '-', ',', '-', 'Z', 'Y', 'X', 'W', 'T', '.', ',', '\u00F8', '\u00E6', '\u00C6', 'o', 'e', 'a', 'T', 'A',
+                '?', ';', ':', '.', ',', '-', '\u00C6', 'A', '.', ',', '\u00F8', '\u00E6', '\u00D8', 'y', 'w', 'v', 'u', 'o', 'e', 'a', 'O', '-', '\u00D8', '\u00C7',
+                'y', 'v', 'Y', 'W', 'V', 'T', 'O', 'J', 'G', 'C', '-', '\'', 'Z', 'Y', 'X', 'T', '.', ',', '\u00F8', '\u00E6', '\u00C6', 'o', 'e', 'a', 'Y', 'A',
+                '.', ',', '.', ',', '\u00F8', '\u00E6', 'y', 'u', 'o', 'e', 'a', 'Y', 'T', '-', '\u00C6', 'y', 'w', 'v', 'S', 'A', '.', ',', '\u00F8', '\u00E6',
+                '\u00D8', '\u00C6', '\u00C7', 'z', 'y', 'w', 'v', 'u', 's', 'r', 'o', 'g', 'e', 'c', 'a', 'T', 'S', 'O', 'G', 'C', 'A', '?', ';', ':', '.', '-', ',',
+                '\u00C6', 'A', '.', ',', '\u00F8', '\u00E6', '\u00C6', 'y', 'u', 'o', 'e', 'a', 'A', ';', ':', '.', '-', ',', '\u00F8', '\u00E6', '\u00C6', 'y', 'u',
+                'r', 'o', 'e', 'a', 'A', ';', ':', '.', '-', ',', '\u00F8', '\u00E6', '\u00D8', '\u00C7', 'y', 'u', 'o', 'e', 'a', 'O', 'G', 'C', '-', '\u00F8',
+                '\u00E6', '\u00D8', '\u00C6', 'v', 'u', 's', 'r', 'q', 'p', 'o', 'n', 'm', 'g', 'e', 'd', 'a', 'O', 'A', ';', ':', '.', '-', ',', '\u00F8', '\u00E6',
+                '\u00D8', '\u00C7', 'y', 'w', 'o', 'e', 'a', 'Z', 'O', 'G', 'C', '-', 'y', 'w', 'v', 'y', '.', ',', 'T', '-', 'T', '}', 'y', ']', '\\', '?', '.',
+                '-', ',', '*', ')', '\'', '"', 'y', 'w', 'v', '\u00F8', 'o', 'e', '-', 'y', 'w', 'v', 'y', 'w', 'v', 'y', 'x', 'v', '.', ',', 'y', '.', ',',
+                '\u00E6', 'a', '.', '-', ',', 'y', '-', '\u00F8', '\u00E6', 'o', 'e', 'a', '.', '-', ',', '\u00E6', 'a', '.', '-', ',', '\u00F8', '\u00E7', 'o', 'g',
+                'e', 'd', 'c', '-', '\u00F8', '\u00E6', '\u00E7', 'q', 'o', 'g', 'e', 'd', 'c', 'a', '.', '-', ',', '\u00F8', '\u00E7', 'q', 'o', 'g', 'e', 'd', 'c',
+                '-', '-', '-', 'Z', 'Y', 'X', 'T', '.', ',', 'y', 'x', 'v', '.', ','
+            ];
+            this.KERN_K = [
+                100, 100, 20, 50, 40, 40, 50, 20, 40, 20, 30, 140, 80, 50, 50, 150, 20, 100, 30, 50, 160, 130, 50, 30, 50, 10, 20, 80, 50, 60, 10, 120, 10, 50, 60,
+                20, -10, 20, 50, 20, 20, 10, 20, 50, 50, 50, 50, 100, 110, 50, 50, 100, -30, 100, -60, 60, 60, 300, 300, 30, 10, 10, 20, 20, 70, 60, 20, 80, 70, 80,
+                50, 70, 70, 60, 20, 110, 20, 20, 110, 110, 160, 100, 110, 170, 20, -100, 20, 20, 160, 120, 20, 20, 10, 50, 30, 30, 50, 50, 70, 50, 50, 50, -20, 50,
+                300, 300, 30, 30, 50, 50, 55, 20, 50, 50, 40, 20, 60, 100, 20, 30, 20, 30, 22, 20, 20, 20, 220, 240, 50, 130, 40, 170, 200, 200, 200, 200, 180, 200,
+                220, 210, 220, 220, 240, 70, 12, 50, 40, 40, 120, -60, 200, 200, 290, 150, 290, 20, 10, 20, 20, 100, 100, 70, 65, 60, 100, 100, 100, 60, 80, 80, 290,
+                50, 290, 100, 100, 60, 65, 60, 60, 100, 100, 100, 50, 80, 80, 220, 50, 290, 60, 50, 10, 10, 80, 30, 60, 60, 50, 10, 10, 10, 80, 130, 140, 20, 80,
+                100, 110, 110, 100, 130, 100, 130, 100, 100, 130, 130, 120, 140, 20, 80, 200, 200, 290, 140, 290, 60, 50, 20, 20, 65, 40, 60, 60, 50, 10, 20, 20, 20,
+                60, 16, 10, 16, 5, 20, 30, 60, 20, 140, -100, 10, -100, -100, -110, 120, 50, 130, -50, -100, -60, -60, 20, 10, 20, 20, 20, 20, 100, 20, 10, 20, 20,
+                10, 20, 15, 20, 15, 20, 30, 5, 20, 30, 40, 36, 290, 20, 290, 10, 40, 18, 40, 18, 18, 40, 180, 40, 180, 20, 20, 70, 20, 70, 24, 20, 24, 10, 24, 10,
+                20, 50, 18, 40, 18, 10, 18, 10, 18, 10, 18, 40, 190, 40, 190, 12, 10, 10, 12, 10, 12, 10, 10, 20, 50, 20, 20, 20, 10, 50, 30, 30, 15, 20, 15, 20, 30
+            ];
+            this.pathCache = [];
+            this.pathMissing = null;
+            this.ctxReference = null;
+            for (let n = this.GLYPH_DATA.length - 1; n >= 0; n--)
+                this.pathCache[n] = null;
+        }
+        getKerning(ch1, ch2) {
+            const sz = this.KERN_K.length;
+            for (let n = 0; n < sz; n++)
+                if (this.KERN_C1[n] == ch1 && this.KERN_C2[n] == ch2)
+                    return -this.KERN_K[n];
+            return 0;
+        }
+        static measureText(txt, size) { return this.main.measureText(txt, size); }
+        measureText(txt, size) {
+            let font = FontData.main;
+            let scale = size / font.UNITS_PER_EM;
+            let dx = 0;
+            for (let n = 0; n < txt.length; n++) {
+                let ch = txt.charAt(n);
+                let i = this.getIndex(ch);
+                if (i < 0) {
+                    dx += font.MISSING_HORZ;
+                    continue;
+                }
+                dx += font.HORIZ_ADV_X[i];
+                if (n < txt.length - 1)
+                    dx += font.getKerning(ch, txt.charAt(n + 1));
+            }
+            return [dx * scale, font.ASCENT * scale * font.ASCENT_FUDGE, -font.DESCENT * scale];
+        }
+        getIndex(ch) {
+            return this.UNICODE.indexOf(ch);
+        }
+        getRawGlyph(idx) {
+            return this.GLYPH_DATA[idx];
+        }
+        getGlyphPath(idx) {
+            let path = this.pathCache[idx];
+            if (path != null)
+                return path;
+            path = new Path2D(this.GLYPH_DATA[idx]);
+            this.pathCache[idx] = path;
+            return path;
+        }
+        getMissingPath() {
+            if (!this.pathMissing)
+                this.pathMissing = new Path2D(this.MISSING_DATA);
+            return this.pathMissing;
+        }
+        getOutlineX(idx) { return this.OUTLINE_X[idx].slice(0); }
+        getOutlineY(idx) { return this.OUTLINE_Y[idx].slice(0); }
+        initNativeFont(ctx) {
+            if (ctx == null && this.ctxReference)
+                return;
+            if (ctx == null) {
+                let canvas = $('<canvas></canvas>').appendTo(document.body);
+                this.ctxReference = canvas[0].getContext('2d');
+                canvas.remove();
+            }
+            else
+                this.ctxReference = ctx;
+        }
+        static measureTextNative(txt, family, size) { return this.main.measureTextNative(txt, family, size); }
+        measureTextNative(txt, family, size) {
+            if (!this.ctxReference)
+                throw 'Calling measureTextNative without having called initNativeFont first';
+            this.ctxReference.save();
+            this.ctxReference.font = size + 'px ' + family;
+            let metrics = this.ctxReference.measureText(txt);
+            this.ctxReference.restore();
+            const FUDGE = this.ASCENT_FUDGE * this.ASCENT / this.UNITS_PER_EM;
+            return [metrics.width, size * FUDGE, size * (-this.DESCENT / this.ASCENT) * FUDGE];
+        }
+    }
+    FontData.main = new FontData();
+    WebMolKit.FontData = FontData;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    let TextAlign;
+    (function (TextAlign) {
+        TextAlign[TextAlign["Centre"] = 0] = "Centre";
+        TextAlign[TextAlign["Left"] = 1] = "Left";
+        TextAlign[TextAlign["Right"] = 2] = "Right";
+        TextAlign[TextAlign["Baseline"] = 0] = "Baseline";
+        TextAlign[TextAlign["Middle"] = 4] = "Middle";
+        TextAlign[TextAlign["Top"] = 8] = "Top";
+        TextAlign[TextAlign["Bottom"] = 16] = "Bottom";
+    })(TextAlign = WebMolKit.TextAlign || (WebMolKit.TextAlign = {}));
+    class MetaVector {
+        constructor(vec) {
+            this.PRIM_LINE = 1;
+            this.PRIM_RECT = 2;
+            this.PRIM_OVAL = 3;
+            this.PRIM_PATH = 4;
+            this.PRIM_TEXT = 5;
+            this.PRIM_TEXTNATIVE = 6;
+            this.types = [];
+            this.prims = [];
+            this.width = 0;
+            this.height = 0;
+            this.offsetX = 0;
+            this.offsetY = 0;
+            this.scale = 1;
+            this.density = 1;
+            this.charMissing = false;
+            this.lowX = null;
+            this.lowY = null;
+            this.highX = null;
+            this.highY = null;
+            const font = WebMolKit.FontData.main;
+            this.charMask = WebMolKit.Vec.booleanArray(false, font.UNICODE.length);
+            if (vec != null) {
+                if (vec.size != null) {
+                    this.width = vec.size[0];
+                    this.height = vec.size[1];
+                }
+                if (vec.types != null)
+                    this.types = vec.types;
+                if (vec.prims != null)
+                    this.prims = vec.prims;
+                for (let p of this.prims)
+                    if (p[0] == this.PRIM_TEXT) {
+                        let txt = p[4];
+                        for (let n = 0; n < txt.length; n++) {
+                            let i = font.getIndex(txt.charAt(n));
+                            if (i >= 0)
+                                this.charMask[i] = true;
+                            else
+                                this.charMissing = true;
+                        }
+                    }
+            }
+        }
+        drawLine(x1, y1, x2, y2, colour, thickness) {
+            if (thickness == null)
+                thickness = 1;
+            let typeidx = this.findOrCreateType([this.PRIM_LINE, thickness, colour]);
+            const bump = 0.5 * thickness;
+            this.updateBounds(Math.min(x1, x2) - bump, Math.min(y1, y2) - bump);
+            this.updateBounds(Math.max(x1, x2) + bump, Math.max(y1, y2) + bump);
+            this.prims.push([this.PRIM_LINE, typeidx, x1, y1, x2, y2]);
+        }
+        drawRect(x, y, w, h, edgeCol, thickness, fillCol) {
+            if (edgeCol == null)
+                edgeCol = MetaVector.NOCOLOUR;
+            if (fillCol == null)
+                fillCol = MetaVector.NOCOLOUR;
+            if (thickness == null)
+                thickness = 1;
+            let typeidx = this.findOrCreateType([this.PRIM_RECT, edgeCol, fillCol, thickness]);
+            const bump = 0.5 * thickness;
+            this.updateBounds(x - bump, y - bump);
+            this.updateBounds(x + w + bump, y + h + bump);
+            this.prims.push([this.PRIM_RECT, typeidx, x, y, w, h]);
+        }
+        drawOval(cx, cy, rw, rh, edgeCol, thickness, fillCol) {
+            if (edgeCol == null)
+                edgeCol = MetaVector.NOCOLOUR;
+            if (fillCol == null)
+                fillCol = MetaVector.NOCOLOUR;
+            if (thickness == null)
+                thickness = 1;
+            const bump = 0.5 * thickness;
+            this.updateBounds(cx - rw - bump, cy - rh - bump);
+            this.updateBounds(cx + rw + bump, cy + rh + bump);
+            let typeidx = this.findOrCreateType([this.PRIM_OVAL, edgeCol, fillCol, thickness]);
+            this.prims.push([this.PRIM_OVAL, typeidx, cx, cy, rw, rh]);
+        }
+        drawPath(xpoints, ypoints, ctrlFlags, isClosed, edgeCol, thickness, fillCol, hardEdge) {
+            if (edgeCol == null)
+                edgeCol = MetaVector.NOCOLOUR;
+            if (fillCol == null)
+                fillCol = MetaVector.NOCOLOUR;
+            if (thickness == null)
+                thickness = 1;
+            if (hardEdge == null)
+                hardEdge = false;
+            const bump = 0.5 * thickness;
+            for (let n = 0; n < xpoints.length; n++) {
+                this.updateBounds(xpoints[n] - bump, ypoints[n] - bump);
+                if (bump != 0)
+                    this.updateBounds(xpoints[n] + bump, ypoints[n] + bump);
+            }
+            let typeidx = this.findOrCreateType([this.PRIM_PATH, edgeCol, fillCol, thickness, hardEdge]);
+            this.prims.push([this.PRIM_PATH, typeidx, xpoints.length, WebMolKit.clone(xpoints), WebMolKit.clone(ypoints), WebMolKit.clone(ctrlFlags), isClosed]);
+        }
+        drawPoly(xpoints, ypoints, edgeCol, thickness, fillCol, hardEdge) {
+            this.drawPath(xpoints, ypoints, null, true, edgeCol, thickness, fillCol, hardEdge);
+        }
+        drawText(x, y, txt, size, colour, align, direction) {
+            if (align == null)
+                align = TextAlign.Left | TextAlign.Baseline;
+            if (direction == null)
+                direction = 0;
+            let cosTheta = 1, sinTheta = 0;
+            if (direction != 0)
+                [cosTheta, sinTheta] = [Math.cos(direction * WebMolKit.DEGRAD), Math.sin(direction * WebMolKit.DEGRAD)];
+            const font = WebMolKit.FontData.main;
+            for (let n = 0; n < txt.length; n++) {
+                let i = font.getIndex(txt.charAt(n));
+                if (i >= 0)
+                    this.charMask[i] = true;
+                else
+                    this.charMissing = true;
+            }
+            let metrics = font.measureText(txt, size);
+            let bx = 0, by = 0;
+            let dx = 0;
+            if ((align & TextAlign.Left) != 0) { }
+            else if ((align & TextAlign.Right) != 0)
+                dx = -metrics[0];
+            else
+                dx = -0.5 * metrics[0];
+            if (dx != 0) {
+                bx += dx * cosTheta;
+                by += dx * sinTheta;
+            }
+            let dy = 0;
+            if ((align & TextAlign.Middle) != 0)
+                dy = 0.5 * metrics[1];
+            else if ((align & TextAlign.Top) != 0)
+                dy = metrics[1];
+            else if ((align & TextAlign.Bottom) != 0)
+                dy = -metrics[2];
+            if (dy != 0) {
+                bx -= dy * sinTheta;
+                by += dy * cosTheta;
+            }
+            let x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+            let tx = 0;
+            for (let n = 0; n < txt.length; n++) {
+                let ch = txt.charAt(n);
+                let i = font.getIndex(ch);
+                if (i >= 0) {
+                    let outlineX = font.getOutlineX(i), outlineY = font.getOutlineY(i);
+                    x1 = Math.min(x1, tx + WebMolKit.Vec.min(outlineX));
+                    x2 = Math.max(x2, tx + WebMolKit.Vec.max(outlineX));
+                    y1 = Math.min(y1, -WebMolKit.Vec.max(outlineY));
+                    y2 = Math.max(y2, -WebMolKit.Vec.min(outlineY));
+                    tx += font.HORIZ_ADV_X[i];
+                    if (n < txt.length - 1)
+                        tx += font.getKerning(ch, txt.charAt(n + 1));
+                }
+                else
+                    tx += font.MISSING_HORZ;
+            }
+            const mscale = size * font.INV_UNITS_PER_EM;
+            if (direction == 0) {
+                this.updateBounds(x + bx + x1 * mscale, y + by + y1 * mscale);
+                this.updateBounds(x + bx + x2 * mscale, y + by + y2 * mscale);
+            }
+            else {
+                let rx1 = x1 * mscale, ry1 = y1 * mscale;
+                let rx2 = x2 * mscale, ry2 = y2 * mscale;
+                this.updateBounds(x + bx + rx1 * cosTheta - ry1 * sinTheta, y + by + rx1 * sinTheta + ry1 * cosTheta);
+                this.updateBounds(x + bx + rx2 * cosTheta - ry1 * sinTheta, y + by + rx2 * sinTheta + ry1 * cosTheta);
+                this.updateBounds(x + bx + rx2 * cosTheta - ry2 * sinTheta, y + by + rx2 * sinTheta + ry2 * cosTheta);
+                this.updateBounds(x + bx + rx1 * cosTheta - ry2 * sinTheta, y + by + rx1 * sinTheta + ry2 * cosTheta);
+            }
+            let typeidx = this.findOrCreateType([this.PRIM_TEXT, size, colour]);
+            this.prims.push([this.PRIM_TEXT, typeidx, x + bx, y + by, txt, direction]);
+        }
+        drawTextNative(x, y, txt, fontFamily, fontSize, colour, align) {
+            if (align == null)
+                align = TextAlign.Left | TextAlign.Baseline;
+            const font = WebMolKit.FontData.main;
+            for (let n = 0; n < txt.length; n++) {
+                let i = font.getIndex(txt.charAt(n));
+                if (i >= 0)
+                    this.charMask[i] = true;
+                else
+                    this.charMissing = true;
+            }
+            let metrics = font.measureTextNative(txt, fontFamily, fontSize);
+            let bx = 0, by = 0;
+            if ((align & TextAlign.Left) != 0) { }
+            else if ((align & TextAlign.Right) != 0)
+                bx = -metrics[0];
+            else
+                bx = -0.5 * metrics[0];
+            if ((align & TextAlign.Middle) != 0)
+                by += 0.5 * metrics[1];
+            else if ((align & TextAlign.Top) != 0)
+                by += metrics[1];
+            else if ((align & TextAlign.Bottom) != 0)
+                by -= metrics[2];
+            this.updateBounds(x, y - metrics[1]);
+            this.updateBounds(x + metrics[0], y + metrics[2]);
+            let typeidx = this.findOrCreateType([this.PRIM_TEXTNATIVE, fontFamily, fontSize, colour]);
+            this.prims.push([this.PRIM_TEXTNATIVE, typeidx, x + bx, y + by, txt]);
+        }
+        boundLowX() { return this.lowX; }
+        boundLowY() { return this.lowY; }
+        boundHighX() { return this.highX; }
+        boundHighY() { return this.highY; }
+        getBounds() { return new WebMolKit.Box(this.lowX, this.lowY, this.highX - this.lowX, this.highY - this.lowY); }
+        measure() {
+            this.width = Math.ceil(this.highX - this.lowX);
+            this.height = Math.ceil(this.highY - this.lowY);
+        }
+        normalise() {
+            if (this.lowX != 0 || this.lowY != 0)
+                this.transformPrimitives(-this.lowX, -this.lowY, 1, 1);
+            this.width = Math.ceil(this.highX - this.lowX);
+            this.height = Math.ceil(this.highY - this.lowY);
+        }
+        setSize(width, height) { this.width = width; this.height = height; }
+        transformIntoBox(box) {
+            this.transformPrimitives(-this.lowX, -this.lowY, 1, 1);
+            let nw = Math.ceil(this.highX - this.lowX), nh = Math.ceil(this.highY - this.lowY);
+            let scale = 1;
+            if (nw > box.w) {
+                let mod = box.w / nw;
+                nw = box.w;
+                nh *= mod;
+                scale *= mod;
+            }
+            if (nh > box.h) {
+                let mod = box.h / nh;
+                nh = box.h;
+                nw *= mod;
+                scale *= mod;
+            }
+            let ox = 0.5 * (box.w - nw), oy = 0.5 * (box.h - nh);
+            this.transformPrimitives(box.x + ox, box.y + oy, scale, scale);
+        }
+        transformPrimitives(ox, oy, sw, sh) {
+            if (ox == 0 && oy == 0 && sw == 1 && sh == 1)
+                return;
+            for (let a of this.prims) {
+                const type = a[0];
+                if (type == this.PRIM_LINE) {
+                    a[2] = ox + a[2] * sw;
+                    a[3] = oy + a[3] * sh;
+                    a[4] = ox + a[4] * sw;
+                    a[5] = oy + a[5] * sh;
+                }
+                else if (type == this.PRIM_RECT) {
+                    a[2] = ox + a[2] * sw;
+                    a[3] = oy + a[3] * sh;
+                    a[4] = a[4] * sw;
+                    a[5] = a[5] * sh;
+                }
+                else if (type == this.PRIM_OVAL) {
+                    a[2] = ox + a[2] * sw;
+                    a[3] = oy + a[3] * sh;
+                    a[4] *= sw;
+                    a[5] *= sh;
+                }
+                else if (type == this.PRIM_PATH) {
+                    let sz = a[2], px = a[3], py = a[4];
+                    for (let n = 0; n < sz; n++) {
+                        px[n] = ox + px[n] * sw;
+                        py[n] = oy + py[n] * sh;
+                    }
+                }
+                else if (type == this.PRIM_TEXT || type == this.PRIM_TEXTNATIVE) {
+                    a[2] = ox + a[2] * sw;
+                    a[3] = oy + a[3] * sh;
+                }
+            }
+            let swsh = 0.5 * (sw + sh);
+            if (swsh != 1)
+                for (let t of this.types) {
+                    const type = t[0];
+                    if (type == this.PRIM_LINE)
+                        t[1] *= swsh;
+                    else if (type == this.PRIM_RECT)
+                        t[3] *= swsh;
+                    else if (type == this.PRIM_OVAL)
+                        t[3] *= swsh;
+                    else if (type == this.PRIM_PATH)
+                        t[3] *= swsh;
+                    else if (type == this.PRIM_TEXT)
+                        t[1] *= swsh;
+                    else if (type == this.PRIM_TEXTNATIVE)
+                        t[1] *= swsh;
+                }
+            this.lowX = ox + this.lowX * sw;
+            this.lowY = oy + this.lowY * sh;
+            this.highX = ox + this.highX * sw;
+            this.highY = oy + this.highY * sh;
+        }
+        renderInto(parent) {
+            let canvas = WebMolKit.newElement(parent, 'canvas', { 'width': this.width, 'height': this.height });
+            this.renderCanvas(canvas);
+            return canvas;
+        }
+        renderCanvas(canvas, clearFirst) {
+            let ctx = canvas.getContext('2d');
+            if (clearFirst)
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let w = canvas.style.width ? parseInt(canvas.style.width) : canvas.width / this.density;
+            let h = canvas.style.height ? parseInt(canvas.style.height) : canvas.height / this.density;
+            this.density = WebMolKit.pixelDensity();
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            canvas.width = w * this.density;
+            canvas.height = h * this.density;
+            this.renderContext(ctx);
+        }
+        renderContext(ctx) {
+            ctx.save();
+            ctx.scale(this.density, this.density);
+            this.typeObj = [];
+            for (let n = 0; n < this.types.length; n++) {
+                let t = this.types[n];
+                if (t[0] == this.PRIM_LINE)
+                    this.typeObj[n] = this.setupTypeLine(t);
+                else if (t[0] == this.PRIM_RECT)
+                    this.typeObj[n] = this.setupTypeRect(t);
+                else if (t[0] == this.PRIM_OVAL)
+                    this.typeObj[n] = this.setupTypeOval(t);
+                else if (t[0] == this.PRIM_PATH)
+                    this.typeObj[n] = this.setupTypePath(t);
+                else if (t[0] == this.PRIM_TEXT)
+                    this.typeObj[n] = this.setupTypeText(t);
+                else if (t[0] == this.PRIM_TEXTNATIVE)
+                    this.typeObj[n] = this.setupTypeTextNative(t);
+            }
+            for (let n = 0; n < this.prims.length; n++) {
+                let p = this.prims[n];
+                if (p[0] == this.PRIM_LINE)
+                    this.renderLine(ctx, p);
+                else if (p[0] == this.PRIM_RECT)
+                    this.renderRect(ctx, p);
+                else if (p[0] == this.PRIM_OVAL)
+                    this.renderOval(ctx, p);
+                else if (p[0] == this.PRIM_PATH)
+                    this.renderPath(ctx, p);
+                else if (p[0] == this.PRIM_TEXT)
+                    this.renderText(ctx, p);
+                else if (p[0] == this.PRIM_TEXTNATIVE)
+                    this.renderTextNative(ctx, p);
+            }
+            ctx.restore();
+        }
+        createSVG() {
+            let svg = $('<svg/>');
+            svg.attr('xmlns', 'http://www.w3.org/2000/svg');
+            svg.attr('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+            svg.attr('width', this.width);
+            svg.attr('height', this.height);
+            svg.attr('viewBox', '0 0 ' + this.width + ' ' + this.height);
+            this.renderSVG(svg);
+            let tmp = $('<tmp/>');
+            tmp.append(svg);
+            return tmp.html();
+        }
+        renderSVG(svg) {
+            this.typeObj = [];
+            const font = WebMolKit.FontData.main;
+            let defs = $('<defs/>').appendTo(svg);
+            if (this.charMissing) {
+                let path = $('<path/>').appendTo(defs);
+                path.attr('id', 'missing');
+                path.attr('d', font.MISSING_DATA);
+                path.attr('edge', 'none');
+            }
+            for (let n = 0; n < font.UNICODE.length; n++)
+                if (this.charMask[n]) {
+                    let path = $('<path/>').appendTo(defs);
+                    path.attr('id', 'char' + n);
+                    path.attr('d', font.GLYPH_DATA[n]);
+                    path.attr('edge', 'none');
+                }
+            for (let n = 0; n < this.types.length; n++) {
+                let t = this.types[n];
+                if (t[0] == this.PRIM_LINE)
+                    this.typeObj[n] = this.setupTypeLine(t);
+                else if (t[0] == this.PRIM_RECT)
+                    this.typeObj[n] = this.setupTypeRect(t);
+                else if (t[0] == this.PRIM_OVAL)
+                    this.typeObj[n] = this.setupTypeOval(t);
+                else if (t[0] == this.PRIM_PATH)
+                    this.typeObj[n] = this.setupTypePath(t);
+                else if (t[0] == this.PRIM_TEXT)
+                    this.typeObj[n] = this.setupTypeText(t);
+                else if (t[0] == this.PRIM_TEXTNATIVE)
+                    this.typeObj[n] = this.setupTypeTextNative(t);
+            }
+            for (let n = 0; n < this.prims.length;) {
+                let p = this.prims[n], num = 1;
+                if (p[0] != this.PRIM_PATH && p[0] != this.PRIM_TEXT && p[0] != this.PRIM_TEXTNATIVE) {
+                    for (; n + num < this.prims.length; num++)
+                        if (this.prims[n + num][0] != p[0] || this.prims[n + num][1] != p[1])
+                            break;
+                }
+                if (p[0] == this.PRIM_LINE) {
+                    if (num == 1)
+                        this.svgLine1(svg, p);
+                    else
+                        this.svgLineN(svg, p, n, num);
+                }
+                else if (p[0] == this.PRIM_RECT) {
+                    if (num == 1)
+                        this.svgRect1(svg, p);
+                    else
+                        this.svgRectN(svg, p, n, num);
+                }
+                else if (p[0] == this.PRIM_OVAL) {
+                    if (num == 1)
+                        this.svgOval1(svg, p);
+                    else
+                        this.svgOvalN(svg, p, n, num);
+                }
+                else if (p[0] == this.PRIM_PATH)
+                    this.svgPath(svg, p);
+                else if (p[0] == this.PRIM_TEXT)
+                    this.svgText(svg, p);
+                else if (p[0] == this.PRIM_TEXTNATIVE)
+                    this.svgTextNative(svg, p);
+                n += num;
+            }
+        }
+        spool(into) {
+            for (let p of this.prims) {
+                if (p[0] == this.PRIM_LINE) {
+                    let [_, typeidx, x1, y1, x2, y2] = p;
+                    let [, thickness, colour] = this.types[typeidx];
+                    into.drawLine(x1, y1, x2, y2, colour, thickness);
+                }
+                else if (p[0] == this.PRIM_RECT) {
+                    let [_, typeidx, x, y, w, h] = p;
+                    let [, edgeCol, fillCol, thickness] = this.types[typeidx];
+                    into.drawRect(x, y, w, h, edgeCol, thickness, fillCol);
+                }
+                else if (p[0] == this.PRIM_OVAL) {
+                    let [_, typeidx, x, y, w, h] = p;
+                    let [, edgeCol, fillCol, thickness] = this.types[typeidx];
+                    into.drawOval(x, y, w, h, edgeCol, thickness, fillCol);
+                }
+                else if (p[0] == this.PRIM_PATH) {
+                    let [_, typeidx, numPoints, xpoints, ypoints, ctrlFlags, isClosed] = p;
+                    let [, edgeCol, fillCol, thickness, hardEdge] = this.types[typeidx];
+                    into.drawPath(xpoints, ypoints, ctrlFlags, isClosed, edgeCol, thickness, fillCol, hardEdge);
+                }
+                else if (p[0] == this.PRIM_TEXT) {
+                    let [_, typeidx, x, y, txt, direction] = p;
+                    let [, size, colour] = this.types[typeidx];
+                    into.drawText(x, y, txt, size, colour, null, direction);
+                }
+                else if (p[0] == this.PRIM_TEXTNATIVE) {
+                    let [_, typeidx, x, y, txt] = p;
+                    let [, fontFamily, fontSize, colour] = this.types[typeidx];
+                    into.drawTextNative(x, y, txt, fontFamily, fontSize, colour);
+                }
+            }
+        }
+        setupTypeLine(t) {
+            let thickness = t[1] * this.scale;
+            let colour = t[2];
+            return { 'thickness': thickness, 'colour': colour };
+        }
+        setupTypeRect(t) {
+            let edgeCol = t[1];
+            let fillCol = t[2];
+            let thickness = t[3] * this.scale;
+            return { 'edgeCol': edgeCol, 'fillCol': fillCol, 'thickness': thickness };
+        }
+        setupTypeOval(t) {
+            let edgeCol = t[1];
+            let fillCol = t[2];
+            let thickness = t[3] * this.scale;
+            return { 'edgeCol': edgeCol, 'fillCol': fillCol, 'thickness': thickness };
+        }
+        setupTypePath(t) {
+            let edgeCol = t[1];
+            let fillCol = t[2];
+            let thickness = t[3] * this.scale;
+            let hardEdge = t[4];
+            return { 'edgeCol': edgeCol, 'fillCol': fillCol, 'thickness': thickness, 'hardEdge': hardEdge };
+        }
+        setupTypeText(t) {
+            let sz = t[1] * this.scale;
+            let colour = t[2];
+            return { 'colour': colour, 'size': sz };
+        }
+        setupTypeTextNative(t) {
+            let family = t[1];
+            let sz = t[2] * this.scale;
+            let colour = t[3];
+            return { 'colour': colour, 'fontFamily': family, 'fontSize': sz };
+        }
+        renderLine(ctx, p) {
+            let type = this.typeObj[p[1]];
+            let x1 = p[2], y1 = p[3];
+            let x2 = p[4], y2 = p[5];
+            let colour = type.colour;
+            x1 = this.offsetX + this.scale * x1;
+            y1 = this.offsetY + this.scale * y1;
+            x2 = this.offsetX + this.scale * x2;
+            y2 = this.offsetY + this.scale * y2;
+            if (colour != null) {
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = WebMolKit.colourCanvas(colour);
+                ctx.lineWidth = type.thickness;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            }
+        }
+        renderRect(ctx, p) {
+            let type = this.typeObj[p[1]];
+            let x = p[2], y = p[3];
+            let w = p[4], h = p[5];
+            let edgeCol = type.edgeCol, fillCol = type.fillCol;
+            x = this.offsetX + this.scale * x;
+            y = this.offsetY + this.scale * y;
+            w *= this.scale;
+            h *= this.scale;
+            if (fillCol != MetaVector.NOCOLOUR) {
+                ctx.fillStyle = WebMolKit.colourCanvas(fillCol);
+                ctx.fillRect(x, y, w, h);
+            }
+            if (edgeCol != MetaVector.NOCOLOUR) {
+                ctx.strokeStyle = WebMolKit.colourCanvas(edgeCol);
+                ctx.lineWidth = type.thickness;
+                ctx.lineCap = 'square';
+                ctx.strokeRect(x, y, w, h);
+            }
+        }
+        renderOval(ctx, p) {
+            let type = this.typeObj[p[1]];
+            let cx = p[2], cy = p[3];
+            let rw = p[4], rh = p[5];
+            let edgeCol = type.edgeCol, fillCol = type.fillCol;
+            cx = this.offsetX + this.scale * cx;
+            cy = this.offsetY + this.scale * cy;
+            rw *= this.scale;
+            rh *= this.scale;
+            if (fillCol != MetaVector.NOCOLOUR) {
+                ctx.fillStyle = WebMolKit.colourCanvas(fillCol);
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI, true);
+                ctx.fill();
+            }
+            if (edgeCol != MetaVector.NOCOLOUR) {
+                ctx.strokeStyle = WebMolKit.colourCanvas(edgeCol);
+                ctx.lineWidth = type.thickness;
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, rw, rh, 0, 0, 2 * Math.PI, true);
+                ctx.stroke();
+            }
+        }
+        renderPath(ctx, p) {
+            let type = this.typeObj[p[1]];
+            let npts = p[2];
+            if (npts == 0)
+                return;
+            let x = p[3], y = p[4];
+            let ctrl = p[5];
+            let isClosed = p[6];
+            let edgeCol = type.edgeCol, fillCol = type.fillCol;
+            for (let n = 0; n < npts; n++) {
+                x[n] = this.offsetX + this.scale * x[n];
+                y[n] = this.offsetY + this.scale * y[n];
+            }
+            for (let layer = 1; layer <= 2; layer++) {
+                if (layer == 1 && fillCol == MetaVector.NOCOLOUR)
+                    continue;
+                if (layer == 2 && edgeCol == MetaVector.NOCOLOUR)
+                    continue;
+                ctx.beginPath();
+                ctx.moveTo(x[0], y[0]);
+                for (let i = 1; i < npts; i++) {
+                    if (!ctrl || !ctrl[i]) {
+                        ctx.lineTo(x[i], y[i]);
+                    }
+                    else if (i < npts - 1 && !ctrl[i + 1]) {
+                        ctx.quadraticCurveTo(x[i], y[i], x[i + 1], y[i + 1]);
+                        i++;
+                    }
+                    else if (i < npts - 1 && !ctrl[i + 2]) {
+                        ctx.bezierCurveTo(x[i], y[i], x[i + 1], y[i + 1], x[i + 2], y[i + 2]);
+                        i += 2;
+                    }
+                }
+                if (isClosed)
+                    ctx.closePath();
+                if (layer == 1) {
+                    ctx.fillStyle = WebMolKit.colourCanvas(type.fillCol);
+                    ctx.fill();
+                }
+                else {
+                    ctx.strokeStyle = WebMolKit.colourCanvas(type.edgeCol);
+                    ctx.lineWidth = type.thickness;
+                    ctx.lineCap = type.hardEdge ? 'square' : 'round';
+                    ctx.lineJoin = type.hardEdge ? 'miter' : 'round';
+                    ctx.stroke();
+                }
+            }
+        }
+        renderText(ctx, p) {
+            let type = this.typeObj[p[1]];
+            let x = p[2], y = p[3];
+            let txt = p[4];
+            let sz = type.size;
+            let fill = WebMolKit.colourCanvas(type.colour);
+            x = this.offsetX + this.scale * x;
+            y = this.offsetY + this.scale * y;
+            let font = WebMolKit.FontData.main;
+            let scale = sz / font.UNITS_PER_EM;
+            let dx = 0;
+            for (let n = 0; n < txt.length; n++) {
+                let ch = txt.charAt(n);
+                let i = font.getIndex(ch);
+                let path = null;
+                if (i < 0) {
+                    dx += font.MISSING_HORZ;
+                    path = font.getMissingPath();
+                }
+                else
+                    path = font.getGlyphPath(i);
+                if (path) {
+                    ctx.save();
+                    ctx.translate(x + dx * scale, y);
+                    ctx.scale(scale, -scale);
+                    ctx.fillStyle = fill;
+                    ctx.fill(path);
+                    ctx.restore();
+                }
+                dx += font.HORIZ_ADV_X[i];
+                if (n < txt.length - 1)
+                    dx += font.getKerning(ch, txt.charAt(n + 1));
+            }
+        }
+        renderTextNative(ctx, p) {
+            let type = this.typeObj[p[1]];
+            let x = p[2], y = p[3];
+            let txt = p[4];
+            let family = type.fontFamily, sz = type.fontSize;
+            let fill = WebMolKit.colourCanvas(type.colour);
+            x = this.offsetX + this.scale * x;
+            y = this.offsetY + this.scale * y;
+            ctx.save();
+            ctx.font = sz + 'px ' + family;
+            ctx.fillStyle = fill;
+            ctx.fillText(txt, x, y);
+            ctx.restore();
+        }
+        svgLine1(svg, p) {
+            let type = this.typeObj[p[1]];
+            let x1 = p[2], y1 = p[3];
+            let x2 = p[4], y2 = p[5];
+            x1 = this.offsetX + this.scale * x1;
+            y1 = this.offsetY + this.scale * y1;
+            x2 = this.offsetX + this.scale * x2;
+            y2 = this.offsetY + this.scale * y2;
+            if (type.colour != MetaVector.NOCOLOUR) {
+                let line = $('<line/>').appendTo(svg);
+                line.attr('x1', x1);
+                line.attr('y1', y1);
+                line.attr('x2', x2);
+                line.attr('y2', y2);
+                this.defineSVGStroke(line, type.colour);
+                line.attr('stroke-width', type.thickness);
+                line.attr('stroke-linecap', 'round');
+            }
+        }
+        svgLineN(svg, p, pos, sz) {
+            let type = this.typeObj[p[1]];
+            if (type.colour == MetaVector.NOCOLOUR)
+                return;
+            let g = $('<g/>').appendTo(svg);
+            this.defineSVGStroke(g, type.colour);
+            g.attr('stroke-width', type.thickness);
+            g.attr('stroke-linecap', 'round');
+            for (let n = 0; n < sz; n++) {
+                let p = this.prims[pos + n];
+                let x1 = p[2], y1 = p[3];
+                let x2 = p[4], y2 = p[5];
+                x1 = this.offsetX + this.scale * x1;
+                y1 = this.offsetY + this.scale * y1;
+                x2 = this.offsetX + this.scale * x2;
+                y2 = this.offsetY + this.scale * y2;
+                let line = $('<line/>').appendTo(g);
+                line.attr('x1', x1);
+                line.attr('y1', y1);
+                line.attr('x2', x2);
+                line.attr('y2', y2);
+            }
+        }
+        svgRect1(svg, p) {
+            let type = this.typeObj[p[1]];
+            let x = p[2], y = p[3];
+            let w = p[4], h = p[5];
+            x = this.offsetX + this.scale * x;
+            y = this.offsetY + this.scale * y;
+            w *= this.scale;
+            h *= this.scale;
+            let rect = $('<rect/>').appendTo(svg);
+            rect.attr('x', x);
+            rect.attr('y', y);
+            rect.attr('width', w);
+            rect.attr('height', h);
+            this.defineSVGStroke(rect, type.edgeCol);
+            if (type.edgeCol != MetaVector.NOCOLOUR) {
+                rect.attr('stroke-width', type.thickness);
+                rect.attr('stroke-linecap', 'square');
+            }
+            this.defineSVGFill(rect, type.fillCol);
+        }
+        svgRectN(svg, p, pos, sz) {
+            let type = this.typeObj[p[1]];
+            let g = $('<g/>').appendTo(svg);
+            this.defineSVGStroke(g, type.edgeCol);
+            if (type.edgeCol != MetaVector.NOCOLOUR) {
+                g.attr('stroke-width', type.thickness);
+                g.attr('stroke-linecap', 'square');
+            }
+            this.defineSVGFill(g, type.fillCol);
+            for (let n = 0; n < sz; n++) {
+                let p = this.prims[pos + n];
+                let x = p[2], y = p[3];
+                let w = p[4], h = p[5];
+                x = this.offsetX + this.scale * x;
+                y = this.offsetY + this.scale * y;
+                w *= this.scale;
+                h *= this.scale;
+                let rect = $('<rect/>').appendTo(g);
+                rect.attr('x', x);
+                rect.attr('y', y);
+                rect.attr('width', w);
+                rect.attr('height', h);
+            }
+        }
+        svgOval1(svg, p) {
+            let type = this.typeObj[p[1]];
+            let cx = p[2], cy = p[3];
+            let rw = p[4], rh = p[5];
+            cx = this.offsetX + this.scale * cx;
+            cy = this.offsetY + this.scale * cy;
+            rw *= this.scale;
+            rh *= this.scale;
+            let oval = $('<ellipse/>').appendTo(svg);
+            oval.attr('cx', cx);
+            oval.attr('cy', cy);
+            oval.attr('rx', rw);
+            oval.attr('ry', rh);
+            this.defineSVGStroke(oval, type.edgeCol);
+            if (type.edgeCol != MetaVector.NOCOLOUR) {
+                oval.attr('stroke-width', type.thickness);
+            }
+            this.defineSVGFill(oval, type.fillCol);
+        }
+        svgOvalN(svg, p, pos, sz) {
+            let type = this.typeObj[p[1]];
+            let g = $('<g/>').appendTo(svg);
+            this.defineSVGStroke(g, type.edgeCol);
+            if (type.edgeCol != MetaVector.NOCOLOUR) {
+                g.attr('stroke-width', type.thickness);
+            }
+            this.defineSVGFill(g, type.fillCol);
+            for (let n = 0; n < sz; n++) {
+                let p = this.prims[pos + n];
+                let cx = p[2], cy = p[3];
+                let rw = p[4], rh = p[5];
+                cx = this.offsetX + this.scale * cx;
+                cy = this.offsetY + this.scale * cy;
+                rw *= this.scale;
+                rh *= this.scale;
+                let oval = $('<ellipse/>').appendTo(g);
+                oval.attr('cx', cx);
+                oval.attr('cy', cy);
+                oval.attr('rx', rw);
+                oval.attr('ry', rh);
+            }
+        }
+        svgPath(svg, p) {
+            let type = this.typeObj[p[1]];
+            let npts = p[2];
+            if (npts == 0)
+                return;
+            let x = p[3].slice(0), y = p[4].slice(0);
+            let ctrl = p[5];
+            let isClosed = p[6];
+            for (let n = 0; n < npts; n++) {
+                x[n] = this.offsetX + this.scale * x[n];
+                y[n] = this.offsetY + this.scale * y[n];
+            }
+            let shape = 'M ' + x[0] + ' ' + y[0];
+            let n = 1;
+            while (n < npts) {
+                if (!ctrl || !ctrl[n]) {
+                    shape += ' L ' + x[n] + ' ' + y[n];
+                    n++;
+                }
+                else if (ctrl[n] && n < npts - 1 && !ctrl[n + 1]) {
+                    shape += ' Q ' + x[n] + ' ' + y[n] + ' ' + x[n + 1] + ' ' + y[n + 1];
+                    n += 2;
+                }
+                else if (ctrl[n] && n < npts - 2 && ctrl[n + 1] && !ctrl[n + 2]) {
+                    shape += ' C ' + x[n] + ' ' + y[n] + ' ' + x[n + 1] + ' ' + y[n + 1] + ' ' + x[n + 2] + ' ' + y[n + 2];
+                    n += 3;
+                }
+                else
+                    n++;
+            }
+            if (isClosed)
+                shape += ' Z';
+            let path = $('<path/>').appendTo(svg);
+            path.attr('d', shape);
+            this.defineSVGStroke(path, type.edgeCol);
+            if (type.edgeCol != MetaVector.NOCOLOUR) {
+                path.attr('stroke-width', type.thickness);
+                path.attr('stroke-linejoin', type.hardEdge ? 'miter' : 'round');
+                path.attr('stroke-linecap', 'square');
+            }
+            this.defineSVGFill(path, type.fillCol);
+        }
+        svgText(svg, p) {
+            let type = this.typeObj[p[1]];
+            let x = p[2], y = p[3];
+            let txt = p[4];
+            let direction = p[5];
+            let sz = type.size;
+            x = this.offsetX + this.scale * x;
+            y = this.offsetY + this.scale * y;
+            let font = WebMolKit.FontData.main;
+            let scale = sz / font.UNITS_PER_EM;
+            let parent = svg;
+            if (direction != 0) {
+                parent = $('<g/>').appendTo(parent);
+                parent.attr('transform', `rotate(${direction},${x},${y})`);
+            }
+            let gdelta = $('<g/>').appendTo(parent);
+            gdelta.attr('transform', 'translate(' + x + ',' + y + ')');
+            this.defineSVGFill(gdelta, type.colour);
+            let gscale = $('<g/>').appendTo(gdelta);
+            gscale.attr('transform', 'scale(' + scale + ',' + (-scale) + ')');
+            let dx = 0;
+            for (let n = 0; n < txt.length; n++) {
+                let ch = txt.charAt(n);
+                let i = font.getIndex(ch);
+                let use = $('<use/>').appendTo(gscale);
+                let ref = i < 0 ? '#missing' : '#char' + i;
+                use.attr('xlink:href', ref);
+                use.attr('x', dx);
+                if (i >= 0) {
+                    dx += font.HORIZ_ADV_X[i];
+                    if (n < txt.length - 1)
+                        dx += font.getKerning(ch, txt.charAt(n + 1));
+                }
+                else
+                    dx += font.MISSING_HORZ;
+            }
+        }
+        svgTextNative(svg, p) {
+            let type = this.typeObj[p[1]];
+            let x = p[2], y = p[3];
+            let txt = p[4];
+            let family = type.fontFamily, sz = type.fontSize;
+            x = this.offsetX + this.scale * x;
+            y = this.offsetY + this.scale * y;
+            let colour = WebMolKit.colourCanvas(type.colour);
+            let style = `fill: ${colour}; font-family: ${family}; font-size: ${sz};`;
+            let node = $('<text/>').appendTo(svg);
+            node.attr({ 'x': x, 'y': y, 'style': style });
+            node.text(txt);
+        }
+        defineSVGStroke(obj, col) {
+            if (col == MetaVector.NOCOLOUR) {
+                obj.attr('stroke-opacity', '0');
+                return;
+            }
+            obj.attr('stroke', WebMolKit.colourCode(col));
+            let alpha = WebMolKit.colourAlpha(col);
+            if (alpha != 1)
+                obj.attr('stroke-opacity', alpha.toString());
+        }
+        defineSVGFill(obj, col) {
+            if (col == MetaVector.NOCOLOUR) {
+                obj.attr('fill-opacity', '0');
+                return;
+            }
+            obj.attr('fill', WebMolKit.colourCode(col));
+            let alpha = WebMolKit.colourAlpha(col);
+            if (alpha != 1)
+                obj.attr('fill-opacity', alpha.toString());
+        }
+        findOrCreateType(typeDef) {
+            for (let i = 0; i < this.types.length; i++) {
+                if (this.types[i].length != typeDef.length)
+                    continue;
+                let match = true;
+                for (let j = 0; j < typeDef.length; j++)
+                    if (typeDef[j] != this.types[i][j]) {
+                        match = false;
+                        break;
+                    }
+                if (match)
+                    return i;
+            }
+            this.types.push(typeDef);
+            return this.types.length - 1;
+        }
+        updateBounds(x, y) {
+            if (this.lowX == null) {
+                this.lowX = x;
+                this.lowY = y;
+                this.highX = x;
+                this.highY = y;
+                return;
+            }
+            this.lowX = Math.min(this.lowX, x);
+            this.lowY = Math.min(this.lowY, y);
+            this.highX = Math.max(this.highX, x);
+            this.highY = Math.max(this.highY, y);
+        }
+    }
+    MetaVector.NOCOLOUR = -1;
+    WebMolKit.MetaVector = MetaVector;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -8241,6 +9215,10 @@ var WebMolKit;
             }
             return bounds;
         }
+        determineBoundaryBox() {
+            let [x1, y1, x2, y2] = this.determineBoundary();
+            return new WebMolKit.Box(x1, y1, x2 - x1, y2 - y1);
+        }
         squeezeInto(x, y, w, h, padding) {
             if (padding != null && padding > 0) {
                 x += padding;
@@ -8449,12 +9427,8 @@ var WebMolKit;
                 let bpos = [];
                 let bpri = [];
                 let blocks = label.split('|');
-                if (side < 0) {
-                    let oldblk = blocks;
-                    blocks = [];
-                    for (let i = oldblk.length - 1; i >= 0; i--)
-                        blocks.push(oldblk[i]);
-                }
+                if (side < 0)
+                    blocks = WebMolKit.Vec.reverse(blocks);
                 let buff = '';
                 for (let i = 0; i < blocks.length; i++) {
                     let isPrimary = (side >= 0 && i == 0) || (side < 0 && i == blocks.length - 1);
@@ -8501,16 +9475,9 @@ var WebMolKit;
                 tw += chunkw[n];
             }
             let x = this.measure.angToX(ax), y = this.measure.angToY(ay);
-            if (side == 0)
-                x -= 0.5 * chunkw[0];
-            else if (side < 0) {
-                for (let n = 0; n < refchunk; n++)
-                    x -= chunkw[n];
-                x -= 0.5 * chunkw[refchunk];
-            }
-            else {
-                x -= 0.5 * chunkw[0];
-            }
+            for (let n = 0; n < refchunk; n++)
+                x -= chunkw[n];
+            x -= 0.5 * chunkw[refchunk];
             for (let n = 0; n < chunks.length; n++) {
                 let a = {
                     'anum': (n == refchunk || (primary != null && primary[n])) ? anum : 0,
@@ -9678,1034 +10645,136 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
-    class DrawMolecule {
-        constructor(layout, vg) {
-            this.layout = layout;
-            this.vg = vg;
-            this.mol = layout.getMolecule();
-            this.policy = layout.getPolicy();
-            this.effects = layout.getEffects();
-            this.scale = layout.getScale();
-            this.invScale = 1.0 / this.scale;
+    let globalPopover = null;
+    let globalTooltip = null;
+    let globalPopWatermark = 0;
+    function addTooltip(parent, bodyHTML, titleHTML, delay) {
+        Tooltip.ensureGlobal();
+        let widget = $(parent);
+        const tooltip = new Tooltip(widget, bodyHTML, titleHTML, delay == null ? 1000 : delay);
+        widget.mouseenter(() => tooltip.start());
+        widget.mouseleave(() => tooltip.stop());
+    }
+    WebMolKit.addTooltip = addTooltip;
+    function raiseToolTip(widget, avoid, bodyHTML, titleHTML) {
+        clearTooltip();
+        Tooltip.ensureGlobal();
+        new Tooltip($(widget), bodyHTML, titleHTML, 0).raise(avoid);
+    }
+    WebMolKit.raiseToolTip = raiseToolTip;
+    function clearTooltip() {
+        if (globalTooltip == null)
+            return;
+        globalPopWatermark++;
+        globalTooltip.lower();
+    }
+    WebMolKit.clearTooltip = clearTooltip;
+    class Tooltip {
+        constructor(widget, bodyHTML, titleHTML, delay) {
+            this.widget = widget;
+            this.bodyHTML = bodyHTML;
+            this.titleHTML = titleHTML;
+            this.delay = delay;
         }
-        getMolecule() { return this.mol; }
-        getMetaVector() { return this.vg; }
-        getLayout() { return this.layout; }
-        getPolicy() { return this.policy; }
-        getEffects() { return this.effects; }
-        draw() {
-            let DRAW_SPACE = false;
-            if (DRAW_SPACE) {
-                let bounds = this.layout.determineBoundary();
-                this.vg.drawRect(bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1], 0xFF0000, 1, WebMolKit.MetaVector.NOCOLOUR);
-                for (let n = 0; n < this.layout.numSpace(); n++) {
-                    let spc = this.layout.getSpace(n);
-                    this.vg.drawRect(spc.box.x, spc.box.y, spc.box.w, spc.box.h, WebMolKit.MetaVector.NOCOLOUR, 0, 0xE0E0E0);
-                    if (spc.px != null && spc.py != null && spc.px.length > 2)
-                        this.vg.drawPoly(spc.px, spc.py, 0x000000, 1, 0x808080FF, true);
-                }
-            }
-            this.drawUnderEffects();
-            let layout = this.layout, effects = this.effects, policy = this.policy, vg = this.vg;
-            for (let n = 0; n < layout.numLines(); n++) {
-                let b = layout.getLine(n);
-                if (effects.hideBonds.has(b.bnum))
-                    continue;
-                if (b.type == WebMolKit.BLineType.Normal) {
-                    vg.drawLine(b.line.x1, b.line.y1, b.line.x2, b.line.y2, b.col, b.size);
-                }
-                else if (b.type == WebMolKit.BLineType.Inclined)
-                    this.drawBondInclined(b);
-                else if (b.type == WebMolKit.BLineType.Declined)
-                    this.drawBondDeclined(b);
-                else if (b.type == WebMolKit.BLineType.Unknown)
-                    this.drawBondUnknown(b);
-                else if (b.type == WebMolKit.BLineType.Dotted || b.type == WebMolKit.BLineType.DotDir)
-                    this.drawBondDotted(b);
-                else if (b.type == WebMolKit.BLineType.IncDouble || b.type == WebMolKit.BLineType.IncTriple || b.type == WebMolKit.BLineType.IncQuadruple)
-                    this.drawBondIncMulti(b);
-            }
-            let fg = policy.data.foreground;
-            for (let r of layout.getRings())
-                vg.drawOval(r.cx, r.cy, r.rw, r.rh, fg, r.size, WebMolKit.MetaVector.NOCOLOUR);
-            for (let p of layout.getPaths())
-                vg.drawPath(p.px, p.py, p.ctrl, false, fg, p.size, WebMolKit.MetaVector.NOCOLOUR, false);
-            for (let n = 0; n < layout.numPoints(); n++) {
-                let p = layout.getPoint(n);
-                if (effects.hideBonds.has(p.anum))
-                    continue;
-                let txt = p.text;
-                if (txt == null)
-                    continue;
-                let fsz = p.fsz;
-                let cx = p.oval.cx, cy = p.oval.cy, rw = p.oval.rw;
-                let col = p.col;
-                while (txt.endsWith('.')) {
-                    let dw = rw / txt.length;
-                    let r = fsz * 0.15;
-                    vg.drawOval(cx + rw - dw, cy, r, r, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                    cx -= dw;
-                    rw -= dw;
-                    txt = txt.substring(0, txt.length - 1);
-                }
-                while (txt.startsWith('+')) {
-                    let dw = rw / txt.length;
-                    let x = cx - rw + dw, y = cy, r = fsz * 0.18, lsz = fsz * 0.1;
-                    vg.drawLine(x - r, y, x + r, y, col, lsz);
-                    vg.drawLine(x, y - r, x, y + r, col, lsz);
-                    cx += dw;
-                    rw -= dw;
-                    txt = txt.substring(1, txt.length);
-                }
-                while (txt.startsWith('-')) {
-                    let dw = rw / txt.length;
-                    let x = cx - rw + dw, y = cy, r = fsz * 0.18, lsz = fsz * 0.1;
-                    vg.drawLine(x - r, y, x + r, y, col, lsz);
-                    cx += dw;
-                    rw -= dw;
-                    txt = txt.substring(1, txt.length);
-                }
-                if (txt.length > 0) {
-                    vg.drawText(cx, cy, txt, fsz, col, WebMolKit.TextAlign.Centre | WebMolKit.TextAlign.Middle);
-                }
-            }
-            this.drawOverEffects();
-        }
-        drawUnderEffects() {
-            let mol = this.mol, policy = this.policy, effects = this.effects, layout = this.layout, scale = this.scale, vg = this.vg;
-            for (let n = 0, num = Math.min(effects.atomFrameDotSz.length, mol.numAtoms); n < num; n++) {
-                if (effects.hideAtoms.has(n + 1))
-                    continue;
-                let dw = effects.atomFrameDotSz[n] * scale, col = effects.atomFrameCol[n];
-                let a = layout.getPoint(n);
-                let rw = a.oval.rw + 0.1 * scale, rh = a.oval.rh + 0.1 * scale;
-                let wdots = Math.ceil(2 * rw / (3 * dw));
-                let hdots = Math.ceil(2 * rh / (3 * dw));
-                let wspc = 2 * rw / wdots, hspc = 2 * rh / hdots;
-                for (let i = 0; i <= wdots; i++) {
-                    let x = a.oval.cx - rw + i * wspc;
-                    vg.drawOval(x, a.oval.cy - rh, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                    vg.drawOval(x, a.oval.cy + rh, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                }
-                for (let i = 1; i < hdots; i++) {
-                    let y = a.oval.cy - rh + i * hspc;
-                    vg.drawOval(a.oval.cx - rw, y, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                    vg.drawOval(a.oval.cx + rw, y, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                }
-            }
-            for (let key in effects.dottedRectOutline) {
-                let atom = parseInt(key), col = effects.dottedRectOutline[key];
-                let a = layout.getPoint(atom - 1);
-                let rw = Math.max(a.oval.rw, 0.2 * scale), rh = Math.max(a.oval.rh, 0.2 * scale);
-                let sz = 0.05 * scale;
-                let xdots = Math.max(1, Math.round(rw / (2 * sz)));
-                let ydots = Math.max(1, Math.round(rh / (2 * sz)));
-                let invX = (2 * rw) / xdots, invY = (2 * rh) / ydots;
-                for (let n = 0; n <= xdots; n++) {
-                    let x = a.oval.cx - rw + n * invX;
-                    vg.drawOval(x, a.oval.cy - rh, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                    vg.drawOval(x, a.oval.cy + rh, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                }
-                for (let n = 1; n < ydots; n++) {
-                    let y = a.oval.cy - rh + n * invY;
-                    vg.drawOval(a.oval.cx - rw, y, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                    vg.drawOval(a.oval.cx + rw, y, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                }
-            }
-            for (let key in effects.dottedBondCross) {
-                let bond = parseInt(key), col = effects.dottedBondCross[key];
-                let x1 = 0, y1 = 0, x2 = 0, y2 = 0, bcount = 0;
-                for (let n = 0; n < layout.numLines(); n++) {
-                    let b = layout.getLine(n);
-                    if (b.bnum == bond) {
-                        x1 += b.line.x1;
-                        y1 += b.line.y1;
-                        x2 += b.line.x2;
-                        y2 += b.line.y2;
-                        bcount += 1;
-                    }
-                }
-                if (bcount > 1) {
-                    let inv = 1 / bcount;
-                    [x1, y1, x2, y2] = [x1 * inv, y1 * inv, x2 * inv, y2 * inv];
-                }
-                let dx = x2 - x1, dy = y2 - y1;
-                let inv = 0.2 * scale * WebMolKit.invZ(WebMolKit.norm_xy(dx, dy)), ox = dy * inv, oy = -dx * inv;
-                let cx = 0.5 * (x1 + x2), cy = 0.5 * (y1 + y2), sz = 0.05 * scale;
-                for (let p of [-2, -1, 1, 2]) {
-                    let x = cx + p * ox, y = cy + p * oy;
-                    vg.drawOval(x, y, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                }
+        static ensureGlobal() {
+            if (globalPopover == null) {
+                globalPopover = $(document.createElement('div'));
+                globalPopover.css('position', 'absolute');
+                globalPopover.css('background-color', '#F0F0FF');
+                globalPopover.css('background-image', 'linear-gradient(to right bottom, #FFFFFF, #D0D0FF)');
+                globalPopover.css('color', 'black');
+                globalPopover.css('border', '1px solid black');
+                globalPopover.css('z-index', 12000);
+                globalPopover.css('border-radius', '4px');
+                globalPopover.hide();
+                globalPopover.appendTo(document.body);
             }
         }
-        drawOverEffects() {
-            let mol = this.mol, policy = this.policy, effects = this.effects, layout = this.layout, scale = this.scale, vg = this.vg;
-            for (let a of effects.overlapAtoms) {
-                let p = layout.getPoint(a - 1);
-                let rad = scale * 0.2;
-                vg.drawLine(p.oval.cx - rad, p.oval.cy - rad, p.oval.cx + rad, p.oval.cy + rad, 0xFF0000, 1);
-                vg.drawLine(p.oval.cx + rad, p.oval.cy - rad, p.oval.cx - rad, p.oval.cy + rad, 0xFF0000, 1);
-            }
-            for (let n = 0, num = Math.min(effects.atomCircleSz.length, mol.numAtoms); n < num; n++)
-                if (effects.atomCircleSz[n] > 0) {
-                    let dw = effects.atomCircleSz[n] * scale, col = effects.atomCircleCol[n];
-                    let p = layout.getPoint(n);
-                    vg.drawOval(p.oval.cx, p.oval.cy, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-                }
+        start() {
+            globalPopover.hide();
+            this.watermark = ++globalPopWatermark;
+            window.setTimeout(() => {
+                if (this.watermark == globalPopWatermark)
+                    this.raise();
+            }, this.delay);
         }
-        drawBondInclined(b) {
-            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
-            let dx = x2 - x1, dy = y2 - y1;
-            let col = b.col;
-            let size = b.size, head = b.head;
-            let norm = head / Math.sqrt(dx * dx + dy * dy);
-            let ox = norm * dy, oy = -norm * dx;
-            let px = [x1, x2 - ox, x2 + ox], py = [y1, y2 - oy, y2 + oy];
-            if (this.layout.getPoint(b.bto - 1).text == null && this.mol.atomAdjCount(b.bto) == 2) {
-                let other = null;
-                for (let n = 0; n < this.layout.numLines(); n++) {
-                    let o = this.layout.getLine(n);
-                    if (o.type == WebMolKit.BLineType.Normal && (o.bfr == b.bto || o.bto == b.bto)) {
-                        if (other != null) {
-                            other = null;
-                            break;
-                        }
-                        other = o;
-                    }
-                }
-                if (other != null) {
-                    let th1 = Math.atan2(y1 - y2, x1 - x2);
-                    let th2 = Math.atan2(other.line.y1 - other.line.y2, other.line.x1 - other.line.x2);
-                    if (b.bto == other.bfr)
-                        th2 += Math.PI;
-                    let diff = Math.abs(WebMolKit.angleDiff(th1, th2));
-                    if (diff > 105 * WebMolKit.DEGRAD && diff < 135 * WebMolKit.DEGRAD) {
-                        let ixy1 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[1], py[1], other.line.x1, other.line.y1, other.line.x2, other.line.y2);
-                        let ixy2 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[2], py[2], other.line.x1, other.line.y1, other.line.x2, other.line.y2);
-                        px[1] = ixy1[0];
-                        py[1] = ixy1[1];
-                        px[2] = ixy2[0];
-                        py[2] = ixy2[1];
-                        let dx1 = px[1] - px[0], dy1 = py[1] - py[0], inv1 = 0.5 * other.size / WebMolKit.norm_xy(dx1, dy1);
-                        px[1] += dx1 * inv1;
-                        py[1] += dy1 * inv1;
-                        let dx2 = px[2] - px[0], dy2 = py[2] - py[0], inv2 = 0.5 * other.size / WebMolKit.norm_xy(dx2, dy2);
-                        px[2] += dx2 * inv1;
-                        py[2] += dy2 * inv1;
-                    }
-                }
-            }
-            if (this.layout.getPoint(b.bto - 1).text == null && this.mol.atomAdjCount(b.bto) == 3) {
-                let other1 = null, other2 = null;
-                for (let n = 0; n < this.layout.numLines(); n++) {
-                    let o = this.layout.getLine(n);
-                    if (o.type == WebMolKit.BLineType.Normal && (o.bfr == b.bto || o.bto == b.bto)) {
-                        if (other1 == null)
-                            other1 = o;
-                        else if (other2 == null)
-                            other2 = o;
-                        else {
-                            other1 = other2 = null;
-                            break;
-                        }
-                    }
-                }
-                if (other1 != null && other2 != null) {
-                    let th1 = Math.atan2(y1 - y2, x1 - x2);
-                    let th2 = Math.atan2(other1.line.y1 - other1.line.y2, other1.line.x1 - other1.line.x2);
-                    let th3 = Math.atan2(other2.line.y1 - other2.line.y2, other2.line.x1 - other2.line.x2);
-                    if (b.bto == other1.bfr)
-                        th2 += Math.PI;
-                    if (b.bto == other2.bfr)
-                        th3 += Math.PI;
-                    let dth1 = WebMolKit.angleDiff(th1, th2), diff1 = Math.abs(dth1);
-                    let dth2 = WebMolKit.angleDiff(th1, th3), diff2 = Math.abs(dth2);
-                    let diff3 = Math.abs(WebMolKit.angleDiff(th2, th3));
-                    if (diff1 > 105 * WebMolKit.DEGRAD && diff1 < 135 * WebMolKit.DEGRAD ||
-                        diff2 > 105 * WebMolKit.DEGRAD && diff2 < 135 * WebMolKit.DEGRAD ||
-                        diff3 > 105 * WebMolKit.DEGRAD && diff3 < 135 * WebMolKit.DEGRAD) {
-                        if (dth1 < 0)
-                            [other1, other2] = [other2, other1];
-                        let ixy1 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[1], py[1], other1.line.x1, other1.line.y1, other1.line.x2, other1.line.y2);
-                        let ixy2 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[2], py[2], other2.line.x1, other2.line.y1, other2.line.x2, other2.line.y2);
-                        px = [x1, ixy1[0], x2, ixy2[0]];
-                        py = [y1, ixy1[1], y2, ixy2[1]];
-                    }
-                }
-            }
-            this.vg.drawPoly(px, py, WebMolKit.MetaVector.NOCOLOUR, 0, col, true);
+        stop() {
+            if (this.watermark == globalPopWatermark)
+                this.lower();
+            globalPopWatermark++;
         }
-        drawBondDeclined(b) {
-            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
-            let dx = x2 - x1, dy = y2 - y1;
-            let col = b.col;
-            let size = b.size, head = b.head;
-            let ext = Math.sqrt(dx * dx + dy * dy);
-            let nsteps = Math.ceil(ext * 2.5 * this.invScale);
-            let norm = head / ext;
-            let ox = norm * dy, oy = -norm * dx, invSteps = 1.0 / (nsteps + 1);
-            let holdout = this.mol.atomAdjCount(b.bto) == 1 && this.layout.getPoint(b.bto - 1).text == null ? 1 : 1 - (0.15 * this.scale) / ext;
-            for (let i = 0; i <= nsteps + 1; i++) {
-                let cx = x1 + i * dx * invSteps * holdout, cy = y1 + i * dy * invSteps * holdout;
-                let ix = ox * i * invSteps, iy = oy * i * invSteps;
-                this.vg.drawLine(cx - ix, cy - iy, cx + ix, cy + iy, col, size);
+        raise(avoid) {
+            globalTooltip = this;
+            let pop = globalPopover;
+            pop.css('max-width', '20em');
+            pop.empty();
+            let div = $('<div></div>').appendTo(pop);
+            div.css('padding', '0.3em');
+            let hasTitle = this.titleHTML != null && this.titleHTML.length > 0, hasBody = this.bodyHTML != null && this.bodyHTML.length > 0;
+            if (hasTitle)
+                ($('<div></div>').appendTo(div)).html('<b>' + this.titleHTML + '</b>');
+            if (hasTitle && hasBody)
+                div.append('<hr>');
+            if (hasBody)
+                ($('<div></div>').appendTo(div)).html(this.bodyHTML);
+            let winW = $(window).width(), winH = $(window).height();
+            const GAP = 2;
+            let wx1 = this.widget.offset().left, wy1 = this.widget.offset().top;
+            let wx2 = wx1 + this.widget.width(), wy2 = wy1 + this.widget.height();
+            if (avoid) {
+                wx1 += avoid.x;
+                wy1 += avoid.y;
+                wx2 = wx1 + avoid.w;
+                wy2 = wy1 + avoid.h;
             }
+            let setPosition = () => {
+                let popW = pop.width(), popH = pop.height();
+                let posX = 0, posY = 0;
+                if (wx1 + popW < winW)
+                    posX = wx1;
+                else if (popW < wx2)
+                    posX = wx2 - popW;
+                if (wy2 + GAP + popH < winH)
+                    posY = wy2 + GAP;
+                else if (wy1 - GAP - popH > 0)
+                    posY = wy1 - GAP - popH;
+                else
+                    posY = wy2 + GAP;
+                pop.css('left', `${posX}px`);
+                pop.css('top', `${posY}px`);
+            };
+            setPosition();
+            pop.show();
+            window.setTimeout(() => setPosition(), 1);
         }
-        drawBondUnknown(b) {
-            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
-            let dx = x2 - x1, dy = y2 - y1;
-            let col = b.col;
-            let size = b.size, head = b.head;
-            let ext = Math.sqrt(dx * dx + dy * dy);
-            let nsteps = Math.ceil(ext * 3.5 * this.invScale);
-            let norm = head / ext;
-            let ox = norm * dy, oy = -norm * dx;
-            let sz = 1 + 3 * (nsteps + 1);
-            let x = WebMolKit.Vec.numberArray(0, sz), y = WebMolKit.Vec.numberArray(0, sz), ctrl = WebMolKit.Vec.booleanArray(false, sz);
-            x[0] = x1;
-            y[0] = y1;
-            ctrl[0] = false;
-            for (let i = 0, j = 1; i <= nsteps; i++, j += 3) {
-                let ax = x1 + i * dx / (nsteps + 1), ay = y1 + i * dy / (nsteps + 1);
-                let cx = x1 + (i + 1) * dx / (nsteps + 1), cy = y1 + (i + 1) * dy / (nsteps + 1);
-                let bx = (ax + cx) / 2, by = (ay + cy) / 2;
-                let sign = i % 2 == 0 ? 1 : -1;
-                x[j] = ax;
-                x[j + 1] = bx + sign * ox;
-                x[j + 2] = cx;
-                y[j] = ay;
-                y[j + 1] = by + sign * oy;
-                y[j + 2] = cy;
-                ctrl[j] = true;
-                ctrl[j + 1] = true;
-                ctrl[j + 2] = false;
-            }
-            this.vg.drawPath(x, y, ctrl, false, col, size, WebMolKit.MetaVector.NOCOLOUR, false);
-        }
-        drawBondDotted(b) {
-            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
-            let dx = x2 - x1, dy = y2 - y1;
-            let col = b.col;
-            let size = b.size;
-            let radius = size, dist = WebMolKit.norm_xy(dx, dy);
-            if (dist < 0.01)
-                return;
-            let nudge = 0.5 * size / dist;
-            x1 += nudge * dx;
-            y1 += nudge * dy;
-            x2 -= nudge * dx;
-            y2 -= nudge * dy;
-            dx = x2 - x1;
-            dy = y2 - y1;
-            let nsteps = Math.ceil(0.2 * dist / radius);
-            let invSteps = 1.0 / (nsteps + 1);
-            for (let i = 0; i <= nsteps + 1; i++) {
-                let r = radius;
-                if (b.type == WebMolKit.BLineType.DotDir)
-                    r *= 1 + (i * (1.0 / (nsteps + 2)) - 0.5);
-                let cx = x1 + i * dx * invSteps, cy = y1 + i * dy * invSteps;
-                this.vg.drawOval(cx, cy, r, r, WebMolKit.MetaVector.NOCOLOUR, 0, col);
-            }
-        }
-        drawBondIncMulti(b) {
-            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
-            let dx = x2 - x1, dy = y2 - y1;
-            let col = b.col;
-            let size = b.size, head = b.head;
-            let norm = head / Math.sqrt(dx * dx + dy * dy);
-            let ox = norm * dy, oy = -norm * dx;
-            this.vg.drawPoly([x1, x2 - ox, x2 + ox], [y1, y2 - oy, y2 + oy], col, this.scale * 0.05, WebMolKit.MetaVector.NOCOLOUR, true);
-            if (b.type == WebMolKit.BLineType.IncDouble) {
-                this.vg.drawLine(x1, y1, x2, y2, col, this.scale * 0.03);
-            }
-            else {
-                this.vg.drawLine(x1, y1, x2 + 0.33 * ox, y2 + 0.33 * oy, col, this.scale * 0.03);
-                this.vg.drawLine(x1, y1, x2 - 0.33 * ox, y2 - 0.33 * oy, col, this.scale * 0.03);
-            }
+        lower() {
+            let pop = globalPopover;
+            pop.hide();
         }
     }
-    WebMolKit.DrawMolecule = DrawMolecule;
+    WebMolKit.Tooltip = Tooltip;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
-    class RPC {
-        constructor(request, parameter, callback) {
-            this.request = request;
-            this.parameter = parameter;
-            this.callback = callback;
-        }
-        invoke() {
-            let data = this.parameter;
-            if (data == null)
-                data = {};
-            let url = RPC.BASE_URL + '/REST/' + this.request;
-            $.ajax({
-                'url': url,
-                'type': 'POST',
-                'data': JSON.stringify(this.parameter),
-                'contentType': 'application/json;charset=utf-8',
-                'dataType': 'json',
-                'headers': { 'Access-Control-Allow-Origin': '*' },
-                'success': (data, textStatus, jqXHR) => {
-                    let result = null, error = null;
-                    if (!data) {
-                        error =
-                            {
-                                'message': 'null result',
-                                'code': RPC.ERRCODE_NONSPECIFIC,
-                                'type': 0,
-                                'detail': 'unknown failure'
-                            };
-                    }
-                    else {
-                        if (data.error) {
-                            error =
-                                {
-                                    'message': data.error,
-                                    'code': data.errorCode,
-                                    'type': data.errorType,
-                                    'detail': data.errorDetail
-                                };
-                            console.log('RPC error communicating with: ' + url + ', content: ' + JSON.stringify(data.error) + '\nDetail:\n' + data.errorDetail);
-                        }
-                        else
-                            result = data.result;
-                    }
-                    this.callback(result, error);
-                },
-                'error': (jqXHR, textStatus, errorThrow) => {
-                    let error = {
-                        'message': 'connection failure',
-                        'code': RPC.ERRCODE_NONSPECIFIC,
-                        'type': 0,
-                        'detail': `unable to obtain result from service: ${url}`
-                    };
-                    this.callback({}, error);
-                }
-            });
-        }
-    }
-    RPC.BASE_URL = null;
-    RPC.RESOURCE_URL = null;
-    RPC.ERRCODE_CLIENT_ABORTED = -3;
-    RPC.ERRCODE_CLIENT_TIMEOUT = -1;
-    RPC.ERRCODE_CLIENT_OTHER = -1;
-    RPC.ERRCODE_NONSPECIFIC = 0;
-    RPC.ERRCODE_UNKNOWN = 1;
-    RPC.ERRCODE_NOSUCHUSER = 2;
-    RPC.ERRCODE_INVALIDLOGIN = 3;
-    RPC.ERRCODE_INVALIDTOKEN = 4;
-    RPC.ERRCODE_DATASHEETUNAVAIL = 5;
-    RPC.ERRCODE_INVALIDCOMMAND = 6;
-    RPC.ERRCODE_ROWDATAUNAVAIL = 7;
-    RPC.ERRCODE_MISSINGPARAM = 8;
-    WebMolKit.RPC = RPC;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class Func {
-        static renderStructure(input, callback) {
-            new WebMolKit.RPC('func.renderStructure', input, callback).invoke();
-        }
-        static arrangeMolecule(input, callback) {
-            new WebMolKit.RPC('func.arrangeMolecule', input, callback).invoke();
-        }
-        static renderRowDetail(input, callback) {
-            new WebMolKit.RPC('func.renderRowDetail', input, callback).invoke();
-        }
-        static renderYieldDetail(input, callback) {
-            new WebMolKit.RPC('func.renderYieldDetail', input, callback).invoke();
-        }
-        static composeDocument(input, callback) {
-            new WebMolKit.RPC('func.composeDocument', input, callback).invoke();
-        }
-        static getMoleculeProperties(input, callback) {
-            new WebMolKit.RPC('func.getMoleculeProperties', input, callback).invoke();
-        }
-        static atomMapping(input, callback) {
-            new WebMolKit.RPC('func.atomMapping', input, callback).invoke();
-        }
-        static prepareDownloadable(input, callback) {
-            new WebMolKit.RPC('func.prepareDownloadable', input, callback).invoke();
-        }
-        static downloadFromSource(input, callback) {
-            new WebMolKit.RPC('func.downloadFromSource', input, callback).invoke();
-        }
-        static getDefaultTemplateGroups(input, callback) {
-            new WebMolKit.RPC('func.getDefaultTemplateGroups', input, callback).invoke();
-        }
-        static getDefaultTemplateStructs(input, callback) {
-            new WebMolKit.RPC('func.getDefaultTemplateStructs', input, callback).invoke();
-        }
-        static getActionIcons(input, callback) {
-            new WebMolKit.RPC('func.getActionIcons', input, callback).invoke();
-        }
-    }
-    WebMolKit.Func = Func;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class ViewStructure extends WebMolKit.Widget {
-        constructor(tokenID) {
-            super();
-            this.tokenID = tokenID;
-            this.naturalWidth = 0;
-            this.naturalHeight = 0;
-            this.width = 0;
-            this.height = 0;
-            this.padding = 2;
-            this.borderCol = 0x000000;
-            this.borderRadius = 8;
-            this.backgroundCol1 = 0xFFFFFF;
-            this.backgroundCol2 = 0xE0E0E0;
-            this.molstr = null;
-            this.datastr = null;
-            this.datarow = 0;
-            this.policy = null;
-        }
-        defineMolecule(mol) {
-            this.molstr = mol.toString();
-        }
-        defineMoleculeString(molsk) {
-            this.molstr = molsk;
-        }
-        defineDataSheetString(dsxml, rowidx) {
-            this.datastr = dsxml;
-            this.datarow = rowidx != null ? rowidx : 0;
-        }
-        defineRenderPolicy(policy) {
-            this.policy = policy;
-        }
-        setup(callback) {
-            if (this.molstr == null && this.datastr == null)
-                throw 'molsync.ui.ViewStructure.setup called without specifying a molecule or datasheet';
-            if (this.policy == null)
-                this.policy = WebMolKit.RenderPolicy.defaultColourOnWhite();
-            if (this.molstr != null)
-                this.setupMolecule(callback);
-            else
-                this.setupData(callback);
+    class Widget {
+        constructor() {
+            this.tagType = 'div';
+            this.content = null;
         }
         render(parent) {
-            if (!this.metavec)
-                throw 'molsync.ui.ViewStructure.render must be preceded by a call to setup';
-            super.render(parent);
-            let canvas = WebMolKit.newElement(this.content, 'canvas', { 'width': this.width, 'height': this.height });
-            let density = WebMolKit.pixelDensity();
-            canvas.width = this.width * density;
-            canvas.height = this.height * density;
-            canvas.style.width = this.width + 'px';
-            canvas.style.height = this.height + 'px';
-            let ctx = canvas.getContext('2d');
-            ctx.save();
-            ctx.scale(density, density);
-            let path;
-            if (this.borderRadius == 0) {
-                path = new Path2D();
-                path.rect(1.5, 1.5, this.width - 3, this.height - 3);
-            }
-            else
-                path = WebMolKit.pathRoundedRect(1.5, 1.5, this.width - 1.5, this.height - 1.5, this.borderRadius);
-            if (this.backgroundCol1 != null) {
-                if (this.backgroundCol2 == null) {
-                    ctx.fillStyle = WebMolKit.colourCanvas(this.backgroundCol1);
-                }
-                else {
-                    let grad = ctx.createLinearGradient(0, 0, this.width, this.height);
-                    grad.addColorStop(0, WebMolKit.colourCanvas(this.backgroundCol1));
-                    grad.addColorStop(1, WebMolKit.colourCanvas(this.backgroundCol2));
-                    ctx.fillStyle = grad;
-                }
-                ctx.fill(path);
-            }
-            if (this.borderCol != -1) {
-                ctx.strokeStyle = WebMolKit.colourCanvas(this.borderCol);
-                ctx.lineWidth = 1;
-                ctx.stroke(path);
-            }
-            let limW = this.width - 2 * this.padding, limH = this.height - 2 * this.padding;
-            let natW = this.naturalWidth, natH = this.naturalHeight;
-            let scale = 1;
-            if (natW > limW) {
-                let down = limW / natW;
-                scale *= down;
-                natW *= down;
-                natH *= down;
-            }
-            if (natH > limH) {
-                let down = limH / natH;
-                scale *= down;
-                natW *= down;
-                natH *= down;
-            }
-            this.metavec.offsetX = 0.5 * (this.width - natW);
-            this.metavec.offsetY = 0.5 * (this.height - natH);
-            this.metavec.scale = scale;
-            this.metavec.renderContext(ctx);
-            ctx.restore();
+            let tag = this.tagType;
+            this.content = $(`<${tag}></${tag}>`).appendTo($(parent));
         }
-        setupMolecule(callback) {
-            let mol = WebMolKit.Molecule.fromString(this.molstr);
-            let effects = new WebMolKit.RenderEffects();
-            let measure = new WebMolKit.OutlineMeasurement(0, 0, this.policy.data.pointScale);
-            let layout = new WebMolKit.ArrangeMolecule(mol, measure, this.policy, effects);
-            layout.arrange();
-            this.metavec = new WebMolKit.MetaVector();
-            new WebMolKit.DrawMolecule(layout, this.metavec).draw();
-            this.metavec.normalise();
-            this.naturalWidth = this.metavec.width;
-            this.naturalHeight = this.metavec.height;
-            if (this.width == 0)
-                this.width = this.naturalWidth + 2 * this.padding;
-            if (this.height == 0)
-                this.height = this.naturalHeight + 2 * this.padding;
-            if (callback)
-                callback();
+        remove() {
+            if (this.content)
+                this.content.remove();
+            this.content = null;
         }
-        setupData(callback) {
-            let input = { 'tokenID': this.tokenID };
-            input.policy = this.policy.data;
-            input.dataXML = this.datastr;
-            input.dataRow = this.datarow;
-            WebMolKit.Func.renderStructure(input, (result, error) => {
-                if (!result) {
-                    alert('Setup of ViewStructure failed: ' + error.message);
-                    return;
-                }
-                this.metavec = new WebMolKit.MetaVector(result.metavec);
-                this.naturalWidth = this.metavec.width;
-                this.naturalHeight = this.metavec.width;
-                if (this.width == 0)
-                    this.width = this.naturalWidth + 2 * this.padding;
-                if (this.height == 0)
-                    this.height = this.naturalHeight + 2 * this.padding;
-                if (callback)
-                    callback();
-            });
+        addTooltip(bodyHTML, titleHTML) {
+            WebMolKit.addTooltip(this.content, bodyHTML, titleHTML);
         }
     }
-    WebMolKit.ViewStructure = ViewStructure;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class Theme {
-    }
-    Theme.foreground = 0x000000;
-    Theme.background = 0xFFFFFF;
-    Theme.lowlight = 0x24D0D0;
-    Theme.lowlightEdge1 = 0x47D5D2;
-    Theme.lowlightEdge2 = 0x008FD1;
-    Theme.highlight = 0x00FF00;
-    Theme.highlightEdge1 = 0x00CA59;
-    Theme.highlightEdge2 = 0x008650;
-    Theme.error = 0xFF0000;
-    WebMolKit.Theme = Theme;
-    function initWebMolKit(resourcePath) {
-        WebMolKit.RPC.RESOURCE_URL = resourcePath;
-        installInlineCSS('main', composeMainCSS());
-    }
-    WebMolKit.initWebMolKit = initWebMolKit;
-    let cssTagsInstalled = new Set();
-    function hasInlineCSS(tag) { return cssTagsInstalled.has(tag); }
-    WebMolKit.hasInlineCSS = hasInlineCSS;
-    function installInlineCSS(tag, css) {
-        if (cssTagsInstalled.has(tag))
-            return false;
-        let el = document.createElement('style');
-        el.innerHTML = css;
-        document.head.appendChild(el);
-        cssTagsInstalled.add(tag);
-        return true;
-    }
-    WebMolKit.installInlineCSS = installInlineCSS;
-    function composeMainCSS() {
-        let lowlight = WebMolKit.colourCode(Theme.lowlight), lowlightEdge1 = WebMolKit.colourCode(Theme.lowlightEdge1), lowlightEdge2 = WebMolKit.colourCode(Theme.lowlightEdge2);
-        let highlight = WebMolKit.colourCode(Theme.highlight), highlightEdge1 = WebMolKit.colourCode(Theme.highlightEdge1), highlightEdge2 = WebMolKit.colourCode(Theme.highlightEdge2);
-        return `
-		.wmk-button
-		{
-			display: inline-block;
-			padding: 6px 12px;
-			margin-bottom: 0;
-			font-family: 'Open Sans', sans-serif;
-			font-size: 14px;
-			font-weight: normal;
-			line-height: 1.42857143;
-			text-align: center;
-			white-space: nowrap;
-			vertical-align: middle;
-			cursor: pointer;
-			background-image: none;
-			border: 1px solid transparent;
-			border-radius: 4px;
-			-ms-touch-action: manipulation; touch-action: manipulation;
-			-webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-		}
-		.wmk-button:focus,
-		.wmk-button:active:focus,
-		.wmk-button.active:focus,
-		.wmk-button.focus,
-		.wmk-button:active.focus,
-		.wmk-button.active.focus 
-		{
-			outline: thin dotted;
-			outline: 5px auto -webkit-focus-ring-color;
-			outline-offset: -2px;
-		}
-		.wmk-button:hover,
-		.wmk-button:focus,
-		.wmk-button.focus 
-		{
-			color: #333;
-			text-decoration: none;
-		}
-		.wmk-button:active,
-		.wmk-button.active 
-		{
-			background-image: none;
-			outline: 0;
-			-webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, .125);
-			box-shadow: inset 0 3px 5px rgba(0, 0, 0, .125);
-		}
-		.wmk-button.disabled,
-		.wmk-button[disabled],
-		fieldset[disabled] .wmk-button 
-		{
-			cursor: not-allowed;
-			filter: alpha(opacity=65);
-			-webkit-box-shadow: none;
-			box-shadow: none;
-			opacity: .65;
-		}
-		a.wmk-button.disabled,
-		fieldset[disabled] a.wmk-button 
-		{
-			pointer-events: none;
-		}
-
-		/* shrunken button */
-
-		.wmk-button-small
-		{
-			padding: 2px 4px;
-			line-height: 1;
-			font-size: 12px;
-		}
-
-		/* default button */
-
-		.wmk-button-default 
-		{
-			color: #333;
-			background-color: #fff;
-			background-image: linear-gradient(to right bottom, #FFFFFF, #E0E0E0);
-			border-color: #ccc;
-		}
-		.wmk-button-default:focus,
-		.wmk-button-default.focus 
-		{
-			color: #333;
-			background-color: #e6e6e6;
-			border-color: #8c8c8c;
-		}
-		.wmk-button-default:hover 
-		{
-			color: #333;
-			background-color: #e6e6e6;
-			border-color: #adadad;
-		}
-		.wmk-button-default:active,
-		.wmk-button-default.active,
-		.open > .dropdown-toggle.wmk-button-default 
-		{
-			color: #333;
-			background-color: #e6e6e6;
-			border-color: #adadad;
-		}
-		.wmk-button-default:active:hover,
-		.wmk-button-default.active:hover,
-		.open > .dropdown-toggle.wmk-button-default:hover,
-		.wmk-button-default:active:focus,
-		.wmk-button-default.active:focus,
-		.open > .dropdown-toggle.wmk-button-default:focus,
-		.wmk-button-default:active.focus,
-		.wmk-button-default.active.focus,
-		.open > .dropdown-toggle.wmk-button-default.focus 
-		{
-			color: #333;
-			background-color: #d4d4d4;
-			border-color: #8c8c8c;
-		}
-		.wmk-button-default:active,
-		.wmk-button-default.active,
-		.open > .dropdown-toggle.wmk-button-default 
-		{
-			background-image: none;
-		}
-		.wmk-button-default.disabled:hover,
-		.wmk-button-default[disabled]:hover,
-		fieldset[disabled] .wmk-button-default:hover,
-		.wmk-button-default.disabled:focus,
-		.wmk-button-default[disabled]:focus,
-		fieldset[disabled] .wmk-button-default:focus,
-		.wmk-button-default.disabled.focus,
-		.wmk-button-default[disabled].focus,
-		fieldset[disabled] .wmk-button-default.focus 
-		{
-			background-color: #fff;
-			border-color: #ccc;
-		}
-		.wmk-button-default .badge 
-		{
-			color: #fff;
-			background-color: #333;
-		}
-
-		/* primary button */
-
-		.wmk-button-primary 
-		{
-			color: #fff;
-			background-color: #008FD2;
-			background-image: linear-gradient(to right bottom, ${lowlightEdge1}, ${lowlightEdge2});
-			border-color: #00C0C0;
-		}
-		.wmk-button-primary:focus,
-		.wmk-button-primary.focus 
-		{
-			color: #fff;
-			background-color: ${lowlight};
-			border-color: #122b40;
-		}
-		.wmk-button-primary:hover 
-		{
-			color: #fff;
-			background-color: #286090;
-			border-color: #204d74;
-		}
-		.wmk-button-primary:active,
-		.wmk-button-primary.active,
-		.open > .dropdown-toggle.wmk-button-primary 
-		{
-			color: #fff;
-			background-color: #286090;
-			border-color: #20744d;
-		}
-		.wmk-button-primary:active:hover,
-		.wmk-button-primary.active:hover,
-		.open > .dropdown-toggle.wmk-button-primary:hover,
-		.wmk-button-primary:active:focus,
-		.wmk-button-primary.active:focus,
-		.open > .dropdown-toggle.wmk-button-primary:focus,
-		.wmk-button-primary:active.focus,
-		.wmk-button-primary.active.focus,
-		.open > .dropdown-toggle.wmk-button-primary.focus 
-		{
-			color: #fff;
-			background-color: ${highlight};
-			background-image: linear-gradient(to right bottom, ${highlightEdge1}, ${highlightEdge2});
-			border-color: #12802b;
-		}
-		.wmk-button-primary:active,
-		.wmk-button-primary.active,
-		.open > .dropdown-toggle.wmk-button-primary 
-		{
-			background-image: none;
-		}
-		.wmk-button-primary.disabled:hover,
-		.wmk-button-primary[disabled]:hover,
-		fieldset[disabled] .wmk-button-primary:hover,
-		.wmk-button-primary.disabled:focus,
-		.wmk-button-primary[disabled]:focus,
-		fieldset[disabled] .wmk-button-primary:focus,
-		.wmk-button-primary.disabled.focus,
-		.wmk-button-primary[disabled].focus,
-		fieldset[disabled] .wmk-button-primary.focus 
-		{
-			background-color: #337ab7;
-			border-color: #2ea46d;
-		}
-		.wmk-button-primary .badge 
-		{
-			color: #337ab7;
-			background-color: #fff;
-		}
-	`;
-    }
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    const CSS_DIALOG = `
-    *.wmk-dialog
-    {
-        font-family: 'Open Sans', sans-serif;
-    }
-`;
-    class Dialog {
-        constructor() {
-            this.minPortionWidth = 80;
-            this.maxPortionWidth = 80;
-            this.maximumWidth = 0;
-            this.maximumHeight = 0;
-            this.title = 'Dialog';
-            this.callbackClose = null;
-            this.callbackShown = null;
-            WebMolKit.installInlineCSS('dialog', CSS_DIALOG);
-        }
-        onClose(callback) {
-            this.callbackClose = callback;
-        }
-        onShown(callback) {
-            this.callbackShown = callback;
-        }
-        open() {
-            let body = $(document.documentElement);
-            let bg = $('<div></div>').appendTo(body);
-            bg.css('width', '100%');
-            bg.css('height', document.documentElement.clientHeight + 'px');
-            bg.css('background-color', 'black');
-            bg.css('opacity', 0.8);
-            bg.css('position', 'absolute');
-            bg.css('left', 0);
-            bg.css('top', 0);
-            bg.css('z-index', 9999);
-            this.obscureBackground = bg;
-            let pb = $('<div class="wmk-dialog"></div>').appendTo(body);
-            pb.css('min-width', this.minPortionWidth + '%');
-            if (this.maximumWidth > 0)
-                pb.css('max-width', this.maximumWidth + 'px');
-            else if (this.maxPortionWidth != null)
-                pb.css('max-width', this.maxPortionWidth + '%');
-            if (this.maximumHeight > 0)
-                pb.css('max-height', this.maximumHeight + 'px');
-            pb.css('background-color', 'white');
-            pb.css('border-radius', '6px');
-            pb.css('border', '1px solid black');
-            pb.css('position', 'absolute');
-            pb.css('left', (50 - 0.5 * this.minPortionWidth) + '%');
-            pb.css('top', (document.body.scrollTop + 50) + 'px');
-            pb.css('min-height', '20%');
-            pb.css('z-index', 10000);
-            this.panelBoundary = pb;
-            let tdiv = $('<div></div>').appendTo(pb);
-            tdiv.css('width', '100%');
-            tdiv.css('background-color', '#F0F0F0');
-            tdiv.css('background-image', 'linear-gradient(to right bottom, #FFFFFF, #E0E0E0)');
-            tdiv.css('border-bottom', '1px solid #C0C0C0');
-            tdiv.css('border-radius', '6px 6px 0 0');
-            tdiv.css('margin', 0);
-            tdiv.css('padding', 0);
-            this.titleDiv = tdiv;
-            let bdiv = $('<div></div>').appendTo(pb);
-            bdiv.css('width', '100%');
-            this.bodyDiv = $('<div style="padding: 0.5em;"></div>').appendTo(bdiv);
-            let ttlTable = $('<table></table>').appendTo(tdiv), tr = $('<tr></tr>').appendTo(ttlTable);
-            ttlTable.attr('width', '100%');
-            let tdTitle = $('<td valign="center"></td>').appendTo(tr);
-            tdTitle.css('padding', '0.5em');
-            let ttl = $('<font></font>').appendTo(tdTitle);
-            ttl.css('font-size', '1.5em');
-            ttl.css('font-weight', '600');
-            ttl.text(this.title);
-            let tdButtons = $('<td align="right" valign="center"></td>').appendTo(tr);
-            tdButtons.css('padding', '0.5em');
-            this.btnClose = $('<button class="wmk-button wmk-button-default">Close</button>').appendTo(tdButtons);
-            this.btnClose.click(() => this.close());
-            this.titleButtons = tdButtons;
-            this.populate();
-            this.repositionSize();
-            bg.show();
-            pb.show();
-            if (this.callbackShown)
-                this.callbackShown(this);
-        }
-        close() {
-            this.panelBoundary.remove();
-            this.obscureBackground.remove();
-            if (this.callbackClose)
-                this.callbackClose(this);
-        }
-        bump() {
-            this.repositionSize();
-        }
-        body() { return this.bodyDiv; }
-        buttons() { return this.titleButtons; }
-        populate() {
-            this.body().text('Empty dialog box.');
-        }
-        repositionSize() {
-            let docW = $(window).width(), dlgW = this.panelBoundary.width();
-            this.panelBoundary.css('left', (0.5 * (docW - dlgW)) + 'px');
-        }
-    }
-    WebMolKit.Dialog = Dialog;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class PickRecent extends WebMolKit.Dialog {
-        constructor(cookies, sides) {
-            super();
-            this.cookies = cookies;
-            this.sides = sides;
-            this.callbackPick1 = null;
-            this.callbackPick2 = null;
-            this.tableRows = [];
-            this.views = [];
-            this.title = 'Recent Molecules';
-            this.minPortionWidth = 20;
-            this.maxPortionWidth = 95;
-        }
-        populate() {
-            let table = $('<table></table>').appendTo(this.body());
-            for (let n = 0; n < this.cookies.numMolecules(); n++) {
-                const idx = n;
-                let tr = $('<tr></tr>').appendTo(table);
-                this.tableRows.push(tr);
-                let tdHTML = '<td style="text-align: center; vertical-align: middle; padding: 0.5em;"></td>';
-                const tdMol = $(tdHTML).appendTo(tr);
-                let mol = this.cookies.getMolecule(n);
-                const vs = new WebMolKit.ViewStructure();
-                this.views[n] = vs;
-                vs.content = tdMol;
-                vs.defineMolecule(mol);
-                vs.borderCol = -1;
-                vs.backgroundCol1 = 0xF8F8F8;
-                vs.backgroundCol2 = 0xE0E0E0;
-                vs.padding = 4;
-                vs.setup(() => { vs.render(tdMol); this.bump(); });
-                let tdPick = $(tdHTML).appendTo(tr);
-                if (this.sides == 1) {
-                    let btnPick = $('<button class="button button-primary">Pick</button>').appendTo(tdPick);
-                    btnPick.click(() => this.pickMolecule(idx, 1));
-                }
-                else {
-                    let btnPick1 = $('<button class="button button-primary">Reactant</button>').appendTo(tdPick);
-                    tdPick.append('&nbsp;');
-                    let btnPick2 = $('<button class="button button-primary">Product</button>').appendTo(tdPick);
-                    btnPick1.click(() => this.pickMolecule(idx, 1));
-                    btnPick2.click(() => this.pickMolecule(idx, 2));
-                }
-                tdPick.append('&nbsp;');
-                let btnDelete = $('<button class="button button-default">Delete</button>').appendTo(tdPick);
-                btnDelete.click(() => this.deleteMolecule(idx));
-            }
-        }
-        pickMolecule(idx, which) {
-            let mol = this.cookies.getMolecule(idx);
-            this.cookies.promoteToTop(idx);
-            if (which == 1 && this.callbackPick1)
-                this.callbackPick1(mol);
-            if (which == 2 && this.callbackPick2)
-                this.callbackPick2(mol);
-            this.close();
-        }
-        deleteMolecule(idx) {
-            this.cookies.deleteMolecule(idx);
-            this.tableRows[idx].remove();
-            this.bump();
-        }
-    }
-    WebMolKit.PickRecent = PickRecent;
+    WebMolKit.Widget = Widget;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -11139,8 +11208,8 @@ var WebMolKit;
                     let svg = ButtonView.ACTION_ICONS[b.imageFN];
                     if (svg)
                         putSVG(svg);
-                    else if (WebMolKit.RPC.RESOURCE_URL != null) {
-                        let url = WebMolKit.RPC.RESOURCE_URL + '/img/actions/' + b.imageFN + '.svg';
+                    else if (WebMolKit.Theme.RESOURCE_URL != null) {
+                        let url = WebMolKit.Theme.RESOURCE_URL + '/img/actions/' + b.imageFN + '.svg';
                         $.ajax({
                             'url': url,
                             'type': 'GET',
@@ -11506,74 +11575,79 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    class ClipboardProxyHandler {
+        copyEvent(andCut, proxy) { return false; }
+        pasteEvent(proxy) { return false; }
+    }
+    WebMolKit.ClipboardProxyHandler = ClipboardProxyHandler;
     class ClipboardProxy {
         constructor() {
-            this.copyEvent = null;
-            this.pasteEvent = null;
+            this.handlers = [new ClipboardProxyHandler()];
         }
-        install(container) { }
-        uninstall() { }
+        pushHandler(handler) {
+            this.handlers.push(handler);
+        }
+        popHandler() {
+            this.handlers.pop();
+        }
+        currentHandler() {
+            return this.handlers[this.handlers.length - 1];
+        }
+        triggerCopy(andCut) {
+            if (this.currentHandler().copyEvent(andCut, this))
+                return;
+            document.execCommand(andCut ? 'cut' : 'copy');
+        }
+        triggerPaste() {
+            if (this.currentHandler().pasteEvent(this))
+                return;
+            document.execCommand('paste');
+        }
         getString() { return null; }
         setString(str) { }
+        canSetHTML() { return false; }
+        setHTML(html) { }
         canAlwaysGet() { return false; }
+        downloadString(str, fn) { }
     }
     WebMolKit.ClipboardProxy = ClipboardProxy;
     class ClipboardProxyWeb extends ClipboardProxy {
         constructor() {
-            super(...arguments);
+            super();
             this.lastContent = null;
-            this.busy = false;
-            this.copyFunc = null;
-            this.pasteFunc = null;
             this.fakeTextArea = null;
-        }
-        install(container) {
-            if (!container)
-                throw 'ClipboardProxy: need a container to install to';
-            this.copyFunc = (e) => {
+            this.busy = false;
+            document.addEventListener('copy', (event) => {
                 if (this.busy)
                     return;
-                let content = this.copyEvent();
-                if (content == null)
+                if (this.currentHandler().copyEvent(false, this)) {
+                    event.preventDefault();
+                    return false;
+                }
+            });
+            document.addEventListener('cut', (event) => {
+                if (this.busy)
                     return;
-                if (!$.contains(document.documentElement, container[0])) {
-                    this.uninstall();
+                if (this.currentHandler().copyEvent(true, this)) {
+                    event.preventDefault();
                     return false;
                 }
-                document.removeEventListener('copy', this.copyFunc);
-                this.performCopy(content);
-                document.addEventListener('copy', this.copyFunc);
-                e.preventDefault();
-                return false;
-            };
-            document.addEventListener('copy', this.copyFunc);
-            this.pasteFunc = (e) => {
-                if (!$.contains(document.documentElement, container[0])) {
-                    this.uninstall();
-                    return false;
-                }
+            });
+            document.addEventListener('paste', (event) => {
                 let wnd = window;
                 this.lastContent = null;
                 if (wnd.clipboardData && wnd.clipboardData.getData)
                     this.lastContent = wnd.clipboardData.getData('Text');
-                else if (e.clipboardData && e.clipboardData.getData)
-                    this.lastContent = e.clipboardData.getData('text/plain');
-                this.pasteEvent(this);
+                else if (event.clipboardData && event.clipboardData.getData)
+                    this.lastContent = event.clipboardData.getData('text/plain');
+                let consumed = this.currentHandler().pasteEvent(this);
                 this.lastContent = null;
-                e.preventDefault();
-                return false;
-            };
-            document.addEventListener('paste', this.pasteFunc);
-        }
-        uninstall() {
-            if (this.copyFunc) {
-                document.removeEventListener('copy', this.copyFunc);
-                this.copyFunc = null;
-            }
-            if (this.pasteFunc) {
-                document.removeEventListener('paste', this.pasteFunc);
-                this.pasteFunc = null;
-            }
+                if (consumed) {
+                    event.preventDefault();
+                    return false;
+                }
+                return true;
+            });
         }
         getString() {
             return this.lastContent;
@@ -12387,25 +12461,28 @@ var WebMolKit;
         ActivityType[ActivityType["Flip"] = 34] = "Flip";
         ActivityType[ActivityType["Scale"] = 35] = "Scale";
         ActivityType[ActivityType["Rotate"] = 36] = "Rotate";
-        ActivityType[ActivityType["Move"] = 37] = "Move";
-        ActivityType[ActivityType["Ring"] = 38] = "Ring";
-        ActivityType[ActivityType["TemplateFusion"] = 39] = "TemplateFusion";
-        ActivityType[ActivityType["AbbrevTempl"] = 40] = "AbbrevTempl";
-        ActivityType[ActivityType["AbbrevGroup"] = 41] = "AbbrevGroup";
-        ActivityType[ActivityType["AbbrevFormula"] = 42] = "AbbrevFormula";
-        ActivityType[ActivityType["AbbrevClear"] = 43] = "AbbrevClear";
-        ActivityType[ActivityType["AbbrevExpand"] = 44] = "AbbrevExpand";
-        ActivityType[ActivityType["BondArtifactPath"] = 45] = "BondArtifactPath";
-        ActivityType[ActivityType["BondArtifactRing"] = 46] = "BondArtifactRing";
-        ActivityType[ActivityType["BondArtifactArene"] = 47] = "BondArtifactArene";
-        ActivityType[ActivityType["BondArtifactClear"] = 48] = "BondArtifactClear";
+        ActivityType[ActivityType["BondDist"] = 37] = "BondDist";
+        ActivityType[ActivityType["AlignAngle"] = 38] = "AlignAngle";
+        ActivityType[ActivityType["AdjustTorsion"] = 39] = "AdjustTorsion";
+        ActivityType[ActivityType["Move"] = 40] = "Move";
+        ActivityType[ActivityType["Ring"] = 41] = "Ring";
+        ActivityType[ActivityType["TemplateFusion"] = 42] = "TemplateFusion";
+        ActivityType[ActivityType["AbbrevTempl"] = 43] = "AbbrevTempl";
+        ActivityType[ActivityType["AbbrevGroup"] = 44] = "AbbrevGroup";
+        ActivityType[ActivityType["AbbrevFormula"] = 45] = "AbbrevFormula";
+        ActivityType[ActivityType["AbbrevClear"] = 46] = "AbbrevClear";
+        ActivityType[ActivityType["AbbrevExpand"] = 47] = "AbbrevExpand";
+        ActivityType[ActivityType["BondArtifactPath"] = 48] = "BondArtifactPath";
+        ActivityType[ActivityType["BondArtifactRing"] = 49] = "BondArtifactRing";
+        ActivityType[ActivityType["BondArtifactArene"] = 50] = "BondArtifactArene";
+        ActivityType[ActivityType["BondArtifactClear"] = 51] = "BondArtifactClear";
     })(ActivityType = WebMolKit.ActivityType || (WebMolKit.ActivityType = {}));
     class MoleculeActivity {
-        constructor(owner, activity, param, override) {
-            this.owner = owner;
+        constructor(input, activity, param, override, owner) {
+            this.input = input;
             this.activity = activity;
             this.param = param;
-            this.input = owner.getState();
+            this.owner = owner;
             this.output =
                 {
                     'mol': null,
@@ -12445,188 +12522,118 @@ var WebMolKit;
                 WebMolKit.Vec.addTo(this.subjectIndex, 1);
             }
         }
+        setOwner(owner) {
+            this.owner = owner;
+        }
         evaluate() {
             return true;
         }
         execute() {
             let param = this.param;
-            if (this.activity == ActivityType.Delete) {
+            if (this.activity == ActivityType.Delete)
                 this.execDelete();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Clear) {
+            else if (this.activity == ActivityType.Clear)
                 this.execClear();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Copy) {
+            else if (this.activity == ActivityType.Copy)
                 this.execCopy(false);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Cut) {
+            else if (this.activity == ActivityType.Cut)
                 this.execCopy(true);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectAll) {
+            else if (this.activity == ActivityType.SelectAll)
                 this.execSelectAll(true);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectNone) {
+            else if (this.activity == ActivityType.SelectNone)
                 this.execSelectAll(false);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectPrevComp) {
+            else if (this.activity == ActivityType.SelectPrevComp)
                 this.execSelectComp(-1);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectNextComp) {
+            else if (this.activity == ActivityType.SelectNextComp)
                 this.execSelectComp(1);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectSide) {
+            else if (this.activity == ActivityType.SelectSide)
                 this.execSelectSide();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectGrow) {
+            else if (this.activity == ActivityType.SelectGrow)
                 this.execSelectGrow();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectShrink) {
+            else if (this.activity == ActivityType.SelectShrink)
                 this.execSelectShrink();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectChain) {
+            else if (this.activity == ActivityType.SelectChain)
                 this.execSelectChain();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectSmRing) {
+            else if (this.activity == ActivityType.SelectSmRing)
                 this.execSelectSmRing();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectRingBlk) {
+            else if (this.activity == ActivityType.SelectRingBlk)
                 this.execSelectRingBlk();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectCurElement) {
+            else if (this.activity == ActivityType.SelectCurElement)
                 this.execSelectCurElement();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectToggle) {
+            else if (this.activity == ActivityType.SelectToggle)
                 this.execSelectToggle();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.SelectUnCurrent) {
+            else if (this.activity == ActivityType.SelectUnCurrent)
                 this.execSelectUnCurrent();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Element) {
+            else if (this.activity == ActivityType.Element)
                 this.execElement(param.element, param.positionX, param.positionY, param.keepAbbrev);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Charge) {
+            else if (this.activity == ActivityType.Charge)
                 this.execCharge(param.delta);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Connect) {
+            else if (this.activity == ActivityType.Connect)
                 this.execConnect(1, WebMolKit.Molecule.BONDTYPE_NORMAL);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Disconnect) {
+            else if (this.activity == ActivityType.Disconnect)
                 this.execDisconnect();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.BondOrder) {
+            else if (this.activity == ActivityType.BondOrder)
                 this.execBond(param.order, WebMolKit.Molecule.BONDTYPE_NORMAL);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.BondType) {
+            else if (this.activity == ActivityType.BondType)
                 this.execBond(1, param.type);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.BondGeom) {
+            else if (this.activity == ActivityType.BondGeom)
                 this.execBondGeom(param.geom);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.BondAtom) {
+            else if (this.activity == ActivityType.BondAtom)
                 this.execBondAtom(param.order, param.type, param.element, param.x1, param.y1, param.x2, param.y2);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.BondSwitch) {
+            else if (this.activity == ActivityType.BondSwitch)
                 this.execBondSwitch();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.BondAddTwo) {
+            else if (this.activity == ActivityType.BondAddTwo)
                 this.execBondAddTwo();
-                this.finish();
-            }
             else if (this.activity == ActivityType.BondInsert) {
             }
-            else if (this.activity == ActivityType.Join) {
+            else if (this.activity == ActivityType.Join)
                 this.execJoin();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Nudge) {
+            else if (this.activity == ActivityType.Nudge)
                 this.execNudge(param.dir, 0.1);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.NudgeLots) {
+            else if (this.activity == ActivityType.NudgeLots)
                 this.execNudge(param.dir, 1);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.NudgeFar) {
+            else if (this.activity == ActivityType.NudgeFar)
                 this.execNudgeFar(param.dir);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Flip) {
+            else if (this.activity == ActivityType.Flip)
                 this.execFlip(param.axis);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Scale) {
+            else if (this.activity == ActivityType.Scale)
                 this.execScale(param.mag);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Rotate) {
+            else if (this.activity == ActivityType.Rotate)
                 this.execRotate(param.theta, param.centreX, param.centreY);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Move) {
+            else if (this.activity == ActivityType.BondDist)
+                this.execBondDist(param.dist);
+            else if (this.activity == ActivityType.AlignAngle)
+                this.execAlignAngle(param.angle);
+            else if (this.activity == ActivityType.AdjustTorsion)
+                this.execAdjustTorsion(param.angle);
+            else if (this.activity == ActivityType.Move)
                 this.execMove(param.refAtom, param.deltaX, param.deltaY);
-                this.finish();
-            }
-            else if (this.activity == ActivityType.Ring) {
+            else if (this.activity == ActivityType.Ring)
                 this.execRing(param.ringX, param.ringY, param.aromatic);
-                this.finish();
-            }
             else if (this.activity == ActivityType.TemplateFusion) {
                 this.execTemplateFusion(WebMolKit.Molecule.fromString(param.fragNative));
-                this.owner.setPermutations(this.output.permutations);
+                if (this.owner)
+                    this.owner.setPermutations(this.output.permutations);
+                return;
             }
-            else if (this.activity == ActivityType.AbbrevTempl) {
+            else if (this.activity == ActivityType.AbbrevTempl)
                 this.execAbbrevTempl();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.AbbrevGroup) {
+            else if (this.activity == ActivityType.AbbrevGroup)
                 this.execAbbrevGroup();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.AbbrevFormula) {
+            else if (this.activity == ActivityType.AbbrevFormula)
                 this.execAbbrevFormula();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.AbbrevClear) {
+            else if (this.activity == ActivityType.AbbrevClear)
                 this.execAbbrevClear();
-                this.finish();
-            }
-            else if (this.activity == ActivityType.AbbrevExpand) {
+            else if (this.activity == ActivityType.AbbrevExpand)
                 this.execAbbrevExpand();
-                this.finish();
-            }
             else if (this.activity == ActivityType.BondArtifactPath || this.activity == ActivityType.BondArtifactRing ||
-                this.activity == ActivityType.BondArtifactArene || this.activity == ActivityType.BondArtifactClear) {
+                this.activity == ActivityType.BondArtifactArene || this.activity == ActivityType.BondArtifactClear)
                 this.execBondArtifact(this.activity);
-                this.finish();
-            }
+            this.finish();
         }
         finish() {
+            if (!this.owner)
+                return;
             if (this.output.mol != null || this.output.currentAtom >= 0 || this.output.currentBond >= 0 || this.output.selectedMask != null) {
                 this.owner.setState(this.output, true);
                 if (this.errmsg != null)
@@ -13253,6 +13260,103 @@ var WebMolKit;
             this.output.mol = mol.clone();
             WebMolKit.CoordUtil.rotateAtoms(this.output.mol, mask, cx, cy, theta);
         }
+        execBondDist(dist) {
+            let bond = this.input.currentBond;
+            if (bond == 0) {
+                this.errmsg = 'There must be a current bond.';
+                return;
+            }
+            let mol = this.input.mol.clone();
+            if (mol.bondInRing(bond)) {
+                let atom1 = mol.bondFrom(bond), atom2 = mol.bondTo(bond);
+                let dx = mol.atomX(atom2) - mol.atomX(atom1), dy = mol.atomY(atom2) - mol.atomY(atom1), curDist = WebMolKit.norm_xy(dx, dy), inv = 1.0 / curDist;
+                let sel1 = this.isSelected(atom1), sel2 = this.isSelected(atom2);
+                let ox = dx * (dist - curDist) * inv, oy = dy * (dist - curDist) * inv;
+                if (sel1 && !sel2) {
+                    mol.setAtomPos(atom1, mol.atomX(atom1) - ox, mol.atomY(atom1) - oy);
+                }
+                else if (sel2 && !sel1) {
+                    mol.setAtomPos(atom2, mol.atomX(atom2) + ox, mol.atomY(atom2) + oy);
+                }
+                else {
+                    mol.setAtomPos(atom1, mol.atomX(atom1) - 0.5 * ox, mol.atomY(atom1) - 0.5 * oy);
+                    mol.setAtomPos(atom2, mol.atomX(atom2) + 0.5 * ox, mol.atomY(atom2) + 0.5 * oy);
+                }
+            }
+            else {
+                let [atom1, atom2, side] = this.heavySide(bond);
+                let dx = mol.atomX(atom2) - mol.atomX(atom1), dy = mol.atomY(atom2) - mol.atomY(atom1);
+                let curDist = WebMolKit.norm_xy(dx, dy), inv = 1.0 / curDist;
+                let ox = dx * (dist - curDist) * inv, oy = dy * (dist - curDist) * inv;
+                for (let a of side)
+                    mol.setAtomPos(a, mol.atomX(a) - ox, mol.atomY(a) - oy);
+            }
+            this.output.mol = mol;
+        }
+        execAlignAngle(angle) {
+            let bond = this.input.currentBond;
+            if (bond == 0) {
+                this.errmsg = 'There must be a current bond.';
+                return;
+            }
+            let mol = this.input.mol.clone();
+            if (mol.bondInRing(bond)) {
+                this.errmsg = 'Cannot align a ring-bond.';
+                return;
+            }
+            let [atom1, atom2, side] = this.heavySide(bond);
+            let cx = mol.atomX(atom2), cy = mol.atomY(atom2);
+            let delta = angle - Math.atan2(mol.atomY(atom1) - cy, mol.atomX(atom1) - cx);
+            let cosTheta = Math.cos(delta), sinTheta = Math.sin(delta);
+            for (let a of side) {
+                let x = mol.atomX(a) - cx, y = mol.atomY(a) - cy;
+                mol.setAtomPos(a, cx + x * cosTheta - y * sinTheta, cy + x * sinTheta + y * cosTheta);
+            }
+            this.output.mol = mol;
+        }
+        execAdjustTorsion(angle) {
+            if (this.input.currentAtom == 0 || WebMolKit.Vec.maskCount(this.input.selectedMask) != 3) {
+                this.errmsg = 'Must be 3 selected atoms and a current atom.';
+                return;
+            }
+            let mol = this.input.mol.clone();
+            let a1 = this.input.currentAtom;
+            let atoms = [];
+            for (let n = 1; n <= mol.numAtoms; n++)
+                if (n != a1 && this.input.selectedMask[n - 1])
+                    atoms.push(n);
+            let a2 = mol.findBond(a1, atoms[0]) > 0 ? atoms.shift() :
+                mol.findBond(a1, atoms[1]) > 0 ? atoms.pop() : 0;
+            if (a2 == 0 || mol.findBond(a2, atoms[0]) == 0) {
+                this.errmsg = 'Selected atoms must be consecutive.';
+                return;
+            }
+            let a3 = atoms[0];
+            let cx = mol.atomX(a2), cy = mol.atomY(a2);
+            let theta1 = Math.atan2(mol.atomY(a1) - cy, mol.atomX(a1) - cx);
+            let theta3 = Math.atan2(mol.atomY(a3) - cy, mol.atomX(a3) - cx);
+            let delta = angle - WebMolKit.angleDiff(theta3, theta1);
+            var group1 = [], group3 = [];
+            if (mol.atomRingBlock(a1) == 0 || mol.atomRingBlock(a1) != mol.atomRingBlock(a3)) {
+                let g = WebMolKit.Graph.fromMolecule(mol);
+                g.removeEdge(a2 - 1, a1 - 1);
+                g.removeEdge(a2 - 1, a3 - 1);
+                let cc = g.calculateComponents();
+                for (let n = 0; n < g.numNodes; n++) {
+                    if (cc[n] == cc[a1 - 1])
+                        group1.push(n + 1);
+                    else if (cc[n] == cc[a3 - 1])
+                        group3.push(n + 1);
+                }
+            }
+            if (mol.atomRingBlock(a1) > 0 && mol.atomRingBlock(a1) == mol.atomRingBlock(a2))
+                group1 = [a1];
+            if (mol.atomRingBlock(a3) > 0 && mol.atomRingBlock(a3) == mol.atomRingBlock(a2))
+                group3 = [a3];
+            WebMolKit.CoordUtil.rotateAtoms(mol, WebMolKit.Vec.idxMask(WebMolKit.Vec.add(group1, -1), mol.numAtoms), cx, cy, -0.5 * delta);
+            WebMolKit.CoordUtil.rotateAtoms(mol, WebMolKit.Vec.idxMask(WebMolKit.Vec.add(group3, -1), mol.numAtoms), cx, cy, 0.5 * delta);
+            this.output.mol = mol;
+        }
         execMove(refAtom, deltaX, deltaY) {
             let subj = this.subjectIndex;
             if (WebMolKit.Vec.arrayLength(subj) == 0)
@@ -13653,6 +13757,30 @@ var WebMolKit;
             }
             return true;
         }
+        heavySide(bond) {
+            let { mol } = this.input;
+            let atom1 = mol.bondFrom(bond), atom2 = mol.bondTo(bond);
+            let g = WebMolKit.Graph.fromMolecule(mol);
+            g.removeEdge(atom1 - 1, atom2 - 1);
+            let side1 = [], side2 = [];
+            for (let grp of g.calculateComponentGroups()) {
+                if (grp.includes(atom1 - 1))
+                    side1 = WebMolKit.Vec.add(grp, 1);
+                if (grp.includes(atom2 - 1))
+                    side2 = WebMolKit.Vec.add(grp, 1);
+            }
+            let weight1 = side1.length * (mol.atomRingBlock(atom1) > 0 ? 2 : 1);
+            let weight2 = side2.length * (mol.atomRingBlock(atom2) > 0 ? 2 : 1);
+            let sel1 = this.isSelected(atom1), sel2 = this.isSelected(atom2);
+            if (sel1 && !sel2) { }
+            else if (sel2 && !sel1 || weight2 < weight1)
+                return [atom2, atom1, side2];
+            return [atom1, atom2, side1];
+        }
+        isSelected(atom) {
+            let mask = this.input.selectedMask;
+            return mask ? mask[atom - 1] : false;
+        }
     }
     WebMolKit.MoleculeActivity = MoleculeActivity;
 })(WebMolKit || (WebMolKit = {}));
@@ -13666,46 +13794,41 @@ var WebMolKit;
         init() { }
         claimKey(event) { return false; }
         bankClosed() { }
-        static matchKey(event, mnemonic) {
+        static matchKey(event, mnemonic, key) {
             if (mnemonic == null || mnemonic == '')
-                return;
-            let mshift = false, mctrl = false, malt = false, mkey = mnemonic;
+                return false;
+            let mshift = false, mctrl = false, malt = false, mmeta = false, mkey = mnemonic;
             while (true) {
-                if (mkey.startsWith('Shift-')) {
+                if (mkey.startsWith('Shift+')) {
                     mshift = true;
                     mkey = mkey.substring(6);
                 }
-                else if (mkey.startsWith('Ctrl-')) {
+                else if (mkey.startsWith('Ctrl+')) {
                     mctrl = true;
                     mkey = mkey.substring(5);
                 }
-                else if (mkey.startsWith('Alt-')) {
+                else if (mkey.startsWith('Alt+')) {
                     malt = true;
+                    mkey = mkey.substring(4);
+                }
+                else if (mkey.startsWith('Cmd+')) {
+                    mmeta = true;
                     mkey = mkey.substring(4);
                 }
                 else
                     break;
             }
-            if (mshift && !event.shiftKey)
+            if (mshift != event.shiftKey)
                 return false;
-            if (mctrl && !event.ctrlKey)
+            if (mctrl != event.ctrlKey)
                 return false;
-            if (malt && !event.altKey)
+            if (malt != event.altKey)
                 return false;
-            let ch = String.fromCharCode(event.keyCode || event.charCode);
-            if (event.keyCode == 27)
-                ch = 'escape';
-            else if (event.keyCode == 8)
-                ch = 'backspace';
-            else if (event.keyCode == 46)
-                ch = 'delete';
-            if (mshift) {
-                const SHIFT_SUBST = { '1': '!', '2': '@', '3': '#', '4': '$', '5': '%', '6': '^', '7': '&', '8': '*', '9': '(', '0': ')', '-': '_', '=': '+' };
-                let subst = SHIFT_SUBST[mkey];
-                if (subst)
-                    mkey = subst;
-            }
-            return ch.toLowerCase() == mkey.toLowerCase();
+            if (mmeta != event.metaKey)
+                return false;
+            if (key)
+                mkey = key;
+            return mkey.toLowerCase() == event.key.toLowerCase();
         }
     }
     WebMolKit.ButtonBank = ButtonBank;
@@ -13751,34 +13874,34 @@ var WebMolKit;
         CommandType[CommandType["Noble"] = 10] = "Noble";
     })(CommandType || (CommandType = {}));
     const COMMANDS_MAIN = [
-        { 'id': 'undo', 'imageFN': 'MainUndo', 'helpText': 'Undo last change.', 'mnemonic': '' },
-        { 'id': 'redo', 'imageFN': 'MainRedo', 'helpText': 'Cancel last undo.', 'mnemonic': '' },
+        { 'id': 'undo', 'imageFN': 'MainUndo', 'helpText': 'Undo last change.', 'mnemonic': 'Ctrl+Z' },
+        { 'id': 'redo', 'imageFN': 'MainRedo', 'helpText': 'Cancel last undo.', 'mnemonic': 'Ctrl+Shift+Z' },
         { 'id': 'zoomin', 'imageFN': 'MainZoomIn', 'helpText': 'Zoom in.', 'mnemonic': '=' },
         { 'id': 'zoomout', 'imageFN': 'MainZoomOut', 'helpText': 'Zoom out.', 'mnemonic': '-' },
-        { 'id': 'zoomfit', 'imageFN': 'MainZoomFit', 'helpText': 'Show whole diagram onscreen.', 'mnemonic': '' },
+        { 'id': 'zoomfit', 'imageFN': 'MainZoomFit', 'helpText': 'Show whole diagram onscreen.', 'mnemonic': '0' },
         { 'id': 'selside', 'imageFN': 'MainSelSide', 'helpText': 'Select alternate side of current atom or bond.', 'mnemonic': 'E' },
-        { 'id': 'selall', 'imageFN': 'MainSelAll', 'helpText': 'Select all atoms.', 'mnemonic': '' },
-        { 'id': 'selnone', 'imageFN': 'MainSelNone', 'helpText': 'Clear selection.', 'mnemonic': '' },
-        { 'id': 'delete', 'imageFN': 'MainDelete', 'helpText': 'Delete selected atoms and bonds.', 'mnemonic': '' },
-        { 'id': 'cut', 'imageFN': 'MainCut', 'helpText': 'Copy selection to clipboard, and remove.', 'mnemonic': '' },
-        { 'id': 'copy', 'imageFN': 'MainCopy', 'helpText': 'Copy selection to clipboard.', 'mnemonic': '' },
-        { 'id': 'paste', 'imageFN': 'MainPaste', 'helpText': 'Paste clipboard contents.', 'mnemonic': '' },
+        { 'id': 'selall', 'imageFN': 'MainSelAll', 'helpText': 'Select all atoms.', 'mnemonic': 'Shift+A' },
+        { 'id': 'selnone', 'imageFN': 'MainSelNone', 'helpText': 'Clear selection.', 'mnemonic': 'Shift+Q' },
+        { 'id': 'delete', 'imageFN': 'MainDelete', 'helpText': 'Delete selected atoms and bonds.', 'mnemonic': 'D' },
+        { 'id': 'cut', 'imageFN': 'MainCut', 'helpText': 'Copy selection to clipboard, and remove.', 'mnemonic': 'Ctrl+X' },
+        { 'id': 'copy', 'imageFN': 'MainCopy', 'helpText': 'Copy selection to clipboard.', 'mnemonic': 'Ctrl+C' },
+        { 'id': 'paste', 'imageFN': 'MainPaste', 'helpText': 'Paste clipboard contents.', 'mnemonic': 'Ctrl+V' },
         { 'id': 'atom', 'imageFN': 'MainAtom', 'helpText': 'Open the Atom submenu.', 'isSubMenu': true, 'mnemonic': 'A' },
         { 'id': 'bond', 'imageFN': 'MainBond', 'helpText': 'Open the Bond submenu.', 'isSubMenu': true, 'mnemonic': 'B' },
         { 'id': 'select', 'imageFN': 'MainSelect', 'helpText': 'Open the Selection submenu.', 'isSubMenu': true, 'mnemonic': 'S' },
         { 'id': 'move', 'imageFN': 'MainMove', 'helpText': 'Open the Move submenu.', 'isSubMenu': true, 'mnemonic': 'M' },
     ];
     const COMMANDS_ATOM = [
-        { 'id': 'element:C', 'text': 'C', 'helpText': 'Change elements to Carbon.', 'mnemonic': 'Shift-C' },
-        { 'id': 'element:N', 'text': 'N', 'helpText': 'Change elements to Nitrogen.', 'mnemonic': 'Shift-N' },
-        { 'id': 'element:O', 'text': 'O', 'helpText': 'Change elements to Oxygen.', 'mnemonic': 'Shift-O' },
-        { 'id': 'element:S', 'text': 'S', 'helpText': 'Change elements to Sulfur.', 'mnemonic': 'Shift-S' },
-        { 'id': 'element:P', 'text': 'P', 'helpText': 'Change elements to Phosphorus.', 'mnemonic': 'Shift-P' },
-        { 'id': 'element:H', 'text': 'H', 'helpText': 'Change elements to Hydrogen.', 'mnemonic': 'Shift-H' },
-        { 'id': 'element:F', 'text': 'F', 'helpText': 'Change elements to Fluorine.', 'mnemonic': 'Shift-F' },
-        { 'id': 'element:Cl', 'text': 'Cl', 'helpText': 'Change elements to Chlorine.', 'mnemonic': 'Shift-L' },
-        { 'id': 'element:Br', 'text': 'Br', 'helpText': 'Change elements to Bromine.', 'mnemonic': 'Shift-B' },
-        { 'id': 'element:I', 'text': 'I', 'helpText': 'Change elements to Iodine.', 'mnemonic': 'Shift-I' },
+        { 'id': 'element:C', 'text': 'C', 'helpText': 'Change elements to Carbon.', 'mnemonic': 'Shift+C' },
+        { 'id': 'element:N', 'text': 'N', 'helpText': 'Change elements to Nitrogen.', 'mnemonic': 'Shift+N' },
+        { 'id': 'element:O', 'text': 'O', 'helpText': 'Change elements to Oxygen.', 'mnemonic': 'Shift+O' },
+        { 'id': 'element:S', 'text': 'S', 'helpText': 'Change elements to Sulfur.', 'mnemonic': 'Shift+S' },
+        { 'id': 'element:P', 'text': 'P', 'helpText': 'Change elements to Phosphorus.', 'mnemonic': 'Shift+P' },
+        { 'id': 'element:H', 'text': 'H', 'helpText': 'Change elements to Hydrogen.', 'mnemonic': 'Shift+H' },
+        { 'id': 'element:F', 'text': 'F', 'helpText': 'Change elements to Fluorine.', 'mnemonic': 'Shift+F' },
+        { 'id': 'element:Cl', 'text': 'Cl', 'helpText': 'Change elements to Chlorine.', 'mnemonic': 'Shift+L' },
+        { 'id': 'element:Br', 'text': 'Br', 'helpText': 'Change elements to Bromine.', 'mnemonic': 'Shift+B' },
+        { 'id': 'element:I', 'text': 'I', 'helpText': 'Change elements to Iodine.', 'mnemonic': 'Shift+I' },
         { 'id': 'plus', 'imageFN': 'AtomPlus', 'helpText': 'Increase the atom charge.', 'mnemonic': '+' },
         { 'id': 'minus', 'imageFN': 'AtomMinus', 'helpText': 'Decrease the atom charge.', 'mnemonic': '_' },
         { 'id': 'abbrev', 'imageFN': 'AtomAbbrev', 'helpText': 'Open list of common labels.', 'isSubMenu': true, 'mnemonic': 'Q' },
@@ -13797,16 +13920,16 @@ var WebMolKit;
         { 'id': 'inclined', 'imageFN': 'BondUp', 'helpText': 'Create or set bonds to inclined.', 'mnemonic': '5' },
         { 'id': 'declined', 'imageFN': 'BondDown', 'helpText': 'Create or set bonds to declined.', 'mnemonic': '6' },
         { 'id': 'squig', 'imageFN': 'BondSquig', 'helpText': 'Create or set bonds to unknown stereochemistry.', 'mnemonic': '4' },
-        { 'id': 'addtwo', 'imageFN': 'BondAddTwo', 'helpText': 'Add two new bonds to the subject atom.', 'mnemonic': 'Shift-A' },
+        { 'id': 'addtwo', 'imageFN': 'BondAddTwo', 'helpText': 'Add two new bonds to the subject atom.', 'mnemonic': 'Shift+D' },
         { 'id': 'insert', 'imageFN': 'BondInsert', 'helpText': 'Insert a methylene into the subject bond.', 'mnemonic': '' },
         { 'id': 'switch', 'imageFN': 'BondSwitch', 'helpText': 'Cycle through likely bond geometries.', 'mnemonic': '' },
-        { 'id': 'linear', 'imageFN': 'BondLinear', 'helpText': 'Apply linear geometry.', 'mnemonic': 'Shift-Q' },
-        { 'id': 'trigonal', 'imageFN': 'BondTrigonal', 'helpText': 'Apply trigonal geometry.', 'mnemonic': 'Shift-W' },
-        { 'id': 'tetra1', 'imageFN': 'BondTetra1', 'helpText': 'Apply tetrahedral geometry #1.', 'mnemonic': 'Shift-E' },
-        { 'id': 'tetra2', 'imageFN': 'BondTetra2', 'helpText': 'Apply tetrahedral geometry #2.', 'mnemonic': 'Shift-R' },
-        { 'id': 'sqplan', 'imageFN': 'BondSqPlan', 'helpText': 'Apply square planar geometry.', 'mnemonic': 'Shift-T' },
-        { 'id': 'octa1', 'imageFN': 'BondOcta1', 'helpText': 'Apply octahedral geometry #1.', 'mnemonic': 'Shift-Y' },
-        { 'id': 'octa2', 'imageFN': 'BondOcta2', 'helpText': 'Apply octahedral geometry #2.', 'mnemonic': 'Shift-U' },
+        { 'id': 'linear', 'imageFN': 'BondLinear', 'helpText': 'Apply linear geometry.', 'mnemonic': 'Shift+V' },
+        { 'id': 'trigonal', 'imageFN': 'BondTrigonal', 'helpText': 'Apply trigonal geometry.', 'mnemonic': 'Shift+W' },
+        { 'id': 'tetra1', 'imageFN': 'BondTetra1', 'helpText': 'Apply tetrahedral geometry #1.', 'mnemonic': 'Shift+E' },
+        { 'id': 'tetra2', 'imageFN': 'BondTetra2', 'helpText': 'Apply tetrahedral geometry #2.', 'mnemonic': 'Shift+R' },
+        { 'id': 'sqplan', 'imageFN': 'BondSqPlan', 'helpText': 'Apply square planar geometry.', 'mnemonic': 'Shift+T' },
+        { 'id': 'octa1', 'imageFN': 'BondOcta1', 'helpText': 'Apply octahedral geometry #1.', 'mnemonic': 'Shift+Y' },
+        { 'id': 'octa2', 'imageFN': 'BondOcta2', 'helpText': 'Apply octahedral geometry #2.', 'mnemonic': 'Shift+U' },
         { 'id': 'connect', 'imageFN': 'BondConnect', 'helpText': 'Connect selected atoms, by proximity.', 'mnemonic': '' },
         { 'id': 'disconnect', 'imageFN': 'BondDisconnect', 'helpText': 'Disconnect selected atoms.', 'mnemonic': '' },
         { 'id': 'artifactpath', 'imageFN': 'BondArtifactPath', 'helpText': 'Add a path bond artifact.', 'mnemonic': '' },
@@ -13821,22 +13944,22 @@ var WebMolKit;
         { 'id': 'smallring', 'imageFN': 'SelectionSmRing', 'helpText': 'Extend selection to small rings.', 'mnemonic': '' },
         { 'id': 'ringblock', 'imageFN': 'SelectionRingBlk', 'helpText': 'Extend selection to ring blocks.', 'mnemonic': '' },
         { 'id': 'curelement', 'imageFN': 'SelectionCurElement', 'helpText': 'Select all atoms of current element type.', 'mnemonic': '' },
-        { 'id': 'selprev', 'imageFN': 'MainSelPrev', 'helpText': 'Select previous connected component.', 'mnemonic': '' },
-        { 'id': 'selnext', 'imageFN': 'MainSelNext', 'helpText': 'Select next connected component.', 'mnemonic': '' },
-        { 'id': 'toggle', 'imageFN': 'SelectionToggle', 'helpText': 'Toggle selection of current.', 'mnemonic': '' },
-        { 'id': 'uncurrent', 'imageFN': 'SelectionUncurrent', 'helpText': 'Undefine current object.', 'mnemonic': '' },
+        { 'id': 'selprev', 'imageFN': 'MainSelPrev', 'helpText': 'Select previous connected component.', 'mnemonic': '[' },
+        { 'id': 'selnext', 'imageFN': 'MainSelNext', 'helpText': 'Select next connected component.', 'mnemonic': ']' },
+        { 'id': 'toggle', 'imageFN': 'SelectionToggle', 'helpText': 'Toggle selection of current.', 'mnemonic': ',' },
+        { 'id': 'uncurrent', 'imageFN': 'SelectionUncurrent', 'helpText': 'Undefine current object.', 'mnemonic': '.' },
         { 'id': 'join', 'imageFN': 'MoveJoin', 'helpText': 'Overlapping atoms will be joined as one.', 'mnemonic': '' },
         { 'id': 'new', 'imageFN': 'MainNew', 'helpText': 'Clear the molecular structure.', 'mnemonic': '' },
-        { 'id': 'inline', 'imageFN': 'AtomInline', 'helpText': 'Make selected atoms into an inline abbreviation.', 'mnemonic': '' },
-        { 'id': 'formula', 'imageFN': 'AtomFormula', 'helpText': 'Make selected atoms into their molecule formula.', 'mnemonic': '' },
-        { 'id': 'clearabbrev', 'imageFN': 'AtomClearAbbrev', 'helpText': 'Remove inline abbreviation.', 'mnemonic': '' },
-        { 'id': 'expandabbrev', 'imageFN': 'AtomExpandAbbrev', 'helpText': 'Expand out the inline abbreviation.', 'mnemonic': '' },
+        { 'id': 'inline', 'imageFN': 'AtomInline', 'helpText': 'Make selected atoms into an inline abbreviation.', 'mnemonic': '/' },
+        { 'id': 'formula', 'imageFN': 'AtomFormula', 'helpText': 'Make selected atoms into their molecule formula.', 'mnemonic': '\\' },
+        { 'id': 'expandabbrev', 'imageFN': 'AtomExpandAbbrev', 'helpText': 'Expand out the inline abbreviation.', 'mnemonic': 'Shift+/', 'key': '/' },
+        { 'id': 'clearabbrev', 'imageFN': 'AtomClearAbbrev', 'helpText': 'Remove inline abbreviation.', 'mnemonic': 'Shift+\\', 'key': '\\' },
     ];
     const COMMANDS_MOVE = [
-        { 'id': 'up', 'imageFN': 'MoveUp', 'helpText': 'Move subject atoms up slightly.', 'mnemonic': '' },
-        { 'id': 'down', 'imageFN': 'MoveDown', 'helpText': 'Move subject atoms down slightly.', 'mnemonic': '' },
-        { 'id': 'left', 'imageFN': 'MoveLeft', 'helpText': 'Move subject atoms slightly to the left.', 'mnemonic': '' },
-        { 'id': 'right', 'imageFN': 'MoveRight', 'helpText': 'Move subject atoms slightly to the right.', 'mnemonic': '' },
+        { 'id': 'up', 'imageFN': 'MoveUp', 'helpText': 'Move subject atoms up slightly.', 'mnemonic': 'Shift+Up', 'key': "ArrowUp" },
+        { 'id': 'down', 'imageFN': 'MoveDown', 'helpText': 'Move subject atoms down slightly.', 'mnemonic': 'Shift+Down', 'key': "ArrowDown" },
+        { 'id': 'left', 'imageFN': 'MoveLeft', 'helpText': 'Move subject atoms slightly to the left.', 'mnemonic': 'Shift+Left', 'key': "ArrowLeft" },
+        { 'id': 'right', 'imageFN': 'MoveRight', 'helpText': 'Move subject atoms slightly to the right.', 'mnemonic': 'Shift+Right', 'key': "ArrowRight" },
         { 'id': 'uplots', 'imageFN': 'MoveUpLots', 'helpText': 'Move subject atoms up somewhat.', 'mnemonic': '' },
         { 'id': 'downlots', 'imageFN': 'MoveDownLots', 'helpText': 'Move subject atoms down somewhat.', 'mnemonic': '' },
         { 'id': 'leftlots', 'imageFN': 'MoveLeftLots', 'helpText': 'Move subject atoms somewhat to the left.', 'mnemonic': '' },
@@ -13851,12 +13974,12 @@ var WebMolKit;
         { 'id': 'rotm05', 'imageFN': 'MoveRotM05', 'helpText': 'Rotate 5\u00B0 clockwise.', 'mnemonic': '' },
         { 'id': 'rotp15', 'imageFN': 'MoveRotP15', 'helpText': 'Rotate 15\u00B0 counter-clockwise.', 'mnemonic': '' },
         { 'id': 'rotm15', 'imageFN': 'MoveRotM15', 'helpText': 'Rotate 15\u00B0 clockwise.', 'mnemonic': '' },
-        { 'id': 'rotp30', 'imageFN': 'MoveRotP30', 'helpText': 'Rotate 30\u00B0 counter-clockwise.', 'mnemonic': '' },
-        { 'id': 'rotm30', 'imageFN': 'MoveRotM30', 'helpText': 'Rotate 30\u00B0 clockwise.', 'mnemonic': '' },
-        { 'id': 'hflip', 'imageFN': 'MoveHFlip', 'helpText': 'Flip subject atoms horizontally.', 'mnemonic': '' },
-        { 'id': 'vflip', 'imageFN': 'MoveVFlip', 'helpText': 'Flip subject atoms vertically.', 'mnemonic': '' },
-        { 'id': 'shrink', 'imageFN': 'MoveShrink', 'helpText': 'Decrease subject bond distances.', 'mnemonic': '' },
-        { 'id': 'grow', 'imageFN': 'MoveGrow', 'helpText': 'Increase subject bond distances.', 'mnemonic': '' },
+        { 'id': 'rotp30', 'imageFN': 'MoveRotP30', 'helpText': 'Rotate 30\u00B0 counter-clockwise.', 'mnemonic': 'Shift+[', 'key': '{' },
+        { 'id': 'rotm30', 'imageFN': 'MoveRotM30', 'helpText': 'Rotate 30\u00B0 clockwise.', 'mnemonic': 'Shift+]', 'key': '}' },
+        { 'id': 'hflip', 'imageFN': 'MoveHFlip', 'helpText': 'Flip subject atoms horizontally.', 'mnemonic': 'Shift+,', 'key': ',' },
+        { 'id': 'vflip', 'imageFN': 'MoveVFlip', 'helpText': 'Flip subject atoms vertically.', 'mnemonic': 'Shift+.', 'key': '.' },
+        { 'id': 'shrink', 'imageFN': 'MoveShrink', 'helpText': 'Decrease subject bond distances.', 'mnemonic': 'Shift+X' },
+        { 'id': 'grow', 'imageFN': 'MoveGrow', 'helpText': 'Increase subject bond distances.', 'mnemonic': 'Shift+Z' },
     ];
     class CommandBank extends WebMolKit.ButtonBank {
         constructor(owner, cmdType = CommandType.Main) {
@@ -13881,7 +14004,7 @@ var WebMolKit;
                 for (let btn of COMMANDS_MOVE)
                     this.buttons.push(btn);
             else if (this.cmdType == CommandType.Abbrev)
-                this.populateElements(ELEMENTS_NOBLE);
+                this.populateElements(ELEMENTS_ABBREV);
             else if (this.cmdType == CommandType.SBlock)
                 this.populateElements(ELEMENTS_S_BLOCK);
             else if (this.cmdType == CommandType.PBlock)
@@ -13891,7 +14014,7 @@ var WebMolKit;
             else if (this.cmdType == CommandType.FBlock)
                 this.populateElements(ELEMENTS_F_BLOCK);
             else if (this.cmdType == CommandType.Noble)
-                this.populateElements(ELEMENTS_ABBREV);
+                this.populateElements(ELEMENTS_NOBLE);
         }
         populateElements(elements) {
             for (let el of elements) {
@@ -14178,13 +14301,13 @@ var WebMolKit;
             else
                 alert('Unhandled command: "' + id + '"');
             if (actv > 0) {
-                new WebMolKit.MoleculeActivity(this.owner, actv, param).execute();
+                new WebMolKit.MoleculeActivity(this.owner.getState(), actv, param, {}, this.owner).execute();
             }
         }
         claimKey(event) {
             for (let listItems of [COMMANDS_MAIN, COMMANDS_ATOM, COMMANDS_BOND, COMMANDS_SELECT, COMMANDS_MOVE])
                 for (let item of listItems) {
-                    if (WebMolKit.ButtonBank.matchKey(event, item.mnemonic)) {
+                    if (WebMolKit.ButtonBank.matchKey(event, item.mnemonic, item.key)) {
                         this.hitButton(item.id);
                         return true;
                     }
@@ -14193,6 +14316,356 @@ var WebMolKit;
         }
     }
     WebMolKit.CommandBank = CommandBank;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class DrawMolecule {
+        constructor(layout, vg) {
+            this.layout = layout;
+            this.vg = vg;
+            this.mol = layout.getMolecule();
+            this.policy = layout.getPolicy();
+            this.effects = layout.getEffects();
+            this.scale = layout.getScale();
+            this.invScale = 1.0 / this.scale;
+        }
+        getMolecule() { return this.mol; }
+        getMetaVector() { return this.vg; }
+        getLayout() { return this.layout; }
+        getPolicy() { return this.policy; }
+        getEffects() { return this.effects; }
+        draw() {
+            let DRAW_SPACE = false;
+            if (DRAW_SPACE) {
+                let bounds = this.layout.determineBoundary();
+                this.vg.drawRect(bounds[0], bounds[1], bounds[2] - bounds[0], bounds[3] - bounds[1], 0xFF0000, 1, WebMolKit.MetaVector.NOCOLOUR);
+                for (let n = 0; n < this.layout.numSpace(); n++) {
+                    let spc = this.layout.getSpace(n);
+                    this.vg.drawRect(spc.box.x, spc.box.y, spc.box.w, spc.box.h, WebMolKit.MetaVector.NOCOLOUR, 0, 0xE0E0E0);
+                    if (spc.px != null && spc.py != null && spc.px.length > 2)
+                        this.vg.drawPoly(spc.px, spc.py, 0x000000, 1, 0x808080FF, true);
+                }
+            }
+            this.drawUnderEffects();
+            let layout = this.layout, effects = this.effects, policy = this.policy, vg = this.vg;
+            for (let n = 0; n < layout.numLines(); n++) {
+                let b = layout.getLine(n);
+                if (effects.hideBonds.has(b.bnum))
+                    continue;
+                if (b.type == WebMolKit.BLineType.Normal) {
+                    vg.drawLine(b.line.x1, b.line.y1, b.line.x2, b.line.y2, b.col, b.size);
+                }
+                else if (b.type == WebMolKit.BLineType.Inclined)
+                    this.drawBondInclined(b);
+                else if (b.type == WebMolKit.BLineType.Declined)
+                    this.drawBondDeclined(b);
+                else if (b.type == WebMolKit.BLineType.Unknown)
+                    this.drawBondUnknown(b);
+                else if (b.type == WebMolKit.BLineType.Dotted || b.type == WebMolKit.BLineType.DotDir)
+                    this.drawBondDotted(b);
+                else if (b.type == WebMolKit.BLineType.IncDouble || b.type == WebMolKit.BLineType.IncTriple || b.type == WebMolKit.BLineType.IncQuadruple)
+                    this.drawBondIncMulti(b);
+            }
+            let fg = policy.data.foreground;
+            for (let r of layout.getRings())
+                vg.drawOval(r.cx, r.cy, r.rw, r.rh, fg, r.size, WebMolKit.MetaVector.NOCOLOUR);
+            for (let p of layout.getPaths())
+                vg.drawPath(p.px, p.py, p.ctrl, false, fg, p.size, WebMolKit.MetaVector.NOCOLOUR, false);
+            for (let n = 0; n < layout.numPoints(); n++) {
+                let p = layout.getPoint(n);
+                if (effects.hideBonds.has(p.anum))
+                    continue;
+                let txt = p.text;
+                if (txt == null)
+                    continue;
+                let fsz = p.fsz;
+                let cx = p.oval.cx, cy = p.oval.cy, rw = p.oval.rw;
+                let col = p.col;
+                while (txt.endsWith('.')) {
+                    let dw = rw / txt.length;
+                    let r = fsz * 0.15;
+                    vg.drawOval(cx + rw - dw, cy, r, r, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                    cx -= dw;
+                    rw -= dw;
+                    txt = txt.substring(0, txt.length - 1);
+                }
+                while (txt.startsWith('+')) {
+                    let dw = rw / txt.length;
+                    let x = cx - rw + dw, y = cy, r = fsz * 0.18, lsz = fsz * 0.1;
+                    vg.drawLine(x - r, y, x + r, y, col, lsz);
+                    vg.drawLine(x, y - r, x, y + r, col, lsz);
+                    cx += dw;
+                    rw -= dw;
+                    txt = txt.substring(1, txt.length);
+                }
+                while (txt.startsWith('-')) {
+                    let dw = rw / txt.length;
+                    let x = cx - rw + dw, y = cy, r = fsz * 0.18, lsz = fsz * 0.1;
+                    vg.drawLine(x - r, y, x + r, y, col, lsz);
+                    cx += dw;
+                    rw -= dw;
+                    txt = txt.substring(1, txt.length);
+                }
+                if (txt.length > 0) {
+                    vg.drawText(cx, cy, txt, fsz, col, WebMolKit.TextAlign.Centre | WebMolKit.TextAlign.Middle);
+                }
+            }
+            this.drawOverEffects();
+        }
+        drawUnderEffects() {
+            let mol = this.mol, policy = this.policy, effects = this.effects, layout = this.layout, scale = this.scale, vg = this.vg;
+            for (let n = 0, num = Math.min(effects.atomFrameDotSz.length, mol.numAtoms); n < num; n++) {
+                if (effects.hideAtoms.has(n + 1))
+                    continue;
+                let dw = effects.atomFrameDotSz[n] * scale, col = effects.atomFrameCol[n];
+                let a = layout.getPoint(n);
+                let rw = a.oval.rw + 0.1 * scale, rh = a.oval.rh + 0.1 * scale;
+                let wdots = Math.ceil(2 * rw / (3 * dw));
+                let hdots = Math.ceil(2 * rh / (3 * dw));
+                let wspc = 2 * rw / wdots, hspc = 2 * rh / hdots;
+                for (let i = 0; i <= wdots; i++) {
+                    let x = a.oval.cx - rw + i * wspc;
+                    vg.drawOval(x, a.oval.cy - rh, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                    vg.drawOval(x, a.oval.cy + rh, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                }
+                for (let i = 1; i < hdots; i++) {
+                    let y = a.oval.cy - rh + i * hspc;
+                    vg.drawOval(a.oval.cx - rw, y, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                    vg.drawOval(a.oval.cx + rw, y, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                }
+            }
+            for (let key in effects.dottedRectOutline) {
+                let atom = parseInt(key), col = effects.dottedRectOutline[key];
+                let a = layout.getPoint(atom - 1);
+                let rw = Math.max(a.oval.rw, 0.2 * scale), rh = Math.max(a.oval.rh, 0.2 * scale);
+                let sz = 0.05 * scale;
+                let xdots = Math.max(1, Math.round(rw / (2 * sz)));
+                let ydots = Math.max(1, Math.round(rh / (2 * sz)));
+                let invX = (2 * rw) / xdots, invY = (2 * rh) / ydots;
+                for (let n = 0; n <= xdots; n++) {
+                    let x = a.oval.cx - rw + n * invX;
+                    vg.drawOval(x, a.oval.cy - rh, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                    vg.drawOval(x, a.oval.cy + rh, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                }
+                for (let n = 1; n < ydots; n++) {
+                    let y = a.oval.cy - rh + n * invY;
+                    vg.drawOval(a.oval.cx - rw, y, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                    vg.drawOval(a.oval.cx + rw, y, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                }
+            }
+            for (let key in effects.dottedBondCross) {
+                let bond = parseInt(key), col = effects.dottedBondCross[key];
+                let x1 = 0, y1 = 0, x2 = 0, y2 = 0, bcount = 0;
+                for (let n = 0; n < layout.numLines(); n++) {
+                    let b = layout.getLine(n);
+                    if (b.bnum == bond) {
+                        x1 += b.line.x1;
+                        y1 += b.line.y1;
+                        x2 += b.line.x2;
+                        y2 += b.line.y2;
+                        bcount += 1;
+                    }
+                }
+                if (bcount > 1) {
+                    let inv = 1 / bcount;
+                    [x1, y1, x2, y2] = [x1 * inv, y1 * inv, x2 * inv, y2 * inv];
+                }
+                let dx = x2 - x1, dy = y2 - y1;
+                let inv = 0.2 * scale * WebMolKit.invZ(WebMolKit.norm_xy(dx, dy)), ox = dy * inv, oy = -dx * inv;
+                let cx = 0.5 * (x1 + x2), cy = 0.5 * (y1 + y2), sz = 0.05 * scale;
+                for (let p of [-2, -1, 1, 2]) {
+                    let x = cx + p * ox, y = cy + p * oy;
+                    vg.drawOval(x, y, sz, sz, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                }
+            }
+        }
+        drawOverEffects() {
+            let mol = this.mol, policy = this.policy, effects = this.effects, layout = this.layout, scale = this.scale, vg = this.vg;
+            for (let a of effects.overlapAtoms) {
+                let p = layout.getPoint(a - 1);
+                let rad = scale * 0.2;
+                vg.drawLine(p.oval.cx - rad, p.oval.cy - rad, p.oval.cx + rad, p.oval.cy + rad, 0xFF0000, 1);
+                vg.drawLine(p.oval.cx + rad, p.oval.cy - rad, p.oval.cx - rad, p.oval.cy + rad, 0xFF0000, 1);
+            }
+            for (let n = 0, num = Math.min(effects.atomCircleSz.length, mol.numAtoms); n < num; n++)
+                if (effects.atomCircleSz[n] > 0) {
+                    let dw = effects.atomCircleSz[n] * scale, col = effects.atomCircleCol[n];
+                    let p = layout.getPoint(n);
+                    vg.drawOval(p.oval.cx, p.oval.cy, dw, dw, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+                }
+        }
+        drawBondInclined(b) {
+            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
+            let dx = x2 - x1, dy = y2 - y1;
+            let col = b.col;
+            let size = b.size, head = b.head;
+            let norm = head / Math.sqrt(dx * dx + dy * dy);
+            let ox = norm * dy, oy = -norm * dx;
+            let px = [x1, x2 - ox, x2 + ox], py = [y1, y2 - oy, y2 + oy];
+            if (this.layout.getPoint(b.bto - 1).text == null && this.mol.atomAdjCount(b.bto) == 2) {
+                let other = null;
+                for (let n = 0; n < this.layout.numLines(); n++) {
+                    let o = this.layout.getLine(n);
+                    if (o.type == WebMolKit.BLineType.Normal && (o.bfr == b.bto || o.bto == b.bto)) {
+                        if (other != null) {
+                            other = null;
+                            break;
+                        }
+                        other = o;
+                    }
+                }
+                if (other != null) {
+                    let th1 = Math.atan2(y1 - y2, x1 - x2);
+                    let th2 = Math.atan2(other.line.y1 - other.line.y2, other.line.x1 - other.line.x2);
+                    if (b.bto == other.bfr)
+                        th2 += Math.PI;
+                    let diff = Math.abs(WebMolKit.angleDiff(th1, th2));
+                    if (diff > 105 * WebMolKit.DEGRAD && diff < 135 * WebMolKit.DEGRAD) {
+                        let ixy1 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[1], py[1], other.line.x1, other.line.y1, other.line.x2, other.line.y2);
+                        let ixy2 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[2], py[2], other.line.x1, other.line.y1, other.line.x2, other.line.y2);
+                        px[1] = ixy1[0];
+                        py[1] = ixy1[1];
+                        px[2] = ixy2[0];
+                        py[2] = ixy2[1];
+                        let dx1 = px[1] - px[0], dy1 = py[1] - py[0], inv1 = 0.5 * other.size / WebMolKit.norm_xy(dx1, dy1);
+                        px[1] += dx1 * inv1;
+                        py[1] += dy1 * inv1;
+                        let dx2 = px[2] - px[0], dy2 = py[2] - py[0], inv2 = 0.5 * other.size / WebMolKit.norm_xy(dx2, dy2);
+                        px[2] += dx2 * inv1;
+                        py[2] += dy2 * inv1;
+                    }
+                }
+            }
+            if (this.layout.getPoint(b.bto - 1).text == null && this.mol.atomAdjCount(b.bto) == 3) {
+                let other1 = null, other2 = null;
+                for (let n = 0; n < this.layout.numLines(); n++) {
+                    let o = this.layout.getLine(n);
+                    if (o.type == WebMolKit.BLineType.Normal && (o.bfr == b.bto || o.bto == b.bto)) {
+                        if (other1 == null)
+                            other1 = o;
+                        else if (other2 == null)
+                            other2 = o;
+                        else {
+                            other1 = other2 = null;
+                            break;
+                        }
+                    }
+                }
+                if (other1 != null && other2 != null) {
+                    let th1 = Math.atan2(y1 - y2, x1 - x2);
+                    let th2 = Math.atan2(other1.line.y1 - other1.line.y2, other1.line.x1 - other1.line.x2);
+                    let th3 = Math.atan2(other2.line.y1 - other2.line.y2, other2.line.x1 - other2.line.x2);
+                    if (b.bto == other1.bfr)
+                        th2 += Math.PI;
+                    if (b.bto == other2.bfr)
+                        th3 += Math.PI;
+                    let dth1 = WebMolKit.angleDiff(th1, th2), diff1 = Math.abs(dth1);
+                    let dth2 = WebMolKit.angleDiff(th1, th3), diff2 = Math.abs(dth2);
+                    let diff3 = Math.abs(WebMolKit.angleDiff(th2, th3));
+                    if (diff1 > 105 * WebMolKit.DEGRAD && diff1 < 135 * WebMolKit.DEGRAD ||
+                        diff2 > 105 * WebMolKit.DEGRAD && diff2 < 135 * WebMolKit.DEGRAD ||
+                        diff3 > 105 * WebMolKit.DEGRAD && diff3 < 135 * WebMolKit.DEGRAD) {
+                        if (dth1 < 0)
+                            [other1, other2] = [other2, other1];
+                        let ixy1 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[1], py[1], other1.line.x1, other1.line.y1, other1.line.x2, other1.line.y2);
+                        let ixy2 = WebMolKit.GeomUtil.lineIntersect(px[0], py[0], px[2], py[2], other2.line.x1, other2.line.y1, other2.line.x2, other2.line.y2);
+                        px = [x1, ixy1[0], x2, ixy2[0]];
+                        py = [y1, ixy1[1], y2, ixy2[1]];
+                    }
+                }
+            }
+            this.vg.drawPoly(px, py, WebMolKit.MetaVector.NOCOLOUR, 0, col, true);
+        }
+        drawBondDeclined(b) {
+            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
+            let dx = x2 - x1, dy = y2 - y1;
+            let col = b.col;
+            let size = b.size, head = b.head;
+            let ext = Math.sqrt(dx * dx + dy * dy);
+            let nsteps = Math.ceil(ext * 2.5 * this.invScale);
+            let norm = head / ext;
+            let ox = norm * dy, oy = -norm * dx, invSteps = 1.0 / (nsteps + 1);
+            let holdout = this.mol.atomAdjCount(b.bto) == 1 && this.layout.getPoint(b.bto - 1).text == null ? 1 : 1 - (0.15 * this.scale) / ext;
+            for (let i = 0; i <= nsteps + 1; i++) {
+                let cx = x1 + i * dx * invSteps * holdout, cy = y1 + i * dy * invSteps * holdout;
+                let ix = ox * i * invSteps, iy = oy * i * invSteps;
+                this.vg.drawLine(cx - ix, cy - iy, cx + ix, cy + iy, col, size);
+            }
+        }
+        drawBondUnknown(b) {
+            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
+            let dx = x2 - x1, dy = y2 - y1;
+            let col = b.col;
+            let size = b.size, head = b.head;
+            let ext = Math.sqrt(dx * dx + dy * dy);
+            let nsteps = Math.ceil(ext * 3.5 * this.invScale);
+            let norm = head / ext;
+            let ox = norm * dy, oy = -norm * dx;
+            let sz = 1 + 3 * (nsteps + 1);
+            let x = WebMolKit.Vec.numberArray(0, sz), y = WebMolKit.Vec.numberArray(0, sz), ctrl = WebMolKit.Vec.booleanArray(false, sz);
+            x[0] = x1;
+            y[0] = y1;
+            ctrl[0] = false;
+            for (let i = 0, j = 1; i <= nsteps; i++, j += 3) {
+                let ax = x1 + i * dx / (nsteps + 1), ay = y1 + i * dy / (nsteps + 1);
+                let cx = x1 + (i + 1) * dx / (nsteps + 1), cy = y1 + (i + 1) * dy / (nsteps + 1);
+                let bx = (ax + cx) / 2, by = (ay + cy) / 2;
+                let sign = i % 2 == 0 ? 1 : -1;
+                x[j] = ax;
+                x[j + 1] = bx + sign * ox;
+                x[j + 2] = cx;
+                y[j] = ay;
+                y[j + 1] = by + sign * oy;
+                y[j + 2] = cy;
+                ctrl[j] = true;
+                ctrl[j + 1] = true;
+                ctrl[j + 2] = false;
+            }
+            this.vg.drawPath(x, y, ctrl, false, col, size, WebMolKit.MetaVector.NOCOLOUR, false);
+        }
+        drawBondDotted(b) {
+            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
+            let dx = x2 - x1, dy = y2 - y1;
+            let col = b.col;
+            let size = b.size;
+            let radius = size, dist = WebMolKit.norm_xy(dx, dy);
+            if (dist < 0.01)
+                return;
+            let nudge = 0.5 * size / dist;
+            x1 += nudge * dx;
+            y1 += nudge * dy;
+            x2 -= nudge * dx;
+            y2 -= nudge * dy;
+            dx = x2 - x1;
+            dy = y2 - y1;
+            let nsteps = Math.ceil(0.2 * dist / radius);
+            let invSteps = 1.0 / (nsteps + 1);
+            for (let i = 0; i <= nsteps + 1; i++) {
+                let r = radius;
+                if (b.type == WebMolKit.BLineType.DotDir)
+                    r *= 1 + (i * (1.0 / (nsteps + 2)) - 0.5);
+                let cx = x1 + i * dx * invSteps, cy = y1 + i * dy * invSteps;
+                this.vg.drawOval(cx, cy, r, r, WebMolKit.MetaVector.NOCOLOUR, 0, col);
+            }
+        }
+        drawBondIncMulti(b) {
+            let x1 = b.line.x1, y1 = b.line.y1, x2 = b.line.x2, y2 = b.line.y2;
+            let dx = x2 - x1, dy = y2 - y1;
+            let col = b.col;
+            let size = b.size, head = b.head;
+            let norm = head / Math.sqrt(dx * dx + dy * dy);
+            let ox = norm * dy, oy = -norm * dx;
+            this.vg.drawPoly([x1, x2 - ox, x2 + ox], [y1, y2 - oy, y2 + oy], col, this.scale * 0.05, WebMolKit.MetaVector.NOCOLOUR, true);
+            if (b.type == WebMolKit.BLineType.IncDouble) {
+                this.vg.drawLine(x1, y1, x2, y2, col, this.scale * 0.03);
+            }
+            else {
+                this.vg.drawLine(x1, y1, x2 + 0.33 * ox, y2 + 0.33 * oy, col, this.scale * 0.03);
+                this.vg.drawLine(x1, y1, x2 - 0.33 * ox, y2 - 0.33 * oy, col, this.scale * 0.03);
+            }
+        }
+    }
+    WebMolKit.DrawMolecule = DrawMolecule;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -14208,8 +14681,8 @@ var WebMolKit;
             let summary = WebMolKit.findNode(root, 'Summary');
             if (summary == null)
                 return null;
-            ds.setTitle(WebMolKit.nodeText(WebMolKit.findNode(summary, 'Title')));
-            ds.setDescription(WebMolKit.nodeText(WebMolKit.findNode(summary, 'Description')));
+            ds.title = WebMolKit.nodeText(WebMolKit.findNode(summary, 'Title'));
+            ds.description = WebMolKit.nodeText(WebMolKit.findNode(summary, 'Description'));
             let extRoot = WebMolKit.findNode(root, 'Extension');
             if (extRoot != null) {
                 let extList = WebMolKit.findNodes(extRoot, 'Ext');
@@ -14230,28 +14703,26 @@ var WebMolKit;
                     return null;
                 ds.appendColumn(col.getAttribute('name'), col.getAttribute('type'), WebMolKit.nodeText(col));
             }
-            let row = WebMolKit.findNode(root, 'Content').firstElementChild;
             let rowidx = 0;
-            while (row) {
+            for (let row of WebMolKit.findNodes(WebMolKit.findNode(root, 'Content'), 'Row')) {
                 if (parseInt(row.getAttribute('id')) != rowidx + 1)
                     return null;
                 ds.appendRow();
-                let col = row.firstElementChild;
-                while (col) {
+                for (let col of WebMolKit.findNodes(row, 'Cell')) {
                     let colidx = parseInt(col.getAttribute('id')) - 1;
                     let ct = ds.colType(colidx), val = WebMolKit.nodeText(col);
                     if (val == '') { }
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_MOLECULE)
+                    else if (ct == "molecule")
                         ds.setObject(rowidx, colidx, val);
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_STRING)
+                    else if (ct == "string")
                         ds.setString(rowidx, colidx, val);
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_REAL)
+                    else if (ct == "real")
                         ds.setReal(rowidx, colidx, parseFloat(val));
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_INTEGER)
+                    else if (ct == "integer")
                         ds.setInteger(rowidx, colidx, parseInt(val));
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_BOOLEAN)
+                    else if (ct == "boolean")
                         ds.setBoolean(rowidx, colidx, val == 'true' ? true : val == 'false' ? false : null);
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_EXTEND)
+                    else if (ct == "extend")
                         ds.setExtend(rowidx, colidx, val);
                     col = col.nextElementSibling;
                     colidx++;
@@ -14261,15 +14732,20 @@ var WebMolKit;
             }
             return ds;
         }
+        static readJSON(json) {
+            if (!json.colData || !json.rowData)
+                throw 'Not a JSON-formatted datasheet.';
+            return new WebMolKit.DataSheet(WebMolKit.deepClone(json));
+        }
         static writeXML(ds) {
             let xml = new DOMParser().parseFromString('<DataSheet/>', 'text/xml');
             let summary = xml.createElement('Summary');
             xml.documentElement.appendChild(summary);
             let title = xml.createElement('Title'), descr = xml.createElement('Description');
             summary.appendChild(title);
-            title.appendChild(xml.createTextNode(ds.getTitle()));
+            title.appendChild(xml.createTextNode(ds.title));
             summary.appendChild(descr);
-            descr.appendChild(xml.createCDATASection(ds.getDescription()));
+            descr.appendChild(xml.createCDATASection(ds.description));
             let extension = xml.createElement('Extension');
             xml.documentElement.appendChild(extension);
             for (let n = 0; n < ds.numExtensions; n++) {
@@ -14304,21 +14780,21 @@ var WebMolKit;
                     let ct = ds.colType(c);
                     let txtNode = null;
                     if (ds.isNull(r, c)) { }
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_MOLECULE) {
+                    else if (ct == "molecule") {
                         let obj = ds.getObject(r, c);
                         if (obj instanceof WebMolKit.Molecule)
                             obj = WebMolKit.MoleculeStream.writeNative(obj);
                         txtNode = xml.createCDATASection(obj);
                     }
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_STRING)
+                    else if (ct == "string")
                         txtNode = xml.createCDATASection(ds.getString(r, c));
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_REAL)
+                    else if (ct == "real")
                         txtNode = xml.createTextNode(ds.getReal(r, c).toString());
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_INTEGER)
+                    else if (ct == "integer")
                         txtNode = xml.createTextNode(ds.getInteger(r, c).toString());
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_BOOLEAN)
+                    else if (ct == "boolean")
                         txtNode = xml.createTextNode(ds.getBoolean(r, c).toString());
-                    else if (ct == WebMolKit.DataSheet.COLTYPE_EXTEND)
+                    else if (ct == "extend")
                         txtNode = xml.createCDATASection(ds.getExtend(r, c));
                     if (txtNode != null)
                         cell.appendChild(txtNode);
@@ -14326,8 +14802,451 @@ var WebMolKit;
             }
             return new XMLSerializer().serializeToString(xml.documentElement);
         }
+        static writeJSON(ds) {
+            let data = ds.data;
+            let nrow = ds.numRows, ncol = ds.numCols;
+            let rowData = new Array(nrow);
+            for (let n = 0; n < nrow; n++)
+                rowData[n] = new Array(ncol);
+            for (let c = 0; c < ncol; c++) {
+                let doConvert = ds.colType(c) == "molecule";
+                for (let r = 0; r < nrow; r++) {
+                    let val = data.rowData[r][c];
+                    if (val != null && doConvert)
+                        val = val.toString();
+                    rowData[r][c] = val;
+                }
+            }
+            let json = {
+                'title': data.title,
+                'description': data.description,
+                'colData': WebMolKit.deepClone(data.colData),
+                'rowData': rowData,
+                'extData': WebMolKit.deepClone(data.extData),
+            };
+            return json;
+        }
     }
     WebMolKit.DataSheetStream = DataSheetStream;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class Theme {
+    }
+    Theme.BASE_URL = null;
+    Theme.RESOURCE_URL = null;
+    Theme.foreground = 0x000000;
+    Theme.background = 0xFFFFFF;
+    Theme.lowlight = 0x24D0D0;
+    Theme.lowlightEdge1 = 0x47D5D2;
+    Theme.lowlightEdge2 = 0x008FD1;
+    Theme.highlight = 0x00FF00;
+    Theme.highlightEdge1 = 0x00CA59;
+    Theme.highlightEdge2 = 0x008650;
+    Theme.error = 0xFF0000;
+    WebMolKit.Theme = Theme;
+    function initWebMolKit(resourcePath) {
+        Theme.RESOURCE_URL = resourcePath;
+        try {
+            let _ = document;
+        }
+        catch (e) {
+            return;
+        }
+        if (document)
+            installInlineCSS('main', composeMainCSS());
+    }
+    WebMolKit.initWebMolKit = initWebMolKit;
+    let cssTagsInstalled = new Set();
+    function hasInlineCSS(tag) { return cssTagsInstalled.has(tag); }
+    WebMolKit.hasInlineCSS = hasInlineCSS;
+    function installInlineCSS(tag, css) {
+        if (cssTagsInstalled.has(tag))
+            return false;
+        let el = document.createElement('style');
+        el.innerHTML = css;
+        document.head.appendChild(el);
+        cssTagsInstalled.add(tag);
+        return true;
+    }
+    WebMolKit.installInlineCSS = installInlineCSS;
+    function composeMainCSS() {
+        let lowlight = WebMolKit.colourCode(Theme.lowlight), lowlightEdge1 = WebMolKit.colourCode(Theme.lowlightEdge1), lowlightEdge2 = WebMolKit.colourCode(Theme.lowlightEdge2);
+        let highlight = WebMolKit.colourCode(Theme.highlight), highlightEdge1 = WebMolKit.colourCode(Theme.highlightEdge1), highlightEdge2 = WebMolKit.colourCode(Theme.highlightEdge2);
+        return `
+		.wmk-button
+		{
+			display: inline-block;
+			padding: 6px 12px;
+			margin-bottom: 0;
+			font-family: 'Open Sans', sans-serif;
+			font-size: 14px;
+			font-weight: normal;
+			line-height: 1.42857143;
+			text-align: center;
+			white-space: nowrap;
+			vertical-align: middle;
+			cursor: pointer;
+			background-image: none;
+			border: 1px solid transparent;
+			border-radius: 4px;
+			-ms-touch-action: manipulation; touch-action: manipulation;
+			-webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+		}
+		.wmk-button:focus,
+		.wmk-button:active:focus,
+		.wmk-button.active:focus,
+		.wmk-button.focus,
+		.wmk-button:active.focus,
+		.wmk-button.active.focus
+		{
+			outline: thin dotted;
+			outline: 5px auto -webkit-focus-ring-color;
+			outline-offset: -2px;
+		}
+		.wmk-button:hover,
+		.wmk-button:focus,
+		.wmk-button.focus
+		{
+			color: #333;
+			text-decoration: none;
+		}
+		.wmk-button:active,
+		.wmk-button.active
+		{
+			background-image: none;
+			outline: 0;
+			-webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, .125);
+			box-shadow: inset 0 3px 5px rgba(0, 0, 0, .125);
+		}
+		.wmk-button.disabled,
+		.wmk-button[disabled],
+		fieldset[disabled] .wmk-button
+		{
+			cursor: not-allowed;
+			filter: alpha(opacity=65);
+			-webkit-box-shadow: none;
+			box-shadow: none;
+			opacity: .65;
+		}
+		a.wmk-button.disabled,
+		fieldset[disabled] a.wmk-button
+		{
+			pointer-events: none;
+		}
+
+		/* shrunken button */
+
+		.wmk-button-small
+		{
+			padding: 2px 4px;
+			line-height: 1;
+			font-size: 12px;
+		}
+
+		/* default button */
+
+		.wmk-button-default
+		{
+			color: #333;
+			background-color: #fff;
+			background-image: linear-gradient(to right bottom, #FFFFFF, #E0E0E0);
+			border-color: #ccc;
+		}
+		.wmk-button-default:focus,
+		.wmk-button-default.focus
+		{
+			color: #333;
+			background-color: #e6e6e6;
+			border-color: #8c8c8c;
+		}
+		.wmk-button-default:hover
+		{
+			color: #333;
+			background-color: #e6e6e6;
+			border-color: #adadad;
+		}
+		.wmk-button-default:active,
+		.wmk-button-default.active,
+		.open > .dropdown-toggle.wmk-button-default
+		{
+			color: #333;
+			background-color: #e6e6e6;
+			border-color: #adadad;
+		}
+		.wmk-button-default:active:hover,
+		.wmk-button-default.active:hover,
+		.open > .dropdown-toggle.wmk-button-default:hover,
+		.wmk-button-default:active:focus,
+		.wmk-button-default.active:focus,
+		.open > .dropdown-toggle.wmk-button-default:focus,
+		.wmk-button-default:active.focus,
+		.wmk-button-default.active.focus,
+		.open > .dropdown-toggle.wmk-button-default.focus
+		{
+			color: #333;
+			background-color: #d4d4d4;
+			border-color: #8c8c8c;
+		}
+		.wmk-button-default:active,
+		.wmk-button-default.active,
+		.open > .dropdown-toggle.wmk-button-default
+		{
+			background-image: none;
+		}
+		.wmk-button-default.disabled:hover,
+		.wmk-button-default[disabled]:hover,
+		fieldset[disabled] .wmk-button-default:hover,
+		.wmk-button-default.disabled:focus,
+		.wmk-button-default[disabled]:focus,
+		fieldset[disabled] .wmk-button-default:focus,
+		.wmk-button-default.disabled.focus,
+		.wmk-button-default[disabled].focus,
+		fieldset[disabled] .wmk-button-default.focus
+		{
+			background-color: #fff;
+			border-color: #ccc;
+		}
+		.wmk-button-default .badge
+		{
+			color: #fff;
+			background-color: #333;
+		}
+
+		/* primary button */
+
+		.wmk-button-primary
+		{
+			color: #fff;
+			background-color: #008FD2;
+			background-image: linear-gradient(to right bottom, ${lowlightEdge1}, ${lowlightEdge2});
+			border-color: #00C0C0;
+		}
+		.wmk-button-primary:focus,
+		.wmk-button-primary.focus
+		{
+			color: #fff;
+			background-color: ${lowlight};
+			border-color: #122b40;
+		}
+		.wmk-button-primary:hover
+		{
+			color: #fff;
+			background-color: #286090;
+			border-color: #204d74;
+		}
+		.wmk-button-primary:active,
+		.wmk-button-primary.active,
+		.open > .dropdown-toggle.wmk-button-primary
+		{
+			color: #fff;
+			background-color: #286090;
+			border-color: #20744d;
+		}
+		.wmk-button-primary:active:hover,
+		.wmk-button-primary.active:hover,
+		.open > .dropdown-toggle.wmk-button-primary:hover,
+		.wmk-button-primary:active:focus,
+		.wmk-button-primary.active:focus,
+		.open > .dropdown-toggle.wmk-button-primary:focus,
+		.wmk-button-primary:active.focus,
+		.wmk-button-primary.active.focus,
+		.open > .dropdown-toggle.wmk-button-primary.focus
+		{
+			color: #fff;
+			background-color: ${highlight};
+			background-image: linear-gradient(to right bottom, ${highlightEdge1}, ${highlightEdge2});
+			border-color: #12802b;
+		}
+		.wmk-button-primary:active,
+		.wmk-button-primary.active,
+		.open > .dropdown-toggle.wmk-button-primary
+		{
+			background-image: none;
+		}
+		.wmk-button-primary.disabled:hover,
+		.wmk-button-primary[disabled]:hover,
+		fieldset[disabled] .wmk-button-primary:hover,
+		.wmk-button-primary.disabled:focus,
+		.wmk-button-primary[disabled]:focus,
+		fieldset[disabled] .wmk-button-primary:focus,
+		.wmk-button-primary.disabled.focus,
+		.wmk-button-primary[disabled].focus,
+		fieldset[disabled] .wmk-button-primary.focus
+		{
+			background-color: #337ab7;
+			border-color: #2ea46d;
+		}
+		.wmk-button-primary .badge
+		{
+			color: #337ab7;
+			background-color: #fff;
+		}
+	`;
+    }
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    WebMolKit.TEMPLATE_FILES = [
+        'rings',
+        'termgrp',
+        'funcgrp',
+        'protgrp',
+        'nonplrings',
+        'largerings',
+        'crownethers',
+        'ligmonodent',
+        'ligbident',
+        'ligtrident',
+        'ligmultident',
+        'cagecmplx',
+        'aminoacids',
+        'biomolecules',
+        'saccharides'
+    ];
+    class AbbrevContainer {
+        constructor() {
+            this.abbrevs = [];
+        }
+        static needsSetup() { return !this.main; }
+        static setupData() {
+            return __awaiter(this, void 0, void 0, function* () {
+                if (this.main)
+                    return;
+                if (!WebMolKit.Theme.RESOURCE_URL)
+                    throw ('RPC resource URL not defined.');
+                this.main = new AbbrevContainer();
+                for (let tfn of WebMolKit.TEMPLATE_FILES) {
+                    let url = WebMolKit.Theme.RESOURCE_URL + '/data/templates/' + tfn + '.ds';
+                    let dsstr = yield WebMolKit.readTextURL(url);
+                    let ds = WebMolKit.DataSheetStream.readXML(dsstr);
+                    let colMol = ds.firstColOfType("molecule"), colAbbrev = ds.findColByName('Abbrev', "string");
+                    if (colMol < 0 || colAbbrev < 0)
+                        continue;
+                    for (let n = 0; n < ds.numRows; n++) {
+                        let frag = ds.getMoleculeClone(n, colMol), name = ds.getString(n, colAbbrev);
+                        if (!frag || !name)
+                            continue;
+                        let attcount = 0, firstConn = 0;
+                        for (let i = 1; i <= frag.numAtoms; i++)
+                            if (frag.atomElement(i) == WebMolKit.MolUtil.TEMPLATE_ATTACHMENT) {
+                                if (firstConn == 0)
+                                    firstConn = i;
+                                frag.setAtomElement(i, WebMolKit.MolUtil.ABBREV_ATTACHMENT);
+                                attcount++;
+                            }
+                        if (attcount != 1)
+                            continue;
+                        if (firstConn > 1)
+                            frag.swapAtoms(1, firstConn);
+                        this.main.submitAbbreviation(name, frag);
+                    }
+                }
+            });
+        }
+        getAbbrevs() {
+            return this.abbrevs.slice(0);
+        }
+        submitAbbreviation(name, infrag, promote = false) {
+            let frag = infrag.clone();
+            this.submitFragment(name, frag, promote);
+        }
+        submitMolecule(inmol, promote = false) {
+            let mol = inmol.clone();
+            for (let n = 1; n <= mol.numAtoms; n++) {
+                let frag = WebMolKit.MolUtil.getAbbrev(mol, n);
+                if (!frag)
+                    continue;
+                this.submitFragment(mol.atomElement(n), frag, promote);
+            }
+        }
+        substituteAbbrevName(mol, atom) {
+            let frag = WebMolKit.MolUtil.getAbbrev(mol, atom);
+            if (!frag)
+                return false;
+            for (let abbrev of this.abbrevs)
+                if (abbrev.frag.numAtoms == frag.numAtoms) {
+                    if (WebMolKit.CoordUtil.sketchEquivalent(frag, abbrev.frag)) {
+                        mol.setAtomElement(atom, abbrev.name);
+                        return true;
+                    }
+                }
+            return false;
+        }
+        submitFragment(name, frag, promote) {
+            if (name == '?')
+                return;
+            let vx = 0, vy = 0;
+            let adj = frag.atomAdjList(1);
+            for (let a of adj) {
+                vx += frag.atomX(a) - frag.atomX(1);
+                vy += frag.atomY(a) - frag.atomY(1);
+            }
+            if (adj.length > 1) {
+                let inv = 1.0 / adj.length;
+                vx *= inv;
+                vy *= inv;
+            }
+            if (WebMolKit.norm_xy(vx, vy) > 0.1 * 0.1) {
+                let theta = Math.atan2(vy, vx);
+                if (Math.abs(theta) > 2 * WebMolKit.DEGRAD)
+                    WebMolKit.CoordUtil.rotateMolecule(frag, -theta);
+            }
+            let hit = -1;
+            for (let n = 0; n < this.abbrevs.length; n++) {
+                let a = this.abbrevs[n];
+                if (a.name != name)
+                    continue;
+                hit = n;
+                break;
+            }
+            let [html, search] = this.formatAbbrevLabel(name);
+            let abv = { 'name': name, 'frag': frag, 'nameHTML': html, 'nameSearch': search };
+            if (hit < 0) {
+                if (promote)
+                    this.abbrevs.unshift(abv);
+                else
+                    this.abbrevs.push(abv);
+            }
+            else {
+                if (promote && hit > 0) {
+                    this.abbrevs.splice(hit, 1);
+                    this.abbrevs.unshift(abv);
+                }
+                else
+                    this.abbrevs[hit] = abv;
+            }
+        }
+        formatAbbrevLabel(name) {
+            let html = '', search = '';
+            let append = (bit, tag) => {
+                if (tag)
+                    html += '<' + tag + '>';
+                html += WebMolKit.escapeHTML(bit);
+                search += bit;
+                if (tag)
+                    html += '</' + tag + '>';
+            };
+            for (let bit of name.split('|')) {
+                while (true) {
+                    let match = bit.match(/^(.*?)\{(.*?)\}(.*)$/);
+                    if (!match)
+                        break;
+                    let pre = match[1], mid = match[2], post = match[3];
+                    append(pre, null);
+                    if (mid.startsWith('^'))
+                        append(mid.substring(1), 'sup');
+                    else
+                        append(mid, 'sub');
+                    bit = post;
+                }
+                append(bit, null);
+            }
+            return [html, search.toLowerCase()];
+        }
+    }
+    AbbrevContainer.main = null;
+    WebMolKit.AbbrevContainer = AbbrevContainer;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -14346,44 +15265,16 @@ var WebMolKit;
             policy.data.bondSep *= 1.5;
             let sz = this.buttonView.idealSize;
             if (this.group == null) {
-                if (WebMolKit.RPC.BASE_URL != null) {
-                    let input = { 'tokenID': this.owner.tokenID, 'policy': policy.data, 'size': [sz - 4, sz - 4] };
-                    let fcn = (result, error) => {
-                        if (!result) {
-                            alert('Setup of TemplateBank failed: ' + error.message);
-                            return;
-                        }
-                        this.subgroups = result;
-                        this.buttonView.refreshBank();
-                    };
-                    WebMolKit.Func.getDefaultTemplateGroups(input, fcn);
-                }
-                else if (WebMolKit.RPC.RESOURCE_URL != null) {
-                    if (TemplateBank.RESOURCE_DATA == null)
-                        this.loadResourceData(() => this.prepareSubGroups());
-                    else
-                        this.prepareSubGroups();
-                }
+                if (TemplateBank.RESOURCE_DATA == null)
+                    this.loadResourceData(() => this.prepareSubGroups());
+                else
+                    this.prepareSubGroups();
             }
             else {
-                if (WebMolKit.RPC.BASE_URL != null) {
-                    let input = { 'tokenID': this.owner.tokenID, 'policy': policy.data, 'size': [sz - 4, sz - 4], 'group': this.group };
-                    let fcn = (result, error) => {
-                        if (!result) {
-                            alert('Setup of TemplateBank failed: ' + error.message);
-                            return;
-                        }
-                        this.templates = result;
-                        this.buttonView.refreshBank();
-                    };
-                    WebMolKit.Func.getDefaultTemplateStructs(input, fcn);
-                }
-                else if (WebMolKit.RPC.RESOURCE_URL != null) {
-                    if (TemplateBank.RESOURCE_DATA == null)
-                        this.loadResourceData(() => this.prepareTemplates());
-                    else
-                        this.prepareTemplates();
-                }
+                if (TemplateBank.RESOURCE_DATA == null)
+                    this.loadResourceData(() => this.prepareTemplates());
+                else
+                    this.prepareTemplates();
             }
         }
         update() {
@@ -14414,27 +15305,11 @@ var WebMolKit;
             else {
                 let idx = parseInt(id);
                 let param = { 'fragNative': this.templates.molecules[idx] };
-                new WebMolKit.MoleculeActivity(this.owner, WebMolKit.ActivityType.TemplateFusion, param).execute();
+                new WebMolKit.MoleculeActivity(this.owner.getState(), WebMolKit.ActivityType.TemplateFusion, param, {}, this.owner).execute();
             }
         }
         loadResourceData(onComplete) {
-            let roster = [
-                'rings',
-                'termgrp',
-                'funcgrp',
-                'protgrp',
-                'nonplrings',
-                'largerings',
-                'crownethers',
-                'ligmonodent',
-                'ligbident',
-                'ligtrident',
-                'ligmultident',
-                'cagecmplx',
-                'aminoacids',
-                'biomolecules',
-                'saccharides'
-            ];
+            let roster = WebMolKit.TEMPLATE_FILES.slice(0);
             TemplateBank.RESOURCE_LIST = roster.slice(0);
             TemplateBank.RESOURCE_DATA = [];
             let grabNext = () => {
@@ -14442,7 +15317,7 @@ var WebMolKit;
                     onComplete();
                     return;
                 }
-                let url = WebMolKit.RPC.RESOURCE_URL + '/data/templates/' + roster.shift() + '.ds';
+                let url = WebMolKit.Theme.RESOURCE_URL + '/data/templates/' + roster.shift() + '.ds';
                 $.ajax({
                     'url': url,
                     'type': 'GET',
@@ -14463,8 +15338,8 @@ var WebMolKit;
             let effects = new WebMolKit.RenderEffects();
             let measure = new WebMolKit.OutlineMeasurement(0, 0, policy.data.pointScale);
             for (let ds of TemplateBank.RESOURCE_DATA) {
-                this.subgroups.titles.push(ds.getTitle());
-                let colMol = ds.firstColOfType(WebMolKit.DataSheet.COLTYPE_MOLECULE);
+                this.subgroups.titles.push(ds.title);
+                let colMol = ds.firstColOfType("molecule");
                 let metavec = new WebMolKit.MetaVector();
                 for (let n = 0, idx = 0; idx < 4 && n < ds.numRows; n++) {
                     let mol = ds.getMolecule(n, colMol);
@@ -14546,19 +15421,19 @@ var WebMolKit;
 (function (WebMolKit) {
     const TOOLS_MAIN = [
         { 'id': 'arrow', 'imageFN': 'ToolSelect', 'helpText': 'Selection tool.', 'mnemonic': 'Escape' },
-        { 'id': 'rotate', 'imageFN': 'ToolRotate', 'helpText': 'Rotate subject atoms.', 'mnemonic': 'R' },
-        { 'id': 'pan', 'imageFN': 'ToolPan', 'helpText': 'Pan the viewport around the screen.', 'mnemonic': 'V' },
-        { 'id': 'drag', 'imageFN': 'ToolDrag', 'helpText': 'Drag selected atoms to new positions.', 'mnemonic': 'G' },
+        { 'id': 'rotate', 'imageFN': 'ToolRotate', 'helpText': 'Rotate subject atoms.', 'mnemonic': '' },
+        { 'id': 'pan', 'imageFN': 'ToolPan', 'helpText': 'Pan the viewport around the screen.', 'mnemonic': '' },
+        { 'id': 'drag', 'imageFN': 'ToolDrag', 'helpText': 'Drag selected atoms to new positions.', 'mnemonic': '' },
         { 'id': 'erasor', 'imageFN': 'ToolErasor', 'helpText': 'Delete atoms or bonds by selecting.', 'mnemonic': 'Delete' },
         { 'id': 'bondOrder0', 'imageFN': 'BondZero', 'helpText': 'Create or change a bond to zero order.', 'mnemonic': '' },
-        { 'id': 'bondOrder1', 'imageFN': 'BondOne', 'helpText': 'Create or change a bond to single.', 'mnemonic': 'Shift-1' },
-        { 'id': 'bondOrder2', 'imageFN': 'BondTwo', 'helpText': 'Create or change a bond to double.', 'mnemonic': 'Shift-2' },
-        { 'id': 'bondOrder3', 'imageFN': 'BondThree', 'helpText': 'Create or change a bond to triple.', 'mnemonic': 'Shift-3' },
-        { 'id': 'bondUnknown', 'imageFN': 'BondSquig', 'helpText': 'Create or change a bond to unknown stereochemistry.', 'mnemonic': 'Shift-4' },
-        { 'id': 'bondInclined', 'imageFN': 'BondUp', 'helpText': 'Create or change a bond to up-wedge.', 'mnemonic': 'Shift-5' },
-        { 'id': 'bondDeclined', 'imageFN': 'BondDown', 'helpText': 'Create or change a bond to down-wedge.', 'mnemonic': 'Shift-6' },
-        { 'id': 'ringAliph', 'imageFN': 'ToolRing', 'helpText': 'Create plain ring.', 'mnemonic': 'Shift-7' },
-        { 'id': 'ringArom', 'imageFN': 'ToolArom', 'helpText': 'Create aromatic ring.', 'mnemonic': 'Shift-8' },
+        { 'id': 'bondOrder1', 'imageFN': 'BondOne', 'helpText': 'Create or change a bond to single.', 'mnemonic': '' },
+        { 'id': 'bondOrder2', 'imageFN': 'BondTwo', 'helpText': 'Create or change a bond to double.', 'mnemonic': '' },
+        { 'id': 'bondOrder3', 'imageFN': 'BondThree', 'helpText': 'Create or change a bond to triple.', 'mnemonic': '' },
+        { 'id': 'bondUnknown', 'imageFN': 'BondSquig', 'helpText': 'Create or change a bond to unknown stereochemistry.', 'mnemonic': '' },
+        { 'id': 'bondInclined', 'imageFN': 'BondUp', 'helpText': 'Create or change a bond to up-wedge.', 'mnemonic': '' },
+        { 'id': 'bondDeclined', 'imageFN': 'BondDown', 'helpText': 'Create or change a bond to down-wedge.', 'mnemonic': '' },
+        { 'id': 'ringAliph', 'imageFN': 'ToolRing', 'helpText': 'Create plain ring.', 'mnemonic': '' },
+        { 'id': 'ringArom', 'imageFN': 'ToolArom', 'helpText': 'Create aromatic ring.', 'mnemonic': '' },
         { 'id': 'atomPlus', 'imageFN': 'AtomPlus', 'helpText': 'Increase charge on atom.', 'mnemonic': '' },
         { 'id': 'atomMinus', 'imageFN': 'AtomMinus', 'helpText': 'Decrease charge on atom.', 'mnemonic': '' },
         { 'id': 'elementC', 'text': 'C', 'helpText': 'Change elements to Carbon.', 'mnemonic': '' },
@@ -14570,7 +15445,7 @@ var WebMolKit;
         { 'id': 'elementF', 'text': 'F', 'helpText': 'Change elements to Fluorine.', 'mnemonic': '' },
         { 'id': 'elementCl', 'text': 'Cl', 'helpText': 'Change elements to Chlorine.', 'mnemonic': '' },
         { 'id': 'elementBr', 'text': 'Br', 'helpText': 'Change elements to Bromine.', 'mnemonic': '' },
-        { 'id': 'elementA', 'text': 'A', 'helpText': 'Pick other element.', 'mnemonic': 'O' }
+        { 'id': 'elementA', 'text': 'A', 'helpText': 'Pick other element.', 'mnemonic': '' }
     ];
     class ToolBank extends WebMolKit.ButtonBank {
         constructor(owner) {
@@ -14587,7 +15462,7 @@ var WebMolKit;
         }
         claimKey(event) {
             for (let item of TOOLS_MAIN) {
-                if (WebMolKit.ButtonBank.matchKey(event, item.mnemonic)) {
+                if (WebMolKit.ButtonBank.matchKey(event, item.mnemonic, item.key)) {
                     this.hitButton(item.id);
                     return true;
                 }
@@ -14596,6 +15471,113 @@ var WebMolKit;
         }
     }
     WebMolKit.ToolBank = ToolBank;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    const CSS_DIALOG = `
+    *.wmk-dialog
+    {
+        font-family: 'Open Sans', sans-serif;
+    }
+`;
+    class Dialog {
+        constructor() {
+            this.minPortionWidth = 80;
+            this.maxPortionWidth = 80;
+            this.maximumWidth = 0;
+            this.maximumHeight = 0;
+            this.title = 'Dialog';
+            this.callbackClose = null;
+            this.callbackShown = null;
+            WebMolKit.installInlineCSS('dialog', CSS_DIALOG);
+        }
+        onClose(callback) {
+            this.callbackClose = callback;
+        }
+        onShown(callback) {
+            this.callbackShown = callback;
+        }
+        open() {
+            let body = $(document.documentElement);
+            let bg = $('<div></div>').appendTo(body);
+            bg.css('width', '100%');
+            bg.css('height', Math.max(document.body.clientHeight, document.body.scrollHeight) + 'px');
+            bg.css('background-color', 'black');
+            bg.css('opacity', 0.8);
+            bg.css('position', 'absolute');
+            bg.css('left', '0');
+            bg.css('top', '0');
+            bg.css('z-index', 9999);
+            this.obscureBackground = bg;
+            let pb = $('<div class="wmk-dialog"></div>').appendTo(body);
+            pb.css('min-width', this.minPortionWidth + '%');
+            if (this.maximumWidth > 0)
+                pb.css('max-width', this.maximumWidth + 'px');
+            else if (this.maxPortionWidth != null)
+                pb.css('max-width', this.maxPortionWidth + '%');
+            if (this.maximumHeight > 0)
+                pb.css('max-height', this.maximumHeight + 'px');
+            pb.css('background-color', 'white');
+            pb.css('border-radius', '6px');
+            pb.css('border', '1px solid black');
+            pb.css('position', 'absolute');
+            pb.css('left', (50 - 0.5 * this.minPortionWidth) + '%');
+            pb.css('top', (window.scrollY + 50) + 'px');
+            pb.css('min-height', '20%');
+            pb.css('z-index', 10000);
+            this.panelBoundary = pb;
+            let tdiv = $('<div></div>').appendTo(pb);
+            tdiv.css('width', '100%');
+            tdiv.css('background-color', '#F0F0F0');
+            tdiv.css('background-image', 'linear-gradient(to right bottom, #FFFFFF, #E0E0E0)');
+            tdiv.css('border-bottom', '1px solid #C0C0C0');
+            tdiv.css('border-radius', '6px 6px 0 0');
+            tdiv.css('margin', 0);
+            tdiv.css('padding', 0);
+            this.titleDiv = tdiv;
+            let bdiv = $('<div></div>').appendTo(pb);
+            bdiv.css('width', '100%');
+            this.bodyDiv = $('<div style="padding: 0.5em;"></div>').appendTo(bdiv);
+            let ttlTable = $('<table></table>').appendTo(tdiv), tr = $('<tr></tr>').appendTo(ttlTable);
+            ttlTable.attr('width', '100%');
+            let tdTitle = $('<td valign="center"></td>').appendTo(tr);
+            tdTitle.css('padding', '0.5em');
+            let ttl = $('<font></font>').appendTo(tdTitle);
+            ttl.css('font-size', '1.5em');
+            ttl.css('font-weight', '600');
+            ttl.text(this.title);
+            let tdButtons = $('<td align="right" valign="center"></td>').appendTo(tr);
+            tdButtons.css('padding', '0.5em');
+            this.btnClose = $('<button class="wmk-button wmk-button-default">Close</button>').appendTo(tdButtons);
+            this.btnClose.click(() => this.close());
+            this.titleButtons = tdButtons;
+            this.populate();
+            this.repositionSize();
+            bg.show();
+            pb.show();
+            if (this.callbackShown)
+                this.callbackShown(this);
+        }
+        close() {
+            this.panelBoundary.remove();
+            this.obscureBackground.remove();
+            if (this.callbackClose)
+                this.callbackClose(this);
+        }
+        bump() {
+            this.repositionSize();
+        }
+        body() { return this.bodyDiv; }
+        buttons() { return this.titleButtons; }
+        populate() {
+            this.body().text('Empty dialog box.');
+        }
+        repositionSize() {
+            let docW = $(window).width(), dlgW = this.panelBoundary.width();
+            this.panelBoundary.css('left', (0.5 * (docW - dlgW)) + 'px');
+        }
+    }
+    WebMolKit.Dialog = Dialog;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -14625,7 +15607,7 @@ var WebMolKit;
         }
         render(parent) {
             super.render(parent);
-            let grid = $('<div></div>').appendTo(this.content);
+            let grid = $('<div/>').appendTo(this.content);
             grid.css('display', 'grid');
             grid.css('align-items', 'center');
             grid.css('justify-content', 'start');
@@ -14635,23 +15617,24 @@ var WebMolKit;
                 columns += '[btn' + n + '] auto ';
             columns += '[btnX] 1fr [end]';
             grid.css('grid-template-columns', columns);
-            let underline = $('<div></div>').appendTo(grid);
+            let underline = $('<div/>').appendTo(grid);
             underline.css('grid-column', 'start / end');
             underline.css('grid-row', '1');
             underline.css('border-bottom', '1px solid #C0C0C0');
             underline.css('height', '100%');
             for (let n = 0; n < this.options.length; n++) {
-                let outline = $('<div class="wmk-tabbar-cell"></div>').appendTo(grid);
+                let outline = $('<div class="wmk-tabbar-cell"/>').appendTo(grid);
                 outline.css('grid-column', 'btn' + n);
                 outline.css('grid-row', '1');
-                let btn = $('<div class="wmk-tabbar"></div>').appendTo(outline);
+                let btn = $('<div class="wmk-tabbar"/>').appendTo(outline);
                 btn.css('padding', this.padding + 'px');
                 this.buttonDiv.push(btn);
-                let panel = $('<div></div>').appendTo(grid);
+                let panel = $('<div/>').appendTo(grid);
                 panel.css('grid-column', 'start / end');
                 panel.css('grid-row', '2');
                 panel.css('align-self', 'start');
                 panel.css('justify-self', 'center');
+                panel.css({ 'width': '100%' });
                 this.panelDiv.push(panel);
             }
             this.updateButtons();
@@ -14774,10 +15757,11 @@ var WebMolKit;
             super();
             this.options = options;
             this.isVertical = isVertical;
+            this.padding = 6;
+            this.htmlLabels = false;
             this.selidx = 0;
             this.buttonDiv = [];
             this.auxCell = [];
-            this.padding = 6;
             this.callbackSelect = null;
             if (options.length == 0)
                 throw 'molsync.ui.OptionList: must provide a list of option labels.';
@@ -14793,22 +15777,25 @@ var WebMolKit;
         getAuxiliaryCell(idx) {
             return this.auxCell[idx];
         }
+        onSelect(callback) {
+            this.callbackSelect = callback;
+        }
         render(parent) {
             super.render(parent);
             this.content.css('display', 'inline-block');
             this.buttonDiv = [];
             this.auxCell = [];
-            let table = $('<table class="wmk-option-table"></table>').appendTo(this.content);
-            let tr = this.isVertical ? null : $('<tr></tr>').appendTo(table);
+            let table = $('<table class="wmk-option-table"/>').appendTo(this.content);
+            let tr = this.isVertical ? null : $('<tr/>').appendTo(table);
             for (let n = 0; n < this.options.length; n++) {
                 if (this.isVertical)
-                    tr = $('<tr></tr>').appendTo(table);
-                let td = $('<td class="wmk-option-cell"></td>').appendTo(tr);
-                let div = $('<div class="wmk-option"></div>').appendTo(td);
+                    tr = $('<tr/>').appendTo(table);
+                let td = $('<td class="wmk-option-cell"/>').appendTo(tr);
+                let div = $('<div class="wmk-option"/>').appendTo(td);
                 div.css('padding', this.padding + 'px');
                 this.buttonDiv.push(div);
                 if (this.isVertical) {
-                    td = $('<td style="vertical-align: middle;"></td>').appendTo(tr);
+                    td = $('<td style="vertical-align: middle;"/>').appendTo(tr);
                     this.auxCell.push(td);
                 }
             }
@@ -14840,6 +15827,8 @@ var WebMolKit;
                     div.text('\u00A0\u2716\u00A0');
                 else if (txt.length == 0)
                     div.text('\u00A0\u00A0\u00A0');
+                else if (this.htmlLabels)
+                    div.html(txt);
                 else
                     div.text(txt);
                 div.off('mouseover');
@@ -14876,7 +15865,8 @@ var WebMolKit;
 				font-weight: normal;
 				text-align: center;
 				white-space: nowrap;
-				vertical-align: middle;
+				/*vertical-align: middle;*/
+				line-height: 1.2em;
 				-ms-touch-action: manipulation; touch-action: manipulation;
 				cursor: pointer;
 				-webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
@@ -14926,6 +15916,308 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    let GeomWidgetType;
+    (function (GeomWidgetType) {
+        GeomWidgetType[GeomWidgetType["Atom"] = 0] = "Atom";
+        GeomWidgetType[GeomWidgetType["Bond"] = 1] = "Bond";
+    })(GeomWidgetType = WebMolKit.GeomWidgetType || (WebMolKit.GeomWidgetType = {}));
+    let GeomWidgetSelType;
+    (function (GeomWidgetSelType) {
+        GeomWidgetSelType[GeomWidgetSelType["Position"] = 0] = "Position";
+        GeomWidgetSelType[GeomWidgetSelType["Link"] = 1] = "Link";
+        GeomWidgetSelType[GeomWidgetSelType["Torsion"] = 2] = "Torsion";
+    })(GeomWidgetSelType = WebMolKit.GeomWidgetSelType || (WebMolKit.GeomWidgetSelType = {}));
+    class GeomWidget extends WebMolKit.Widget {
+        constructor(type, mol, idx) {
+            super();
+            this.type = type;
+            this.mol = mol;
+            this.idx = idx;
+            this.posX = [];
+            this.posY = [];
+            this.linkA = [];
+            this.linkB = [];
+            this.torsA = [];
+            this.torsB = [];
+            this.hovered = null;
+            if (type == GeomWidgetType.Atom) {
+                const atom = idx;
+                let adj = mol.atomAdjList(atom);
+                this.atomSubset = [atom, ...adj];
+                for (let b of mol.atomAdjBonds(atom)) {
+                    this.linkA.push(0);
+                    this.linkB.push(this.atomSubset.indexOf(mol.bondOther(b, atom)));
+                }
+                let theta = [];
+                for (let a of adj)
+                    theta.push(Math.atan2(-(mol.atomY(a) - mol.atomY(atom)), mol.atomX(a) - mol.atomX(atom)));
+                let order = WebMolKit.Vec.idxSort(theta);
+                for (let n = 0; n < order.length; n++) {
+                    this.torsA.push(order[n] + 1);
+                    this.torsB.push(order[n < order.length - 1 ? n + 1 : 0] + 1);
+                }
+                this.selected = { 'type': GeomWidgetSelType.Position, 'idx': 0 };
+            }
+            else {
+                const bond = idx;
+                let a1 = mol.bondFrom(bond), a2 = mol.bondTo(bond);
+                this.atomSubset = [...mol.atomAdjList(a1), ...mol.atomAdjList(a2)];
+                let link = (a1, a2) => {
+                    this.linkA.push(this.atomSubset.indexOf(a1));
+                    this.linkB.push(this.atomSubset.indexOf(a2));
+                };
+                link(a1, a2);
+                for (let a of mol.atomAdjList(a1))
+                    if (a != a2)
+                        link(a1, a);
+                for (let a of mol.atomAdjList(a2))
+                    if (a != a1)
+                        link(a2, a);
+                this.selected = { 'type': GeomWidgetSelType.Link, 'idx': 0 };
+            }
+        }
+        render(parent) {
+            super.render(parent);
+            let divOuter = $('<div/>').appendTo(this.content).css({ 'text-align': 'center' });
+            this.divDiagram = $('<div/>').appendTo(divOuter).css({ 'display': 'inline-block' });
+            this.content.click((event) => this.mouseClick(WebMolKit.eventCoords(event, this.divDiagram)));
+            this.content.mousemove((event) => this.mouseMove(WebMolKit.eventCoords(event, this.divDiagram)));
+            this.redraw();
+        }
+        selectionAtoms(sel) {
+            const atoms = this.atomSubset;
+            if (sel.type == GeomWidgetSelType.Position)
+                return [atoms[sel.idx]];
+            if (sel.type == GeomWidgetSelType.Link)
+                return [atoms[this.linkA[sel.idx]], atoms[this.linkB[sel.idx]]];
+            if (sel.type == GeomWidgetSelType.Torsion)
+                return [atoms[0], atoms[this.torsA[sel.idx]], atoms[this.torsB[sel.idx]]];
+            return null;
+        }
+        redraw() {
+            this.divDiagram.empty();
+            let w = 250, h = 250;
+            this.posX = [];
+            this.posY = [];
+            const ANG_RAD = 0.25;
+            for (let a of this.atomSubset) {
+                this.posX.push(this.mol.atomX(a));
+                this.posY.push(this.mol.atomY(a));
+            }
+            let loX = WebMolKit.Vec.min(this.posX) - ANG_RAD, hiX = WebMolKit.Vec.max(this.posX) + ANG_RAD;
+            let loY = WebMolKit.Vec.min(this.posY) - ANG_RAD, hiY = WebMolKit.Vec.max(this.posY) + ANG_RAD;
+            this.scale = Math.min(40, Math.min((w - 4) / (hiX - loX), (h - 4) / (hiY - loY)));
+            let dx = 0.5 * (w - (hiX - loX) * this.scale), dy = 0.5 * (h - (hiY - loY) * this.scale);
+            for (let n = 0; n < this.atomSubset.length; n++) {
+                this.posX[n] = dx + (this.posX[n] - loX) * this.scale;
+                this.posY[n] = h - (dy + (this.posY[n] - loY) * this.scale);
+            }
+            this.posRad = ANG_RAD * this.scale;
+            let gfx = new WebMolKit.MetaVector();
+            gfx.setSize(w, h);
+            let fg = WebMolKit.Theme.foreground, bg = WebMolKit.Theme.background, outerSel = 0x008FD1, innerSel = 0x47D5D2;
+            for (let n = 0; n < this.atomSubset.length; n++) {
+                if (this.hovered && this.hovered.type == GeomWidgetSelType.Position && this.hovered.idx == n)
+                    gfx.drawOval(this.posX[n], this.posY[n], this.posRad, this.posRad, fg, 1, bg);
+                else if (this.selected && this.selected.type == GeomWidgetSelType.Position && this.selected.idx == n)
+                    gfx.drawOval(this.posX[n], this.posY[n], this.posRad, this.posRad, outerSel, 1, innerSel);
+                else
+                    gfx.drawOval(this.posX[n], this.posY[n], this.posRad, this.posRad, WebMolKit.MetaVector.NOCOLOUR, 0, fg);
+            }
+            for (let showsel of [1, 2, 3])
+                for (let n = 0; n < this.linkA.length; n++) {
+                    let x1 = this.posX[this.linkA[n]], y1 = this.posY[this.linkA[n]];
+                    let x2 = this.posX[this.linkB[n]], y2 = this.posY[this.linkB[n]];
+                    if (this.hovered && this.hovered.type == GeomWidgetSelType.Link && this.hovered.idx == n) {
+                        if (showsel == 3) {
+                            gfx.drawLine(x1, y1, x2, y2, fg, this.scale * 0.1 + 2);
+                            gfx.drawLine(x1, y1, x2, y2, bg, this.scale * 0.1);
+                        }
+                    }
+                    else if (this.selected && this.selected.type == GeomWidgetSelType.Link && this.selected.idx == n) {
+                        if (showsel == 2) {
+                            gfx.drawLine(x1, y1, x2, y2, outerSel, this.scale * 0.1 + 2);
+                            gfx.drawLine(x1, y1, x2, y2, innerSel, this.scale * 0.1);
+                        }
+                    }
+                    else {
+                        if (showsel == 1)
+                            gfx.drawLine(x1, y1, x2, y2, fg, this.scale * 0.1);
+                    }
+                }
+            for (let n = 0; n < this.torsA.length; n++) {
+                let cx = this.posX[0], cy = this.posY[0];
+                let dx1 = 0.5 * (this.posX[this.torsA[n]] - cx), dy1 = 0.5 * (this.posY[this.torsA[n]] - cy);
+                let dx2 = 0.5 * (this.posX[this.torsB[n]] - cx), dy2 = 0.5 * (this.posY[this.torsB[n]] - cy);
+                let rad = 0.5 * (WebMolKit.norm_xy(dx1, dy1) + WebMolKit.norm_xy(dx2, dy2));
+                let theta1 = Math.atan2(dy1, dx1) + 10 * WebMolKit.DEGRAD, theta2 = Math.atan2(dy2, dx2) - 10 * WebMolKit.DEGRAD, dtheta = WebMolKit.angleDiff(theta2, theta1);
+                let ox1 = rad * Math.cos(theta1), oy1 = rad * Math.sin(theta1), ox2 = rad * Math.cos(theta2), oy2 = rad * Math.sin(theta2);
+                let px, py, pf;
+                if (dtheta > 0) {
+                    let [ax1, ay1, ax2, ay2] = WebMolKit.GeomUtil.arcControlPoints(rad, ox1, oy1, ox2, oy2);
+                    px = WebMolKit.Vec.add([ox1, ax1, ax2, ox2], cx);
+                    py = WebMolKit.Vec.add([oy1, ay1, ay2, oy2], cy);
+                    pf = [false, true, true, false];
+                }
+                else {
+                    let thetaM = theta1 + 0.5 * (dtheta + WebMolKit.TWOPI);
+                    let oxM = rad * Math.cos(thetaM), oyM = rad * Math.sin(thetaM);
+                    let [ax1, ay1, ax2, ay2] = WebMolKit.GeomUtil.arcControlPoints(rad, ox1, oy1, oxM, oyM);
+                    let [ax3, ay3, ax4, ay4] = WebMolKit.GeomUtil.arcControlPoints(rad, oxM, oyM, ox2, oy2);
+                    px = WebMolKit.Vec.add([ox1, ax1, ax2, oxM, ax3, ax4, ox2], cx);
+                    py = WebMolKit.Vec.add([oy1, ay1, ay2, oyM, ay3, ay4, oy2], cy);
+                    pf = [false, true, true, false, true, true, false];
+                }
+                if (this.hovered && this.hovered.type == GeomWidgetSelType.Torsion && this.hovered.idx == n) {
+                    gfx.drawPath(px, py, pf, false, fg, this.scale * 0.1 + 2, WebMolKit.MetaVector.NOCOLOUR, false);
+                    gfx.drawPath(px, py, pf, false, bg, this.scale * 0.1, WebMolKit.MetaVector.NOCOLOUR, false);
+                }
+                else if (this.selected && this.selected.type == GeomWidgetSelType.Torsion && this.selected.idx == n) {
+                    gfx.drawPath(px, py, pf, false, outerSel, this.scale * 0.1 + 2, WebMolKit.MetaVector.NOCOLOUR, false);
+                    gfx.drawPath(px, py, pf, false, innerSel, this.scale * 0.1, WebMolKit.MetaVector.NOCOLOUR, false);
+                }
+                else
+                    gfx.drawPath(px, py, pf, false, fg, this.scale * 0.1, WebMolKit.MetaVector.NOCOLOUR, false);
+            }
+            this.divDiagram.empty();
+            let svg = $(gfx.createSVG()).appendTo(this.divDiagram).css({ 'pointer-events': 'none' });
+        }
+        mouseClick(xy) {
+            event.stopPropagation();
+            if (this.type == GeomWidgetType.Bond)
+                return;
+            let which = this.whichSelection(xy[0], xy[1]);
+            if (!which)
+                return;
+            if (!this.sameSelection(this.selected, which)) {
+                this.selected = which;
+                this.hovered = null;
+                this.redraw();
+                this.callbackSelect(which);
+            }
+        }
+        mouseMove(xy) {
+            if (this.type == GeomWidgetType.Bond)
+                return;
+            let which = this.whichSelection(xy[0], xy[1]);
+            if (which && this.sameSelection(which, this.selected))
+                which = null;
+            if (!this.sameSelection(this.hovered, which)) {
+                this.hovered = which;
+                this.redraw();
+            }
+        }
+        whichSelection(x, y) {
+            let cx = this.posX[0], cy = this.posY[0];
+            if (WebMolKit.norm_xy(x - cx, y - cy) <= this.posRad)
+                return { 'type': GeomWidgetSelType.Position, 'idx': 0 };
+            let maxRad = 0;
+            for (let n = 1; n < this.atomSubset.length; n++)
+                maxRad = Math.max(maxRad, WebMolKit.norm_xy(this.posX[n] - cx, this.posY[n] - cy) + this.posRad);
+            if (WebMolKit.norm_xy(x - cx, y - cy) > maxRad)
+                return null;
+            let theta = Math.atan2(y - cy, x - cx);
+            let closeSel = null, closeDelta = Number.POSITIVE_INFINITY;
+            for (let n = 0; n < this.linkB.length; n++) {
+                let delta = Math.abs(WebMolKit.angleDiff(Math.atan2(this.posY[this.linkB[n]] - cy, this.posX[this.linkB[n]] - cx), theta));
+                if (delta < 10 * WebMolKit.DEGRAD && delta < closeDelta) {
+                    closeSel = { 'type': GeomWidgetSelType.Link, 'idx': n };
+                    closeDelta = delta;
+                }
+            }
+            for (let n = 0; n < this.torsA.length; n++) {
+                let theta1 = Math.atan2(this.posY[this.torsA[n]] - cy, this.posX[this.torsA[n]] - cx);
+                let theta2 = Math.atan2(this.posY[this.torsB[n]] - cy, this.posX[this.torsB[n]] - cx);
+                let midtheta = theta1 + 0.5 * (WebMolKit.angleDiff(theta2, theta1));
+                let delta = Math.abs(WebMolKit.angleDiff(midtheta, theta));
+                if (delta < closeDelta) {
+                    closeSel = { 'type': GeomWidgetSelType.Torsion, 'idx': n };
+                    closeDelta = delta;
+                }
+            }
+            return closeSel;
+        }
+        sameSelection(sel1, sel2) {
+            if (sel1 == null && sel2 == null)
+                return true;
+            if (sel1 == null || sel2 == null)
+                return false;
+            return sel1.type == sel2.type && sel1.idx == sel2.idx;
+        }
+    }
+    WebMolKit.GeomWidget = GeomWidget;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class ExtraFieldsWidget extends WebMolKit.Widget {
+        constructor(fields) {
+            super();
+            this.fields = fields;
+        }
+        render(parent) {
+            super.render(parent);
+            this.divFields = $('<div/>').appendTo(this.content);
+            this.fillTable();
+            let divButtons = $('<div/>').appendTo(this.content).css({ 'text-align': 'center' });
+            let btnExtra = $('<button class="wmk-button wmk-button-default">Extra</button>').appendTo(divButtons);
+            btnExtra.click(() => {
+                this.fields.push(WebMolKit.Molecule.PREFIX_EXTRA);
+                this.fillTable();
+            });
+            divButtons.append(' ');
+            let btnTransient = $('<button class="wmk-button wmk-button-default">Transient</button>').appendTo(divButtons);
+            btnTransient.click(() => {
+                this.fields.push(WebMolKit.Molecule.PREFIX_TRANSIENT);
+                this.fillTable();
+            });
+        }
+        getExtraFields() {
+            let extra = [];
+            for (let field of this.fields)
+                if (!field.startsWith(WebMolKit.Molecule.PREFIX_TRANSIENT) && field.length > 1)
+                    extra.push(field);
+            return extra;
+        }
+        getTransientFields() {
+            let transient = [];
+            for (let field of this.fields)
+                if (field.startsWith(WebMolKit.Molecule.PREFIX_TRANSIENT) && field.length > 1)
+                    transient.push(field);
+            return transient;
+        }
+        fillTable() {
+            this.divFields.empty();
+            if (this.fields.length == 0)
+                return;
+            let table = $('<table/>').appendTo(this.divFields).css({ 'width': '100%' });
+            let tr = $('<tr/>').appendTo(table);
+            $('<td/>').appendTo(tr).css({ 'text-align': 'right', 'font-weight': 'bold', 'text-decoration': 'underline' }).text('Type');
+            $('<td/>').appendTo(tr).css({ 'font-weight': 'bold', 'text-decoration': 'underline' }).text('Value');
+            for (let n = 0; n < this.fields.length; n++) {
+                let strType = '?', strValue = '';
+                if (this.fields[n].length > 0) {
+                    strType = this.fields[n].charAt(0);
+                    strValue = this.fields[n].substring(1);
+                }
+                tr = $('<tr/>').appendTo(table);
+                let tdType = $('<td/>').appendTo(tr).css({ 'text-align': 'right' }), tdValue = $('<td/>').appendTo(tr), tdButton = $('<td/>').appendTo(tr);
+                $('<span/>').appendTo(tdType).css({ 'padding': '0.2em', 'border': '1px solid black', 'background-color': '#C0C0C0' }).text(strType);
+                let input = $('<input size="20"/>').appendTo(tdValue).css({ 'width': '100%', 'font': 'inherit' });
+                input.val(strValue);
+                input.change(() => this.fields[n] = strType + input.val());
+                input.keyup(() => this.fields[n] = strType + input.val());
+                let btnDelete = $('<button class="wmk-button wmk-button-small wmk-button-default">\u{2716}</button>').appendTo(tdButton);
+                btnDelete.click(() => {
+                    this.fields.splice(n, 1);
+                    this.fillTable();
+                });
+            }
+        }
+    }
+    WebMolKit.ExtraFieldsWidget = ExtraFieldsWidget;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
     class EditAtom extends WebMolKit.Dialog {
         constructor(mol, atom, callbackApply) {
             super();
@@ -14933,6 +16225,9 @@ var WebMolKit;
             this.callbackApply = callbackApply;
             this.newX = 0;
             this.newY = 0;
+            this.abbrevList = null;
+            this.svgAbbrev = null;
+            this.currentAbbrev = -1;
             this.initMol = mol;
             this.mol = mol.clone();
             this.title = 'Edit Atom';
@@ -14943,55 +16238,79 @@ var WebMolKit;
             let buttons = this.buttons(), body = this.body();
             buttons.append(this.btnClose);
             buttons.append(' ');
-            this.btnApply = $('<button class="wmk-button wmk-button-primary">Save</button>').appendTo(buttons);
-            this.btnApply.click(() => {
-                this.updateMolecule();
-                if (this.callbackApply)
-                    this.callbackApply(this);
-            });
+            this.btnApply = $('<button class="wmk-button wmk-button-primary">Apply</button>').appendTo(buttons);
+            this.btnApply.click(() => this.applyChanges());
             this.tabs = new WebMolKit.TabBar(['Atom', 'Abbreviation', 'Geometry', 'Query', 'Extra']);
             this.tabs.render(body);
+            this.tabs.callbackSelect = (idx) => {
+                if (idx == 0)
+                    this.inputSymbol.focus();
+                else if (idx == 1)
+                    this.inputAbbrevSearch.focus();
+                else if (idx == 2)
+                    this.inputGeom1.focus();
+            };
             this.populateAtom(this.tabs.getPanel('Atom'));
             this.populateAbbreviation(this.tabs.getPanel('Abbreviation'));
             this.populateGeometry(this.tabs.getPanel('Geometry'));
             this.populateQuery(this.tabs.getPanel('Query'));
             this.populateExtra(this.tabs.getPanel('Extra'));
-            setTimeout(() => this.inputSymbol.focus(), 1);
+            body.find('input').each((idx, child) => {
+                let dom = $(child).css({ 'font': 'inherit' });
+                if (idx == 0)
+                    dom.focus();
+                dom.keydown((event) => {
+                    let keyCode = event.keyCode || event.which;
+                    if (keyCode == 13)
+                        this.applyChanges();
+                    if (keyCode == 27)
+                        this.close();
+                });
+            });
+        }
+        applyChanges() {
+            this.mol.keepTransient = true;
+            this.updateMolecule();
+            if (this.tabs.getSelectedValue() == 'Abbreviation')
+                this.updateAbbrev();
+            if (this.tabs.getSelectedValue() == 'Geometry')
+                this.updateGeometry();
+            if (this.tabs.getSelectedValue() == 'Extra')
+                this.updateExtra();
+            this.mol.keepTransient = false;
+            if (this.callbackApply)
+                this.callbackApply(this);
         }
         populateAtom(panel) {
-            let grid = $('<div></div>').appendTo(panel);
-            grid.css('display', 'grid');
-            grid.css('align-items', 'center');
-            grid.css('justify-content', 'start');
-            grid.css('grid-row-gap', '0.5em');
-            grid.css('grid-column-gap', '0.5em');
+            let grid = $('<div/>').appendTo(panel);
+            grid.css({ 'display': 'grid', 'align-items': 'center', 'justify-content': 'start' });
+            grid.css({ 'grid-row-gap': '0.5em', 'grid-column-gap': '0.5em' });
             grid.css('grid-template-columns', '[start col0] auto [col1] auto [col2] auto [col3] auto [col4 end]');
             grid.append('<div style="grid-area: 1 / col0;">Symbol</div>');
-            this.inputSymbol = $('<input size="20"></input>').appendTo(grid);
+            this.inputSymbol = $('<input size="20"/>').appendTo(grid);
             this.inputSymbol.css('grid-area', '1 / col1 / auto / col4');
             grid.append('<div style="grid-area: 2 / col0;">Charge</div>');
-            this.inputCharge = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputCharge = $('<input type="number" size="6"/>').appendTo(grid);
             this.inputCharge.css('grid-area', '2 / col1');
             grid.append('<div style="grid-area: 2 / col2;">Unpaired</div>');
-            this.inputUnpaired = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputUnpaired = $('<input type="number" size="6"/>').appendTo(grid);
             this.inputUnpaired.css('grid-area', '2 / col3');
             grid.append('<div style="grid-area: 3 / col0;">Hydrogens</div>');
             this.optionHydrogen = new WebMolKit.OptionList(['Auto', 'Explicit']);
-            this.optionHydrogen.render($('<div style="grid-area: 3 / col1 / auto / col3"></div>').appendTo(grid));
-            this.inputHydrogen = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.optionHydrogen.render($('<div style="grid-area: 3 / col1 / auto / col3"/>').appendTo(grid));
+            this.inputHydrogen = $('<input type="number" size="6"/>').appendTo(grid);
             this.inputHydrogen.css('grid-area', '3 / col3');
             grid.append('<div style="grid-area: 4 / col0;">Isotope</div>');
             this.optionIsotope = new WebMolKit.OptionList(['Natural', 'Enriched']);
-            this.optionIsotope.render($('<div style="grid-area: 4 / col1 / auto / col3"></div>').appendTo(grid));
-            this.inputIsotope = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.optionIsotope.render($('<div style="grid-area: 4 / col1 / auto / col3"/>').appendTo(grid));
+            this.inputIsotope = $('<input type="number" size="6"/>').appendTo(grid);
             this.inputIsotope.css('grid-area', '4 / col3');
             grid.append('<div style="grid-area: 5 / col0;">Mapping</div>');
-            this.inputMapping = $('<input type="number" size="6"></input>').appendTo(grid);
+            this.inputMapping = $('<input type="number" size="6"/>').appendTo(grid);
             this.inputMapping.css('grid-area', '5 / col1');
             grid.append('<div style="grid-area: 5 / col2;">Index</div>');
-            this.inputIndex = $('<input type="number" size="6" readonly="readonly"></input>').appendTo(grid);
+            this.inputIndex = $('<input type="number" size="6" readonly="readonly"/>').appendTo(grid);
             this.inputIndex.css('grid-area', '5 / col3');
-            grid.find('input').css('font', 'inherit');
             const mol = this.mol, atom = this.atom;
             if (atom > 0) {
                 this.inputSymbol.val(mol.atomElement(atom));
@@ -15006,24 +16325,87 @@ var WebMolKit;
                 this.inputMapping.val(mol.atomMapNum(atom).toString());
                 this.inputIndex.val(atom.toString());
             }
-            this.inputSymbol.focus();
         }
         populateAbbreviation(panel) {
-            panel.append('Abbreviations: TODO');
+            let divFlex = $('<div/>').appendTo(panel).css({ 'display': 'flex', 'align-items': 'flex-start' });
+            divFlex.css({ 'max-width': '60vw', 'max-height': '50vh', 'overflow-y': 'scroll' });
+            let spanSearch = $('<div/>').appendTo(divFlex).css({ 'margin-right': '0.5em', 'flex': '0 0' });
+            let spanList = $('<div/>').appendTo(divFlex).css({ 'flex': '1 1 100%' });
+            this.inputAbbrevSearch = $('<input size="10"/>').appendTo(spanSearch);
+            this.inputAbbrevSearch.attr('placeholder', 'Search');
+            let lastSearch = '';
+            this.inputAbbrevSearch.on('input', () => {
+                let search = this.inputAbbrevSearch.val();
+                if (search == lastSearch)
+                    return;
+                lastSearch = search;
+                this.fillAbbreviations();
+            });
+            let divButtons = $('<div/>').appendTo(spanSearch).css({ 'margin-top': '0.5em' });
+            let btnClear = $('<button class="wmk-button wmk-button-default">Clear</button>').appendTo(divButtons);
+            btnClear.click(() => {
+                this.selectAbbreviation(-1);
+                if (this.atom > 0 && WebMolKit.MolUtil.hasAbbrev(this.mol, this.atom))
+                    this.applyChanges();
+            });
+            this.tableAbbrev = $('<table/>').appendTo(spanList).css({ 'border-collapse': 'collapse', 'width': '100%' });
+            this.fillAbbreviations();
         }
         populateGeometry(panel) {
-            panel.append('Geometry: TODO');
+            const { mol, atom } = this;
+            let divContainer1 = $('<div/>').appendTo(panel).css({ 'text-align': 'center' });
+            let divContainer2 = $('<div/>').appendTo(divContainer1).css({ 'display': 'inline-block' });
+            let grid = $('<div/>').appendTo(divContainer2);
+            grid.css({ 'display': 'grid', 'align-items': 'center', 'justify-content': 'start' });
+            grid.css({ 'grid-row-gap': '0.5em', 'grid-column-gap': '0.5em' });
+            grid.css('grid-template-columns', '[start col0] auto [col1] auto [col2] auto [col3] auto [col4 end]');
+            this.geomWidget = new WebMolKit.GeomWidget(WebMolKit.GeomWidgetType.Atom, mol, atom);
+            this.geomWidget.render($('<div/>').appendTo(grid).css({ 'grid-area': '1 / col0 / auto / col4', 'text-align': 'center' }));
+            let label1 = $('<div/>').appendTo(grid).css({ 'grid-area': '2 / col0' });
+            this.inputGeom1 = $('<input type="number" size="8"/>').appendTo(grid).css({ 'grid-area': '2 / col1' });
+            let label2 = $('<div/>').appendTo(grid).css({ 'grid-area': '2 / col2' });
+            this.inputGeom2 = $('<input type="number" size="8"/>').appendTo(grid).css({ 'grid-area': '2 / col3' });
+            this.geomWidget.callbackSelect = (sel) => {
+                let atoms = this.geomWidget.selectionAtoms(sel);
+                if (sel.type == WebMolKit.GeomWidgetSelType.Position) {
+                    label1.text('Position X');
+                    label2.text('Y');
+                    this.inputGeom1.val(this.refGeom1 = mol.atomX(atoms[0]).toFixed(3));
+                    this.inputGeom2.val(this.refGeom2 = mol.atomY(atoms[0]).toFixed(3));
+                }
+                else if (sel.type == WebMolKit.GeomWidgetSelType.Link) {
+                    let dx = mol.atomX(atoms[1]) - mol.atomX(atoms[0]), dy = mol.atomY(atoms[1]) - mol.atomY(atoms[0]);
+                    label1.text('Distance');
+                    label2.text('Angle');
+                    this.inputGeom1.val(this.refGeom1 = WebMolKit.norm_xy(dx, dy).toFixed(3));
+                    this.inputGeom2.val(this.refGeom2 = (Math.atan2(dy, dx) * WebMolKit.RADDEG).toFixed(1));
+                }
+                else if (sel.type == WebMolKit.GeomWidgetSelType.Torsion) {
+                    let cx = mol.atomX(atoms[0]), cy = mol.atomY(atoms[0]);
+                    let th2 = Math.atan2(mol.atomY(atoms[1]) - cy, mol.atomX(atoms[1]) - cx);
+                    let th1 = Math.atan2(mol.atomY(atoms[2]) - cy, mol.atomX(atoms[2]) - cx);
+                    label1.text('Angle');
+                    label2.text('');
+                    this.inputGeom1.val(this.refGeom1 = (WebMolKit.angleDiffPos(th2, th1) * WebMolKit.RADDEG).toFixed(1));
+                    this.inputGeom2.val(this.refGeom2 = '');
+                }
+                label2.css('display', sel.type == WebMolKit.GeomWidgetSelType.Torsion ? 'none' : 'block');
+                this.inputGeom2.css('display', sel.type == WebMolKit.GeomWidgetSelType.Torsion ? 'none' : 'block');
+            };
+            this.geomWidget.callbackSelect(this.geomWidget.selected);
         }
         populateQuery(panel) {
             panel.append('Query: TODO');
         }
         populateExtra(panel) {
-            panel.append('Extra: TODO');
+            let fields = [...this.mol.atomExtra(this.atom), ...this.mol.atomTransient(this.atom)];
+            this.fieldsWidget = new WebMolKit.ExtraFieldsWidget(fields);
+            this.fieldsWidget.render(panel);
         }
         updateMolecule() {
-            let mol = this.mol, atom = this.atom;
+            let { mol, atom } = this;
             if (atom == 0)
-                atom = mol.addAtom('C', this.newX, this.newY);
+                atom = this.atom = mol.addAtom('C', this.newX, this.newY);
             let sym = this.inputSymbol.val();
             if (sym != '')
                 mol.setAtomElement(atom, sym);
@@ -15051,8 +16433,294 @@ var WebMolKit;
             if (!isNaN(map))
                 mol.setAtomMapNum(atom, map);
         }
+        updateAbbrev() {
+            const { mol, atom } = this;
+            if (this.currentAbbrev < 0) {
+                let el = mol.atomElement(atom);
+                WebMolKit.MolUtil.clearAbbrev(mol, atom);
+                mol.setAtomElement(atom, el);
+            }
+            else {
+                let abbrev = this.abbrevList[this.currentAbbrev];
+                mol.setAtomElement(atom, abbrev.name);
+                WebMolKit.MolUtil.setAbbrev(mol, atom, abbrev.frag);
+            }
+        }
+        updateGeometry() {
+            let strval1 = this.inputGeom1.val(), strval2 = this.inputGeom2.val();
+            if (this.refGeom1 == strval1 && this.refGeom2 == strval2)
+                return;
+            const { mol } = this;
+            let sel = this.geomWidget.selected, atoms = this.geomWidget.selectionAtoms(sel);
+            if (sel.type == WebMolKit.GeomWidgetSelType.Position) {
+                let x = parseFloat(strval1), y = parseFloat(strval2);
+                if (isNaN(x) || isNaN(y) || Math.abs(x) > 1E6 || Math.abs(y) > 1E6)
+                    return;
+                mol.setAtomPos(atoms[0], x, y);
+            }
+            else if (sel.type == WebMolKit.GeomWidgetSelType.Link) {
+                if (this.refGeom1 != strval1) {
+                    let dist = parseFloat(strval1);
+                    if (isNaN(dist) || Math.abs(dist) > 100)
+                        return;
+                    let mask = WebMolKit.Vec.booleanArray(false, mol.numAtoms);
+                    mask[atoms[1] - 1] = true;
+                    let instate = { 'mol': mol, 'currentAtom': 0, 'currentBond': mol.findBond(atoms[0], atoms[1]), 'selectedMask': mask };
+                    let molact = new WebMolKit.MoleculeActivity(instate, WebMolKit.ActivityType.BondDist, { 'dist': dist });
+                    molact.execute();
+                    this.mol = molact.output.mol;
+                    return;
+                }
+                else if (this.refGeom2 != strval2) {
+                    let angle = parseFloat(strval2);
+                    if (isNaN(angle))
+                        return;
+                    let mask = WebMolKit.Vec.booleanArray(false, mol.numAtoms);
+                    mask[atoms[1] - 1] = true;
+                    let instate = { 'mol': mol, 'currentAtom': 0, 'currentBond': mol.findBond(atoms[0], atoms[1]), 'selectedMask': mask };
+                    let molact = new WebMolKit.MoleculeActivity(instate, WebMolKit.ActivityType.AlignAngle, { 'angle': angle * WebMolKit.DEGRAD });
+                    molact.execute();
+                    this.mol = molact.output.mol;
+                    return;
+                }
+            }
+            else if (sel.type == WebMolKit.GeomWidgetSelType.Torsion) {
+                let angle = parseFloat(strval1);
+                if (isNaN(angle))
+                    return;
+                let mask = WebMolKit.Vec.booleanArray(false, mol.numAtoms);
+                for (let a of atoms)
+                    mask[a - 1] = true;
+                let instate = { 'mol': mol, 'currentAtom': atoms[2], 'currentBond': 0, 'selectedMask': mask };
+                let molact = new WebMolKit.MoleculeActivity(instate, WebMolKit.ActivityType.AdjustTorsion, { 'angle': angle * WebMolKit.DEGRAD });
+                molact.execute();
+                this.mol = molact.output.mol;
+                return;
+            }
+        }
+        updateExtra() {
+            this.mol.setAtomExtra(this.atom, this.fieldsWidget.getExtraFields());
+            this.mol.setAtomTransient(this.atom, this.fieldsWidget.getTransientFields());
+        }
+        fillAbbreviations() {
+            if (WebMolKit.AbbrevContainer.needsSetup()) {
+                setTimeout(() => WebMolKit.AbbrevContainer.setupData().then(() => this.fillAbbreviations()), 1);
+                return;
+            }
+            this.tableAbbrev.empty();
+            WebMolKit.AbbrevContainer.main.submitMolecule(this.mol, true);
+            this.abbrevList = WebMolKit.AbbrevContainer.main.getAbbrevs();
+            if (!this.svgAbbrev) {
+                this.svgAbbrev = [];
+                let policy = WebMolKit.RenderPolicy.defaultColourOnWhite(10);
+                let measure = new WebMolKit.OutlineMeasurement(0, 0, policy.data.pointScale);
+                for (let abbrev of this.abbrevList) {
+                    let effects = new WebMolKit.RenderEffects();
+                    let mol = abbrev.frag.clone();
+                    effects.atomCircleSz = WebMolKit.Vec.numberArray(0, mol.numAtoms);
+                    effects.atomCircleCol = WebMolKit.Vec.numberArray(0, mol.numAtoms);
+                    for (let n = 1; n <= mol.numAtoms; n++)
+                        if (mol.atomElement(n) == WebMolKit.MolUtil.ABBREV_ATTACHMENT) {
+                            mol.setAtomElement(n, 'C');
+                            effects.atomCircleSz[n - 1] = 0.2;
+                            effects.atomCircleCol[n - 1] = 0x00C000;
+                        }
+                    let layout = new WebMolKit.ArrangeMolecule(mol, measure, policy, effects);
+                    layout.arrange();
+                    let gfx = new WebMolKit.MetaVector();
+                    new WebMolKit.DrawMolecule(layout, gfx).draw();
+                    gfx.normalise();
+                    this.svgAbbrev.push(gfx.createSVG());
+                }
+                const { mol, atom } = this;
+                if (WebMolKit.MolUtil.hasAbbrev(mol, atom)) {
+                    let name = mol.atomElement(atom), mf = WebMolKit.MolUtil.molecularFormula(WebMolKit.MolUtil.getAbbrev(mol, atom));
+                    for (let n = 0; n < this.abbrevList.length; n++)
+                        if (name == this.abbrevList[n].name) {
+                            if (mf == WebMolKit.MolUtil.molecularFormula(this.abbrevList[n].frag))
+                                this.currentAbbrev = n;
+                            break;
+                        }
+                }
+            }
+            let tr = $('<tr/>').appendTo(this.tableAbbrev);
+            tr.append('<td><u>Label</u></td>');
+            tr.append('<td><u>Structure</u></td>');
+            this.abbrevEntries = [];
+            let search = this.inputAbbrevSearch.val().toLowerCase();
+            for (let n = 0; n < this.abbrevList.length; n++) {
+                if (this.currentAbbrev != n && !this.abbrevList[n].nameSearch.includes(search))
+                    continue;
+                let entry = {
+                    'tr': $('<tr/>').appendTo(this.tableAbbrev),
+                    'idx': n,
+                    'bgcol': this.abbrevEntries.length % 2 == 0 ? '#FFFFFF' : '#F8F8F8'
+                };
+                entry.tr.css('background-color', this.currentAbbrev == entry.idx ? WebMolKit.colourCode(WebMolKit.Theme.lowlight) : entry.bgcol);
+                let tdLabel = $('<td/>').appendTo(entry.tr), tdStruct = $('<td/>').appendTo(entry.tr);
+                tdLabel.html(this.abbrevList[n].nameHTML);
+                let svg = $(this.svgAbbrev[n]).appendTo(tdStruct);
+                svg.css({ 'pointer-events': 'none' });
+                entry.tr.css({ 'cursor': 'pointer' });
+                entry.tr.click(() => this.selectAbbreviation(n));
+                entry.tr.dblclick(() => this.applyChanges());
+                this.abbrevEntries.push(entry);
+            }
+        }
+        selectAbbreviation(idx) {
+            if (this.currentAbbrev == idx)
+                return;
+            this.currentAbbrev = idx;
+            for (let entry of this.abbrevEntries) {
+                entry.tr.css('background-color', this.currentAbbrev == entry.idx ? WebMolKit.colourCode(WebMolKit.Theme.lowlight) : entry.bgcol);
+            }
+        }
     }
     WebMolKit.EditAtom = EditAtom;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    class EditBond extends WebMolKit.Dialog {
+        constructor(mol, bond, callbackApply) {
+            super();
+            this.bond = bond;
+            this.callbackApply = callbackApply;
+            this.initMol = mol;
+            this.mol = mol.clone();
+            this.title = 'Edit Bond';
+            this.minPortionWidth = 20;
+            this.maxPortionWidth = 95;
+        }
+        populate() {
+            let buttons = this.buttons(), body = this.body();
+            buttons.append(this.btnClose);
+            buttons.append(' ');
+            this.btnApply = $('<button class="wmk-button wmk-button-primary">Apply</button>').appendTo(buttons);
+            this.btnApply.click(() => this.applyChanges());
+            this.tabs = new WebMolKit.TabBar(['Bond', 'Geometry', 'Query', 'Extra']);
+            this.tabs.render(body);
+            this.tabs.callbackSelect = (idx) => {
+                if (idx == 0)
+                    this.inputFrom.focus();
+                else if (idx == 1)
+                    this.inputGeom1.focus();
+            };
+            this.populateBond(this.tabs.getPanel('Bond'));
+            this.populateGeometry(this.tabs.getPanel('Geometry'));
+            this.populateQuery(this.tabs.getPanel('Query'));
+            this.populateExtra(this.tabs.getPanel('Extra'));
+            body.find('input').each((idx, child) => {
+                let dom = $(child).css({ 'font': 'inherit' });
+                if (idx == 0)
+                    dom.focus();
+                dom.keydown((event) => {
+                    let keyCode = event.keyCode || event.which;
+                    if (keyCode == 13)
+                        this.applyChanges();
+                    if (keyCode == 27)
+                        this.close();
+                });
+            });
+        }
+        applyChanges() {
+            this.mol.keepTransient = true;
+            this.updateMolecule();
+            if (this.tabs.getSelectedValue() == 'Geometry')
+                this.updateGeometry();
+            if (this.tabs.getSelectedValue() == 'Extra')
+                this.updateExtra();
+            this.mol.keepTransient = false;
+            if (this.callbackApply)
+                this.callbackApply(this);
+        }
+        populateBond(panel) {
+            const { mol, bond } = this;
+            let grid = $('<div/>').appendTo(panel);
+            grid.css({ 'display': 'grid', 'align-items': 'center', 'justify-content': 'start' });
+            grid.css({ 'grid-row-gap': '0.5em', 'grid-column-gap': '0.5em' });
+            grid.css('grid-template-columns', '[start col0] auto [col1] auto [col2] auto [col3] auto [col4 end]');
+            $('<div/>').appendTo(grid).css({ 'grid-area': '1 / col0' }).text('Order');
+            let ordersHTML = [];
+            for (let o = 0; o <= 4; o++)
+                ordersHTML.push(`&nbsp;&nbsp;${o}&nbsp;&nbsp;`);
+            this.optionOrder = new WebMolKit.OptionList(ordersHTML);
+            this.optionOrder.htmlLabels = true;
+            this.optionOrder.setSelectedIndex(mol.bondOrder(bond));
+            this.optionOrder.render($('<div/>').appendTo(grid).css({ 'grid-column': 'col1 / col4', 'grid-row': '1' }));
+            $('<div/>').appendTo(grid).css({ 'grid-area': '2 / col0' }).text('Stereo');
+            this.optionStereo = new WebMolKit.OptionList(['None', 'Up', 'Down', 'Unknown']);
+            this.optionStereo.setSelectedIndex(mol.bondType(bond));
+            this.optionStereo.render($('<div/>').appendTo(grid).css({ 'grid-column': 'col1 / col4', 'grid-row': '2' }));
+            $('<div/>').appendTo(grid).css({ 'grid-area': '3 / col0' }).text('From');
+            this.inputFrom = $('<input size="6"/>').appendTo(grid).css({ 'grid-area': '3 / col1', 'font': 'inherit' }).attr('readonly', true);
+            this.inputFrom.val(mol.bondFrom(bond).toString());
+            $('<div/>').appendTo(grid).css({ 'grid-area': '3 / col2' }).text('To');
+            this.inputTo = $('<input size="6"/>').appendTo(grid).css({ 'grid-area': '3 / col3', 'font': 'inherit' }).attr('readonly', true);
+            this.inputTo.val(mol.bondTo(bond).toString());
+            $('<div/>').appendTo(grid).css({ 'grid-area': '4 / col2' }).text('Index');
+            this.inputIndex = $('<input size="6"/>').appendTo(grid).css({ 'grid-area': '4 / col3', 'font': 'inherit' }).attr('readonly', true);
+            this.inputIndex.val(bond.toString());
+        }
+        populateGeometry(panel) {
+            const { mol, bond } = this;
+            let divContainer1 = $('<div/>').appendTo(panel).css({ 'text-align': 'center' });
+            let divContainer2 = $('<div/>').appendTo(divContainer1).css({ 'display': 'inline-block' });
+            let grid = $('<div/>').appendTo(divContainer2);
+            grid.css({ 'display': 'grid', 'align-items': 'center', 'justify-content': 'start' });
+            grid.css({ 'grid-row-gap': '0.5em', 'grid-column-gap': '0.5em' });
+            grid.css('grid-template-columns', '[start col0] auto [col1] auto [col2]');
+            this.geomWidget = new WebMolKit.GeomWidget(WebMolKit.GeomWidgetType.Bond, mol, bond);
+            this.geomWidget.render($('<div/>').appendTo(grid).css({ 'grid-area': '1 / col0 / auto / col2', 'text-align': 'center' }));
+            let label1 = $('<div/>').appendTo(grid).css({ 'grid-area': '2 / col0' });
+            this.inputGeom1 = $('<input type="number" size="8"/>').appendTo(grid).css({ 'grid-area': '2 / col1' });
+            this.geomWidget.callbackSelect = (sel) => {
+                if (sel.type == WebMolKit.GeomWidgetSelType.Link) {
+                    let a1 = mol.bondFrom(bond), a2 = mol.bondTo(bond);
+                    let dx = mol.atomX(a2) - mol.atomX(a1), dy = mol.atomY(a2) - mol.atomY(a1);
+                    label1.text('Distance');
+                    this.inputGeom1.val(this.refGeom1 = WebMolKit.norm_xy(dx, dy).toFixed(3));
+                }
+            };
+            this.geomWidget.callbackSelect(this.geomWidget.selected);
+        }
+        populateQuery(panel) {
+            panel.append('Query: TODO');
+        }
+        populateExtra(panel) {
+            let fields = [...this.mol.bondExtra(this.bond), ...this.mol.bondTransient(this.bond)];
+            this.fieldsWidget = new WebMolKit.ExtraFieldsWidget(fields);
+            this.fieldsWidget.render(panel);
+        }
+        updateMolecule() {
+            let { mol, bond } = this;
+            mol.setBondOrder(bond, this.optionOrder.getSelectedIndex());
+            mol.setBondType(bond, this.optionStereo.getSelectedIndex());
+        }
+        updateGeometry() {
+            let strval1 = this.inputGeom1.val();
+            if (this.refGeom1 == strval1)
+                return;
+            const { mol } = this;
+            let sel = this.geomWidget.selected, atoms = this.geomWidget.selectionAtoms(sel);
+            if (sel.type == WebMolKit.GeomWidgetSelType.Link) {
+                if (this.refGeom1 != strval1) {
+                    let dist = parseFloat(strval1);
+                    if (isNaN(dist) || Math.abs(dist) > 100)
+                        return;
+                    let instate = { 'mol': mol, 'currentAtom': 0, 'currentBond': mol.findBond(atoms[0], atoms[1]), 'selectedMask': null };
+                    let molact = new WebMolKit.MoleculeActivity(instate, WebMolKit.ActivityType.BondDist, { 'dist': dist });
+                    molact.execute();
+                    this.mol = molact.output.mol;
+                    return;
+                }
+            }
+        }
+        updateExtra() {
+            this.mol.setBondExtra(this.bond, this.fieldsWidget.getExtraFields());
+            this.mol.setBondTransient(this.bond, this.fieldsWidget.getTransientFields());
+        }
+    }
+    WebMolKit.EditBond = EditBond;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
@@ -15087,11 +16755,11 @@ var WebMolKit;
             this.width = 0;
             this.height = 0;
             this.border = 0x808080;
+            this.borderRadius = 4;
             this.background = 0xF8F8F8;
             this.beenSetup = false;
             this.undoStack = [];
             this.redoStack = [];
-            this.spanBackground = null;
             this.canvasUnder = null;
             this.canvasMolecule = null;
             this.canvasOver = null;
@@ -15137,6 +16805,9 @@ var WebMolKit;
             this.templatePerms = null;
             this.currentPerm = 0;
             this.fusionBank = null;
+            this.cursorWatermark = 0;
+            this.cursorDX = 0;
+            this.cursorDY = 0;
             this.proxyClip = null;
         }
         setSize(width, height) {
@@ -15148,6 +16819,8 @@ var WebMolKit;
                 this.stashUndo();
             this.stopTemplateFusion();
             this.mol = mol.clone();
+            if (this.onChangeMolecule)
+                this.onChangeMolecule(this.mol);
             this.guidelines = [];
             for (let n = 1; n <= this.mol.numAtoms; n++) {
                 for (let sprout of WebMolKit.SketchUtil.guidelineSprouts(this.mol, n))
@@ -15172,15 +16845,6 @@ var WebMolKit;
         }
         defineClipboard(proxy) {
             this.proxyClip = proxy;
-            proxy.copyEvent = () => {
-                return this.getMolecule.toString();
-            };
-            proxy.pasteEvent = (proxy) => {
-                this.pasteText(proxy.getString());
-                return true;
-            };
-            if (this.container)
-                proxy.install(this.container);
         }
         defineMoleculeString(molsk, withAutoScale, withStashUndo) {
             this.defineMolecule(WebMolKit.Molecule.fromString(molsk), withAutoScale, withStashUndo);
@@ -15188,6 +16852,14 @@ var WebMolKit;
         defineRenderPolicy(policy) {
             this.policy = policy;
             this.pointScale = policy.data.pointScale;
+        }
+        defineBackground(borderCol, borderRad, bgCol) {
+            if (borderCol != null)
+                this.border = borderCol;
+            if (borderRad != null)
+                this.borderRadius = borderRad;
+            if (bgCol != null)
+                this.background = bgCol;
         }
         clearMolecule() { this.defineMolecule(new WebMolKit.Molecule(), true, true); }
         getMolecule() { return this.mol.clone(); }
@@ -15212,27 +16884,24 @@ var WebMolKit;
             if (!this.width || !this.height)
                 throw 'Sketcher.render called without width and height';
             super.render(parent);
-            this.container = $('<div></div>').appendTo(this.content);
-            this.container.attr('style', 'position: relative; width: ' + this.width + 'px; height: ' + this.height + 'px;');
+            this.container = $('<div/>').appendTo(this.content);
+            this.container.css({ 'position': 'relative', 'width': this.width + 'px', 'height': this.height + 'px' });
             this.container.css('background-color', WebMolKit.colourCanvas(this.background));
-            this.container.css('border', '1px solid ' + WebMolKit.colourCanvas(this.border));
-            this.container.css('border-radius', '4px');
+            if (this.border != WebMolKit.MetaVector.NOCOLOUR) {
+                this.container.css('border', '1px solid ' + WebMolKit.colourCanvas(this.border));
+                this.container.css('border-radius', this.borderRadius + 'px');
+            }
             this.container.css('outline', 'none');
             this.container.attr('tabindex', '0');
-            this.container.focus();
             let canvasStyle = 'position: absolute; left: 0; top: 0;';
             canvasStyle += ' pointer-events: none;';
             this.canvasUnder = WebMolKit.newElement(this.container, 'canvas', { 'width': this.width, 'height': this.height, 'style': canvasStyle });
             this.canvasMolecule = WebMolKit.newElement(this.container, 'canvas', { 'width': this.width, 'height': this.height, 'style': canvasStyle });
             this.canvasOver = WebMolKit.newElement(this.container, 'canvas', { 'width': this.width, 'height': this.height, 'style': canvasStyle });
-            this.divMessage = $('<div></div>').appendTo(this.container);
+            this.divMessage = $('<div/>').appendTo(this.container);
             this.divMessage.attr('style', canvasStyle);
-            this.divMessage.css('width', this.width + 'px');
-            this.divMessage.css('height', this.height + 'px');
-            this.divMessage.css('text-align', 'center');
-            this.divMessage.css('vertical-align', 'middle');
-            this.divMessage.css('font-weight', 'bold');
-            this.divMessage.css('font-size', '120%');
+            this.divMessage.css({ 'width': this.width + 'px', 'height': this.height + 'px' });
+            this.divMessage.css({ 'text-align': 'center', 'vertical-align': 'middle', 'font-weight': 'bold', 'font-size': '120%' });
             this.centreAndShrink();
             this.redraw();
             let reserveHeight = 0;
@@ -15281,8 +16950,7 @@ var WebMolKit;
                 event.preventDefault();
                 this.dropInto(event.dataTransfer);
             });
-            if (this.proxyClip)
-                this.proxyClip.install(this.container);
+            this.container.focus();
         }
         changeSize(width, height) {
             if (width == this.width && height == this.height)
@@ -15355,6 +17023,20 @@ var WebMolKit;
                 this.selectedMask.push(false);
             }
             this.selectedMask[atom - 1] = sel;
+            this.delayedRedraw();
+        }
+        changeCurrentAtom(atom) {
+            if (this.currentAtom == atom)
+                return;
+            this.currentAtom = atom;
+            this.currentBond = 0;
+            this.delayedRedraw();
+        }
+        changeCurrentBond(bond) {
+            if (this.currentBond == bond)
+                return;
+            this.currentBond = bond;
+            this.currentAtom = 0;
             this.delayedRedraw();
         }
         clearSubject() {
@@ -15460,7 +17142,7 @@ var WebMolKit;
                 this.proxyClip.setString(mol.toString());
         }
         performCopySelection(andCut) {
-            new WebMolKit.MoleculeActivity(this, andCut ? WebMolKit.ActivityType.Cut : WebMolKit.ActivityType.Copy, {}).execute();
+            new WebMolKit.MoleculeActivity(this.getState(), andCut ? WebMolKit.ActivityType.Cut : WebMolKit.ActivityType.Copy, {}, {}, this).execute();
         }
         performPaste() {
             if (this.proxyClip && this.proxyClip.canAlwaysGet()) {
@@ -15473,15 +17155,6 @@ var WebMolKit;
                     }
                 }
             }
-            let cookies = new WebMolKit.Cookies();
-            if (cookies.numMolecules() == 0) {
-                if (WebMolKit.MolUtil.notBlank(globalMoleculeClipboard))
-                    this.pasteMolecule(globalMoleculeClipboard);
-                return;
-            }
-            let dlg = new WebMolKit.PickRecent(cookies, 1);
-            dlg.callbackPick1 = (mol) => this.pasteMolecule(mol);
-            dlg.open();
         }
         zoom(mag) {
             let cx = 0.5 * this.width, cy = 0.5 * this.height;
@@ -15512,7 +17185,7 @@ var WebMolKit;
                 return;
             }
             let param = { 'fragNative': mol.toString() };
-            new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.TemplateFusion, param).execute();
+            new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.TemplateFusion, param, {}, this).execute();
         }
         pickTemplatePermutation(idx) {
             let perm = this.templatePerms[idx];
@@ -16166,8 +17839,114 @@ var WebMolKit;
             }
             return atoms;
         }
+        editAtom(atom) {
+            if (atom == 0)
+                return;
+            let dlg = new WebMolKit.EditAtom(this.mol, atom, () => {
+                if (this.mol.compareTo(dlg.mol) != 0)
+                    this.defineMolecule(dlg.mol, false, true);
+                dlg.close();
+            });
+            dlg.callbackClose = () => this.container.focus();
+            dlg.open();
+        }
+        editBond(bond) {
+            if (bond == 0)
+                return;
+            let dlg = new WebMolKit.EditBond(this.mol, bond, () => {
+                if (this.mol.compareTo(dlg.mol) != 0)
+                    this.defineMolecule(dlg.mol, false, true);
+                dlg.close();
+            });
+            dlg.callbackClose = () => this.container.focus();
+            dlg.open();
+        }
+        hitArrowKey(dx, dy) {
+            let watermark = ++this.cursorWatermark;
+            this.cursorDX += dx;
+            this.cursorDY += dy;
+            setTimeout(() => {
+                if (watermark == this.cursorWatermark)
+                    this.cursorJumpDirection();
+            }, 100);
+        }
+        cursorJumpDirection() {
+            let theta = Math.atan2(this.cursorDY, this.cursorDX);
+            if (this.currentAtom > 0)
+                this.jumpFromCurrentAtom(theta);
+            else if (this.currentBond > 0)
+                this.jumpFromCurrentBond(theta);
+            else
+                this.jumpFromNowhere(theta);
+            this.cursorDX = 0;
+            this.cursorDY = 0;
+            this.cursorWatermark = 0;
+        }
+        jumpFromCurrentAtom(theta) {
+            let adj = this.mol.atomAdjList(this.currentAtom);
+            let closest = 0, closestDelta = Number.MAX_VALUE;
+            for (let a of adj) {
+                let dx = this.mol.atomX(a) - this.mol.atomX(this.currentAtom), dy = this.mol.atomY(a) - this.mol.atomY(this.currentAtom);
+                let adjTheta = Math.atan2(dy, dx), delta = Math.abs(WebMolKit.angleDiff(adjTheta, theta));
+                if (delta < 35.0 * WebMolKit.DEGRAD && delta < closestDelta)
+                    [closest, closestDelta] = [a, delta];
+            }
+            if (closest > 0) {
+                this.changeCurrentBond(this.mol.findBond(this.currentAtom, closest));
+                return;
+            }
+            let best = 0, bestScore = Number.MIN_VALUE;
+            for (let n = 1; n <= this.mol.numAtoms; n++)
+                if (n != this.currentAtom && adj.indexOf(n) < 0) {
+                    let dx = this.mol.atomX(n) - this.mol.atomX(this.currentAtom), dy = this.mol.atomY(n) - this.mol.atomY(this.currentAtom);
+                    let adjTheta = Math.atan2(dy, dx), delta = Math.abs(WebMolKit.angleDiff(adjTheta, theta));
+                    if (delta > 45.0 * WebMolKit.DEGRAD)
+                        continue;
+                    let cosdelta = Math.cos(delta);
+                    let score = Math.pow(cosdelta, 2) / (WebMolKit.norm2_xy(dx, dy) + 0.001);
+                    if (score > bestScore)
+                        [best, bestScore] = [n, score];
+                }
+            if (best > 0)
+                this.changeCurrentAtom(best);
+        }
+        jumpFromCurrentBond(theta) {
+            let [bfr, bto] = this.mol.bondFromTo(this.currentBond);
+            let bondTheta = Math.atan2(this.mol.atomY(bto) - this.mol.atomY(bfr), this.mol.atomX(bto) - this.mol.atomX(bfr));
+            if (Math.abs(WebMolKit.angleDiff(theta, bondTheta)) < 50.0 * WebMolKit.DEGRAD)
+                this.changeCurrentAtom(bto);
+            if (Math.abs(WebMolKit.angleDiff(theta, bondTheta + Math.PI)) < 50.0 * WebMolKit.DEGRAD)
+                this.changeCurrentAtom(bfr);
+        }
+        jumpFromNowhere(theta) {
+            if (this.mol.numAtoms == 0)
+                return;
+            if (this.mol.numAtoms == 1) {
+                this.changeCurrentAtom(1);
+                return;
+            }
+            let cx = 0, cy = 0;
+            for (let n = 1; n <= this.mol.numAtoms; n++) {
+                cx += this.mol.atomX(n);
+                cy += this.mol.atomY(n);
+            }
+            let inv = 1.0 / this.mol.numAtoms;
+            cx *= inv;
+            cy *= inv;
+            let best = 0, bestScore = Number.MIN_VALUE;
+            for (let n = 1; n <= this.mol.numAtoms; n++) {
+                let dx = this.mol.atomX(n) - cx, dy = this.mol.atomY(n) - cy, atheta = Math.atan2(dy, dx);
+                let cosdelta = Math.cos(Math.abs(WebMolKit.angleDiff(theta + Math.PI, atheta)));
+                let score = cosdelta * WebMolKit.norm_xy(dx, dy);
+                if (score > bestScore)
+                    [best, bestScore] = [n, score];
+            }
+            if (best > 0)
+                this.changeCurrentAtom(best);
+        }
         mouseClick(event) {
             this.container.focus();
+            return false;
         }
         mouseDoubleClick(event) {
             event.preventDefault();
@@ -16175,16 +17954,13 @@ var WebMolKit;
             let clickObj = this.pickObject(xy[0], xy[1]);
             if (clickObj > 0) {
                 let atom = clickObj;
-                let dlg = new WebMolKit.EditAtom(this.mol, this.opAtom, () => {
-                    if (this.mol.compareTo(dlg.mol) != 0)
-                        this.defineMolecule(dlg.mol);
-                    dlg.close();
-                });
-                dlg.open();
+                this.editAtom(atom);
             }
             else {
                 let bond = -clickObj;
+                this.editBond(bond);
             }
+            return false;
         }
         mouseDown(event) {
             event.preventDefault();
@@ -16279,6 +18055,7 @@ var WebMolKit;
                 this.toolAtomSymbol = tool.substring(7);
                 this.dragGuides = this.determineDragGuide(1);
             }
+            return false;
         }
         mouseUp(event) {
             if (!this.opBudged) {
@@ -16315,7 +18092,7 @@ var WebMolKit;
                             'currentBond': this.opBond,
                             'selectedMask': []
                         };
-                        let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.Delete, {}, override);
+                        let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.Delete, {}, override, this);
                         molact.execute();
                     }
                 }
@@ -16352,7 +18129,7 @@ var WebMolKit;
                             'currentBond': 0,
                             'selectedMask': null
                         };
-                        let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.Element, param, override);
+                        let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.Element, param, override, this);
                         molact.execute();
                     }
                 }
@@ -16363,7 +18140,7 @@ var WebMolKit;
                             'currentBond': this.opBond,
                             'selectedMask': null
                         };
-                        let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.Charge, { 'delta': this.toolChargeDelta }, override);
+                        let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.Charge, { 'delta': this.toolChargeDelta }, override, this);
                         molact.execute();
                     }
                 }
@@ -16375,9 +18152,9 @@ var WebMolKit;
                     };
                     let molact;
                     if (this.toolBondType == WebMolKit.Molecule.BONDTYPE_NORMAL)
-                        molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.BondOrder, { 'order': this.toolBondOrder }, override);
+                        molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.BondOrder, { 'order': this.toolBondOrder }, override, this);
                     else
-                        molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.BondType, { 'type': this.toolBondType }, override);
+                        molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.BondType, { 'type': this.toolBondType }, override, this);
                     molact.execute();
                 }
             }
@@ -16407,7 +18184,7 @@ var WebMolKit;
                             'currentBond': 0,
                             'selectedMask': this.lassoMask
                         };
-                        let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.Delete, {}, override);
+                        let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.Delete, {}, override, this);
                         molact.execute();
                     }
                 }
@@ -16415,13 +18192,13 @@ var WebMolKit;
                     let [x0, y0, theta, magnitude] = this.determineDragTheta();
                     let degrees = -theta * WebMolKit.DEGRAD;
                     let mx = this.xToAng(x0), my = this.yToAng(y0);
-                    let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.Rotate, { 'theta': degrees, 'centreX': mx, 'centreY': my });
+                    let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.Rotate, { 'theta': degrees, 'centreX': mx, 'centreY': my }, {}, this);
                     molact.execute();
                 }
                 else if (this.dragType == DraggingTool.Move) {
                     let [dx, dy] = this.determineMoveDelta();
                     let scale = this.pointScale;
-                    let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.Move, { 'refAtom': this.opAtom, 'deltaX': dx / scale, 'deltaY': -dy / scale });
+                    let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.Move, { 'refAtom': this.opAtom, 'deltaX': dx / scale, 'deltaY': -dy / scale }, {}, this);
                     molact.execute();
                 }
                 else if (this.dragType == DraggingTool.Ring) {
@@ -16432,7 +18209,7 @@ var WebMolKit;
                             'ringY': ringY,
                             'aromatic': this.toolRingArom
                         };
-                        let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.Ring, param);
+                        let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.Ring, param, {}, this);
                         molact.execute();
                     }
                 }
@@ -16455,7 +18232,7 @@ var WebMolKit;
                     if (this.toolAtomSymbol == 'A')
                         param.element = window.prompt('Enter element symbol:', '');
                     if (param.element != '') {
-                        let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.BondAtom, param);
+                        let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.BondAtom, param, {}, this);
                         molact.execute();
                     }
                 }
@@ -16475,7 +18252,7 @@ var WebMolKit;
                         'x2': this.xToAng(x2),
                         'y2': this.yToAng(y2)
                     };
-                    let molact = new WebMolKit.MoleculeActivity(this, WebMolKit.ActivityType.BondAtom, param);
+                    let molact = new WebMolKit.MoleculeActivity(this.getState(), WebMolKit.ActivityType.BondAtom, param, {}, this);
                     molact.execute();
                 }
             }
@@ -16485,14 +18262,17 @@ var WebMolKit;
             this.lassoMask = null;
             this.dragGuides = null;
             this.delayedRedraw();
+            return false;
         }
         mouseOver(event) {
             this.updateHoverCursor(event);
             this.updateLasso(event);
+            return false;
         }
         mouseOut(event) {
             this.updateHoverCursor(event);
             this.updateLasso(event);
+            return false;
         }
         mouseMove(event) {
             this.updateHoverCursor(event);
@@ -16556,50 +18336,41 @@ var WebMolKit;
                 this.mouseY = xy[1];
                 this.delayedRedraw();
             }
+            return false;
         }
         keyPressed(event) {
-            if (this.toolView != null && this.toolView.topBank.claimKey(event)) {
-                event.preventDefault();
-                return;
-            }
-            if (this.commandView != null && this.commandView.topBank.claimKey(event)) {
-                event.preventDefault();
-                return;
-            }
-            if (this.templateView != null && this.templateView.topBank.claimKey(event)) {
-                event.preventDefault();
-                return;
-            }
         }
         keyDown(event) {
-            let key = event.keyCode;
-            if (key == 27) {
+            let key = event.key;
+            if (key == "Escape") {
                 for (let view of [this.templateView, this.commandView, this.toolView])
                     if (view != null && view.stackSize > 1) {
                         view.popBank();
                         event.preventDefault();
-                        return;
+                        return false;
                     }
             }
-            if (key == 13) { }
-            else if (key == 37) { }
-            else if (key == 39) { }
-            else if (key == 38) { }
-            else if (key == 40) { }
-            else if ([27, 8, 46].indexOf(key) >= 0) {
-                if (this.toolView != null && this.toolView.topBank.claimKey(event)) {
-                    event.preventDefault();
-                    return;
-                }
-                if (this.commandView != null && this.commandView.topBank.claimKey(event)) {
-                    event.preventDefault();
-                    return;
-                }
-                if (this.templateView != null && this.templateView.topBank.claimKey(event)) {
-                    event.preventDefault();
-                    return;
-                }
+            if (key == "Enter") {
+                if (this.currentAtom > 0)
+                    this.editAtom(this.currentAtom);
+                else if (this.currentBond > 0)
+                    this.editBond(this.currentBond);
             }
+            else if (key == "ArrowLeft")
+                this.hitArrowKey(-1, 0);
+            else if (key == "ArrowRight")
+                this.hitArrowKey(1, 0);
+            else if (key == "ArrowUp")
+                this.hitArrowKey(0, 1);
+            else if (key == "ArrowDown")
+                this.hitArrowKey(0, -1);
+            else if (this.toolView != null && this.toolView.topBank.claimKey(event)) { }
+            else if (this.commandView != null && this.commandView.topBank.claimKey(event)) { }
+            else if (this.templateView != null && this.templateView.topBank.claimKey(event)) { }
+            else
+                return true;
+            event.preventDefault();
+            return false;
         }
         keyUp(event) {
         }
@@ -16753,9 +18524,9 @@ var WebMolKit;
             else if (cmd == 'paste')
                 this.actionPaste();
             else if (cmd == 'delete')
-                new WebMolKit.MoleculeActivity(this.sketcher, WebMolKit.ActivityType.Delete, {}).execute();
+                new WebMolKit.MoleculeActivity(this.sketcher.getState(), WebMolKit.ActivityType.Delete, {}).execute();
             else if (cmd == 'selectAll')
-                new WebMolKit.MoleculeActivity(this.sketcher, WebMolKit.ActivityType.SelectAll, {}).execute();
+                new WebMolKit.MoleculeActivity(this.sketcher.getState(), WebMolKit.ActivityType.SelectAll, {}).execute();
             else if (cmd == 'zoomFull')
                 this.sketcher.autoScale();
             else if (cmd == 'zoomIn')
@@ -17004,17 +18775,17 @@ var WebMolKit;
         }
         setEntry(row, entry) {
             let fields = this.getFields();
-            let colConstruct = this.ds.findColByName(fields.construct, WebMolKit.DataSheet.COLTYPE_MOLECULE);
+            let colConstruct = this.ds.findColByName(fields.construct, "molecule");
             if (colConstruct >= 0)
                 this.ds.setMolecule(row, colConstruct, entry.construct);
-            let colLocked = this.ds.findColByName(fields.locked, WebMolKit.DataSheet.COLTYPE_BOOLEAN);
+            let colLocked = this.ds.findColByName(fields.locked, "boolean");
             if (colLocked >= 0)
                 this.ds.setBoolean(row, colLocked, entry.locked);
-            let colScaffold = this.ds.findColByName(fields.scaffold, WebMolKit.DataSheet.COLTYPE_MOLECULE);
+            let colScaffold = this.ds.findColByName(fields.scaffold, "molecule");
             if (colScaffold >= 0)
                 this.ds.setMolecule(row, colScaffold, entry.scaffold);
             for (let n = 0; n < fields.substituents.length; n++) {
-                let colSubst = this.ds.findColByName(fields.substituents[n], WebMolKit.DataSheet.COLTYPE_MOLECULE);
+                let colSubst = this.ds.findColByName(fields.substituents[n], "molecule");
                 if (colSubst >= 0)
                     this.ds.setMolecule(row, colSubst, entry.substituents[n]);
             }
@@ -17027,7 +18798,7 @@ var WebMolKit;
             for (let name of tobeAdded)
                 if (fields.substituents.indexOf(name) < 0) {
                     fields.substituents.push(name);
-                    this.ds.ensureColumn(name, WebMolKit.DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_SUBSTITUENT);
+                    this.ds.ensureColumn(name, "molecule", SARTable.DESCR_SUBSTITUENT);
                     modified = true;
                 }
             if (modified)
@@ -17054,11 +18825,11 @@ var WebMolKit;
                     got = true;
                     break;
                 }
-            this.ds.ensureColumn(fields.construct, WebMolKit.DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_CONSTRUCT);
-            this.ds.ensureColumn(fields.locked, WebMolKit.DataSheet.COLTYPE_BOOLEAN, SARTable.DESCR_LOCKED);
-            this.ds.ensureColumn(fields.scaffold, WebMolKit.DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_SCAFFOLD);
+            this.ds.ensureColumn(fields.construct, "molecule", SARTable.DESCR_CONSTRUCT);
+            this.ds.ensureColumn(fields.locked, "boolean", SARTable.DESCR_LOCKED);
+            this.ds.ensureColumn(fields.scaffold, "molecule", SARTable.DESCR_SCAFFOLD);
             for (let subst of fields.substituents)
-                this.ds.ensureColumn(subst, WebMolKit.DataSheet.COLTYPE_MOLECULE, SARTable.DESCR_SUBSTITUENT);
+                this.ds.ensureColumn(subst, "molecule", SARTable.DESCR_SUBSTITUENT);
             if (!got) {
                 let content = this.formatMetaData(fields);
                 this.ds.appendExtension(SARTable.NAME, SARTable.CODE, content);
@@ -17243,7 +19014,21 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
-    class QuantityComp {
+    let QuantityCalcRole;
+    (function (QuantityCalcRole) {
+        QuantityCalcRole[QuantityCalcRole["Primary"] = 1] = "Primary";
+        QuantityCalcRole[QuantityCalcRole["Secondary"] = 2] = "Secondary";
+        QuantityCalcRole[QuantityCalcRole["Product"] = 3] = "Product";
+        QuantityCalcRole[QuantityCalcRole["Independent"] = 4] = "Independent";
+    })(QuantityCalcRole = WebMolKit.QuantityCalcRole || (WebMolKit.QuantityCalcRole = {}));
+    let QuantityCalcStat;
+    (function (QuantityCalcStat) {
+        QuantityCalcStat[QuantityCalcStat["Unknown"] = 0] = "Unknown";
+        QuantityCalcStat[QuantityCalcStat["Actual"] = 1] = "Actual";
+        QuantityCalcStat[QuantityCalcStat["Virtual"] = 2] = "Virtual";
+        QuantityCalcStat[QuantityCalcStat["Conflict"] = 3] = "Conflict";
+    })(QuantityCalcStat = WebMolKit.QuantityCalcStat || (WebMolKit.QuantityCalcStat = {}));
+    class QuantityCalcComp {
         constructor(comp, step, type, idx) {
             this.comp = comp;
             this.step = step;
@@ -17252,22 +19037,22 @@ var WebMolKit;
             this.role = 0;
             this.molw = 0;
             this.valueEquiv = 0;
-            this.statEquiv = QuantityCalc.STAT_UNKNOWN;
+            this.statEquiv = 0;
             this.valueMass = QuantityCalc.UNSPECIFIED;
-            this.statMass = QuantityCalc.STAT_UNKNOWN;
+            this.statMass = 0;
             this.valueVolume = QuantityCalc.UNSPECIFIED;
-            this.statVolume = QuantityCalc.STAT_UNKNOWN;
+            this.statVolume = 0;
             this.valueMoles = QuantityCalc.UNSPECIFIED;
-            this.statMoles = QuantityCalc.STAT_UNKNOWN;
+            this.statMoles = 0;
             this.valueDensity = QuantityCalc.UNSPECIFIED;
-            this.statDensity = QuantityCalc.STAT_UNKNOWN;
+            this.statDensity = 0;
             this.valueConc = QuantityCalc.UNSPECIFIED;
-            this.statConc = QuantityCalc.STAT_UNKNOWN;
+            this.statConc = 0;
             this.valueYield = QuantityCalc.UNSPECIFIED;
-            this.statYield = QuantityCalc.STAT_UNKNOWN;
+            this.statYield = 0;
         }
     }
-    WebMolKit.QuantityComp = QuantityComp;
+    WebMolKit.QuantityCalcComp = QuantityCalcComp;
     class GreenMetrics {
         constructor() {
             this.step = 0;
@@ -17394,6 +19179,39 @@ var WebMolKit;
             }
             return highest;
         }
+        static componentRatio(entry, step) {
+            let numer = [], denom = [];
+            let reactants = step == 0 ? entry.steps[0].reactants : entry.steps[step - 1].products;
+            for (let comp of reactants) {
+                let [num, den] = this.stoichAsRatio(comp.stoich);
+                numer.push(num);
+                denom.push(den);
+            }
+            for (let comp of entry.steps[step].reagents) {
+                let fract = this.impliedReagentStoich(comp, entry.steps[step].products);
+                let [num, den] = fract == 0 ? [0, 1] : this.stoichFractAsRatio(fract);
+                numer.push(num == 0 ? 1 : num);
+                denom.push(den);
+            }
+            for (let comp of entry.steps[step].products) {
+                let [num, den] = this.stoichAsRatio(comp.stoich);
+                numer.push(num == 0 ? 1 : num);
+                denom.push(den);
+            }
+            let bigDenom = 1;
+            for (let n = 0; n < numer.length; n++)
+                if (denom[n] > 1 && bigDenom % denom[n] != 0)
+                    bigDenom *= denom[n];
+            let ratioReactants = [], ratioReagents = [], ratioProducts = [];
+            let p = 0;
+            for (let n = 0; n < reactants.length; n++, p++)
+                ratioReactants.push(numer[p] * bigDenom / denom[p]);
+            for (let n = 0; n < entry.steps[step].reagents.length; n++, p++)
+                ratioReagents.push(numer[p] * bigDenom / denom[p]);
+            for (let n = 0; n < entry.steps[step].products.length; n++, p++)
+                ratioProducts.push(numer[p] * bigDenom / denom[p]);
+            return [ratioReactants, ratioReagents, ratioProducts];
+        }
         calculate() {
             this.classifyTypes();
             while (this.calculateSomething()) { }
@@ -17402,12 +19220,12 @@ var WebMolKit;
             this.allMassWaste = [];
             for (let n = 0; n < this.quantities.length; n++) {
                 let qc = this.quantities[n];
-                if (qc.type == WebMolKit.Experiment.REACTANT || qc.type == WebMolKit.Experiment.REAGENT) {
-                    if (qc.valueEquiv == 0 && qc.type == WebMolKit.Experiment.REAGENT)
+                if (qc.type == WebMolKit.ExperimentComponentType.Reactant || qc.type == WebMolKit.ExperimentComponentType.Reagent) {
+                    if (qc.valueEquiv == 0 && qc.type == WebMolKit.ExperimentComponentType.Reagent)
                         continue;
                     this.allMassReact.push(qc.valueMass);
                 }
-                else if (qc.type == WebMolKit.Experiment.PRODUCT) {
+                else if (qc.type == WebMolKit.ExperimentComponentType.Product) {
                     if (!qc.comp.waste) {
                         this.allMassProd.push(qc.valueMass);
                         this.calculateGreenMetrics(n);
@@ -17496,15 +19314,15 @@ var WebMolKit;
             for (let s = 0; s < this.entry.steps.length; s++) {
                 let step = this.entry.steps[s];
                 for (let n = 0; n < step.reactants.length; n++)
-                    this.quantities.push(new QuantityComp(step.reactants[n], s, WebMolKit.Experiment.REACTANT, n));
+                    this.quantities.push(new QuantityCalcComp(step.reactants[n], s, WebMolKit.ExperimentComponentType.Reactant, n));
                 for (let n = 0; n < step.reagents.length; n++)
-                    this.quantities.push(new QuantityComp(step.reagents[n], s, WebMolKit.Experiment.REAGENT, n));
+                    this.quantities.push(new QuantityCalcComp(step.reagents[n], s, WebMolKit.ExperimentComponentType.Reagent, n));
                 for (let n = 0; n < step.products.length; n++)
-                    this.quantities.push(new QuantityComp(step.products[n], s, WebMolKit.Experiment.PRODUCT, n));
+                    this.quantities.push(new QuantityCalcComp(step.products[n], s, WebMolKit.ExperimentComponentType.Product, n));
             }
             for (let n = 0; n < this.quantities.length; n++) {
                 let qc = this.quantities[n];
-                if (qc.type == WebMolKit.Experiment.REAGENT) {
+                if (qc.type == WebMolKit.ExperimentComponentType.Reagent) {
                     if (qc.comp.equiv != null)
                         qc.valueEquiv = qc.comp.equiv;
                     else {
@@ -17518,25 +19336,25 @@ var WebMolKit;
                 }
                 if (qc.comp.mol != null)
                     qc.molw = WebMolKit.MolUtil.molecularWeight(qc.comp.mol);
-                qc.role = QuantityCalc.ROLE_INDEPENDENT;
-                if (qc.step == 0 && qc.type == WebMolKit.Experiment.REACTANT) {
+                qc.role = 4;
+                if (qc.step == 0 && qc.type == WebMolKit.ExperimentComponentType.Reactant) {
                     if (qc.comp.primary) {
-                        qc.role = QuantityCalc.ROLE_PRIMARY;
+                        qc.role = 1;
                         this.idxPrimary.push(n);
                     }
                     else
-                        qc.role = QuantityCalc.ROLE_SECONDARY;
+                        qc.role = 2;
                 }
-                else if (qc.type == WebMolKit.Experiment.REAGENT) {
+                else if (qc.type == WebMolKit.ExperimentComponentType.Reagent) {
                     if (qc.valueEquiv > 0)
-                        qc.role = QuantityCalc.ROLE_SECONDARY;
+                        qc.role = 2;
                 }
-                else if (qc.type == WebMolKit.Experiment.PRODUCT && !qc.comp.waste) {
-                    qc.role = QuantityCalc.ROLE_PRODUCT;
+                else if (qc.type == WebMolKit.ExperimentComponentType.Product && !qc.comp.waste) {
+                    qc.role = 3;
                     this.idxYield.push(n);
                 }
                 else if (qc.valueEquiv > 0) {
-                    qc.role = QuantityCalc.ROLE_SECONDARY;
+                    qc.role = 2;
                 }
                 if (qc.comp.mass != null)
                     qc.valueMass = qc.comp.mass;
@@ -17550,19 +19368,19 @@ var WebMolKit;
                     qc.valueConc = qc.comp.conc;
                 if (qc.comp.yield != null)
                     qc.valueYield = qc.comp.yield;
-                qc.statEquiv = qc.valueEquiv == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
-                qc.statMass = qc.valueMass == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
-                qc.statVolume = qc.valueVolume == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
-                qc.statMoles = qc.valueMoles == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
-                qc.statDensity = qc.valueDensity == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
-                qc.statConc = qc.valueConc == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
-                qc.statYield = qc.valueYield == QuantityCalc.UNSPECIFIED ? QuantityCalc.STAT_UNKNOWN : QuantityCalc.STAT_ACTUAL;
+                qc.statEquiv = qc.valueEquiv == QuantityCalc.UNSPECIFIED ? 0 : 1;
+                qc.statMass = qc.valueMass == QuantityCalc.UNSPECIFIED ? 0 : 1;
+                qc.statVolume = qc.valueVolume == QuantityCalc.UNSPECIFIED ? 0 : 1;
+                qc.statMoles = qc.valueMoles == QuantityCalc.UNSPECIFIED ? 0 : 1;
+                qc.statDensity = qc.valueDensity == QuantityCalc.UNSPECIFIED ? 0 : 1;
+                qc.statConc = qc.valueConc == QuantityCalc.UNSPECIFIED ? 0 : 1;
+                qc.statYield = qc.valueYield == QuantityCalc.UNSPECIFIED ? 0 : 1;
             }
             if (this.idxPrimary.length == 0) {
                 for (let n = 0; n < this.quantities.length; n++) {
                     let qc = this.quantities[n];
-                    if (qc.type == WebMolKit.Experiment.REACTANT && qc.step == 0) {
-                        qc.role = QuantityCalc.ROLE_PRIMARY;
+                    if (qc.type == WebMolKit.ExperimentComponentType.Reactant && qc.step == 0) {
+                        qc.role = 1;
                         this.idxPrimary.push(n);
                     }
                 }
@@ -17571,41 +19389,41 @@ var WebMolKit;
         calculateSomething() {
             let anything = false;
             for (let qc of this.quantities) {
-                if (qc.molw > 0 && qc.valueMass == QuantityCalc.UNSPECIFIED && qc.statMoles == QuantityCalc.STAT_ACTUAL) {
+                if (qc.molw > 0 && qc.valueMass == QuantityCalc.UNSPECIFIED && qc.statMoles == 1) {
                     qc.valueMass = qc.valueMoles * qc.molw;
-                    qc.statMass = QuantityCalc.STAT_VIRTUAL;
+                    qc.statMass = 2;
                     anything = true;
                 }
                 if (qc.molw > 0 && qc.valueMass != QuantityCalc.UNSPECIFIED && qc.valueMoles == QuantityCalc.UNSPECIFIED) {
                     qc.valueMoles = qc.valueMass / qc.molw;
-                    qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                    qc.statMoles = 2;
                     anything = true;
                 }
-                if (qc.molw > 0 && qc.statMass == QuantityCalc.STAT_ACTUAL && qc.statMoles == QuantityCalc.STAT_ACTUAL) {
+                if (qc.molw > 0 && qc.statMass == 1 && qc.statMoles == 1) {
                     let calcMoles = qc.valueMass / qc.molw;
                     if (!this.closeEnough(qc.valueMoles, calcMoles)) {
-                        qc.statMass = QuantityCalc.STAT_CONFLICT;
-                        qc.statMoles = QuantityCalc.STAT_CONFLICT;
+                        qc.statMass = 3;
+                        qc.statMoles = 3;
                     }
                 }
-                let isSoln = qc.statConc == QuantityCalc.STAT_ACTUAL ||
-                    (qc.statVolume == QuantityCalc.STAT_ACTUAL && (qc.statMass == QuantityCalc.STAT_ACTUAL || qc.statMoles == QuantityCalc.STAT_ACTUAL));
+                let isSoln = qc.statConc == 1 ||
+                    (qc.statVolume == 1 && (qc.statMass == 1 || qc.statMoles == 1));
                 if (!isSoln) {
                     if (qc.valueDensity > 0 && qc.valueMass == QuantityCalc.UNSPECIFIED && qc.valueVolume != QuantityCalc.UNSPECIFIED) {
                         qc.valueMass = qc.valueVolume * qc.valueDensity;
-                        qc.statMass = QuantityCalc.STAT_VIRTUAL;
+                        qc.statMass = 2;
                         anything = true;
                     }
                     if (qc.valueDensity > 0 && qc.valueMass != QuantityCalc.UNSPECIFIED && qc.valueVolume == QuantityCalc.UNSPECIFIED) {
                         qc.valueVolume = qc.valueMass / qc.valueDensity;
-                        qc.statVolume = QuantityCalc.STAT_VIRTUAL;
+                        qc.statVolume = 2;
                         anything = true;
                     }
                     if (qc.valueDensity == QuantityCalc.UNSPECIFIED && qc.valueMass != QuantityCalc.UNSPECIFIED &&
                         qc.valueVolume != QuantityCalc.UNSPECIFIED && qc.valueConc == QuantityCalc.UNSPECIFIED) {
-                        if (qc.statMass == QuantityCalc.STAT_ACTUAL || qc.statMoles == QuantityCalc.STAT_ACTUAL) {
+                        if (qc.statMass == 1 || qc.statMoles == 1) {
                             qc.valueDensity = qc.valueMass / qc.valueVolume;
-                            qc.statDensity = QuantityCalc.STAT_VIRTUAL;
+                            qc.statDensity = 2;
                             anything = true;
                         }
                     }
@@ -17613,39 +19431,39 @@ var WebMolKit;
                 if (isSoln) {
                     if (qc.valueConc > 0 && qc.valueMoles == QuantityCalc.UNSPECIFIED && qc.valueVolume != QuantityCalc.UNSPECIFIED) {
                         qc.valueMoles = 0.001 * qc.valueVolume * qc.valueConc;
-                        qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                        qc.statMoles = 2;
                         anything = true;
                     }
                     if (qc.valueConc > 0 && qc.valueMoles != QuantityCalc.UNSPECIFIED && qc.valueVolume == QuantityCalc.UNSPECIFIED) {
                         qc.valueVolume = 1000 * qc.valueMoles / qc.valueConc;
-                        qc.statVolume = QuantityCalc.STAT_VIRTUAL;
+                        qc.statVolume = 2;
                         anything = true;
                     }
                     if (qc.valueConc == QuantityCalc.UNSPECIFIED && qc.valueMass != QuantityCalc.UNSPECIFIED && qc.valueVolume != QuantityCalc.UNSPECIFIED) {
                         qc.valueConc = 1000 * qc.valueMoles / qc.valueVolume;
-                        qc.statConc = QuantityCalc.STAT_VIRTUAL;
+                        qc.statConc = 2;
                         anything = true;
                     }
-                    if (qc.statConc == QuantityCalc.STAT_ACTUAL && qc.valueMoles > 0 && qc.statVolume == QuantityCalc.STAT_ACTUAL) {
+                    if (qc.statConc == 1 && qc.valueMoles > 0 && qc.statVolume == 1) {
                         let calcVolume = 1000 * qc.valueMoles / qc.valueConc;
                         if (!this.closeEnough(qc.valueVolume, calcVolume)) {
-                            qc.statConc = QuantityCalc.STAT_CONFLICT;
-                            if (qc.statMass == QuantityCalc.STAT_ACTUAL)
-                                qc.statMass = QuantityCalc.STAT_CONFLICT;
-                            if (qc.statMoles == QuantityCalc.STAT_ACTUAL)
-                                qc.statMoles = QuantityCalc.STAT_CONFLICT;
-                            qc.statVolume = QuantityCalc.STAT_CONFLICT;
+                            qc.statConc = 3;
+                            if (qc.statMass == 1)
+                                qc.statMass = 3;
+                            if (qc.statMoles == 1)
+                                qc.statMoles = 3;
+                            qc.statVolume = 3;
                         }
                     }
                 }
                 if (qc.molw > 0 && qc.valueMass == QuantityCalc.UNSPECIFIED && qc.valueMoles != QuantityCalc.UNSPECIFIED) {
                     qc.valueMass = qc.valueMoles * qc.molw;
-                    qc.statMass = QuantityCalc.STAT_VIRTUAL;
+                    qc.statMass = 2;
                     anything = true;
                 }
-                if (qc.statDensity == QuantityCalc.STAT_ACTUAL && qc.statConc == QuantityCalc.STAT_ACTUAL) {
-                    qc.statDensity = QuantityCalc.STAT_CONFLICT;
-                    qc.statConc = QuantityCalc.STAT_CONFLICT;
+                if (qc.statDensity == 1 && qc.statConc == 1) {
+                    qc.statDensity = 3;
+                    qc.statConc = 3;
                 }
             }
             if (anything)
@@ -17657,15 +19475,15 @@ var WebMolKit;
             let primaryMoles = WebMolKit.Vec.numberArray(0, numSteps);
             for (let qc of this.quantities) {
                 let ref = -1;
-                if (qc.step == 0 && qc.type == WebMolKit.Experiment.REACTANT && qc.comp.primary)
+                if (qc.step == 0 && qc.type == WebMolKit.ExperimentComponentType.Reactant && qc.comp.primary)
                     ref = qc.step;
-                else if (qc.step < numSteps - 1 && qc.type == WebMolKit.Experiment.PRODUCT && !qc.comp.waste)
+                else if (qc.step < numSteps - 1 && qc.type == WebMolKit.ExperimentComponentType.Product && !qc.comp.waste)
                     ref = qc.step + 1;
                 else
                     continue;
                 if (primaryEquivs[ref] < 0)
                     continue;
-                if (qc.statMoles == QuantityCalc.STAT_UNKNOWN) {
+                if (qc.statMoles == 1) {
                     primaryEquivs[ref] = -1;
                     continue;
                 }
@@ -17679,7 +19497,7 @@ var WebMolKit;
                 primaryMoles[0] = 0;
                 for (let i of this.idxPrimary) {
                     let qc = this.quantities[i];
-                    if (qc.statMoles == QuantityCalc.STAT_UNKNOWN) {
+                    if (qc.statMoles == 1) {
                         primaryCounts[0] = 0;
                         primaryEquivs[0] = -1;
                         primaryMoles[0] = 0;
@@ -17700,9 +19518,9 @@ var WebMolKit;
                 for (let n = 0; n < numSteps; n++) {
                     let prodMolar = [];
                     for (let qc of this.quantities) {
-                        if (qc.step != n || qc.role != QuantityCalc.ROLE_PRODUCT)
+                        if (qc.step != n || qc.role != 3)
                             continue;
-                        if (qc.statMoles == QuantityCalc.STAT_UNKNOWN || qc.valueMoles <= 0 || qc.valueEquiv <= 0)
+                        if (qc.statMoles == 1 || qc.valueMoles <= 0 || qc.valueEquiv <= 0)
                             continue;
                         let yld = qc.valueYield > 0 ? qc.valueYield * 0.01 : 1;
                         prodMolar.push(qc.valueMoles / (qc.valueEquiv * yld));
@@ -17716,28 +19534,28 @@ var WebMolKit;
             if (!hasRef)
                 return false;
             for (let qc of this.quantities) {
-                if (qc.type != WebMolKit.Experiment.PRODUCT)
+                if (qc.type != WebMolKit.ExperimentComponentType.Product)
                     continue;
                 if (refMoles[qc.step] == 0)
                     continue;
                 if (qc.valueYield == QuantityCalc.UNSPECIFIED && qc.valueMoles != QuantityCalc.UNSPECIFIED) {
                     qc.valueYield = 100 * qc.valueMoles / (refMoles[qc.step] * qc.valueEquiv);
-                    qc.statYield = QuantityCalc.STAT_VIRTUAL;
+                    qc.statYield = 2;
                     anything = true;
                 }
                 if (qc.valueYield != QuantityCalc.UNSPECIFIED && qc.valueMoles == QuantityCalc.UNSPECIFIED) {
                     qc.valueMoles = qc.valueYield * 0.01 * (refMoles[qc.step] * qc.valueEquiv);
-                    qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                    qc.statMoles = 2;
                     anything = true;
                 }
-                if (qc.valueMoles > 0 && qc.statYield == QuantityCalc.STAT_ACTUAL) {
+                if (qc.valueMoles > 0 && qc.statYield == 1) {
                     let calcYield = 100 * qc.valueMoles / (refMoles[qc.step] * qc.valueEquiv);
                     if (!this.closeEnough(qc.valueYield, calcYield)) {
-                        if (qc.statMass == QuantityCalc.STAT_ACTUAL)
-                            qc.statMass = QuantityCalc.STAT_CONFLICT;
-                        if (qc.statMoles == QuantityCalc.STAT_ACTUAL)
-                            qc.statMoles = QuantityCalc.STAT_CONFLICT;
-                        qc.statYield = QuantityCalc.STAT_CONFLICT;
+                        if (qc.statMass == 1)
+                            qc.statMass = 3;
+                        if (qc.statMoles == 1)
+                            qc.statMoles = 3;
+                        qc.statYield = 3;
                     }
                 }
             }
@@ -17748,12 +19566,12 @@ var WebMolKit;
                     continue;
                 if (qc.valueMass == QuantityCalc.UNSPECIFIED && qc.valueMoles == QuantityCalc.UNSPECIFIED && qc.valueEquiv > 0) {
                     qc.valueMoles = refMoles[qc.step] * qc.valueEquiv;
-                    qc.statMoles = QuantityCalc.STAT_VIRTUAL;
+                    qc.statMoles = 2;
                     anything = true;
                 }
                 if (qc.valueMoles != QuantityCalc.UNSPECIFIED && qc.valueEquiv == QuantityCalc.UNSPECIFIED) {
                     qc.valueEquiv = qc.valueMoles / refMoles[qc.step];
-                    qc.statEquiv = QuantityCalc.STAT_VIRTUAL;
+                    qc.statEquiv = 2;
                     anything = true;
                 }
             }
@@ -17770,16 +19588,16 @@ var WebMolKit;
                 if (sub.step > gm.step)
                     continue;
                 let eq = sub.valueEquiv;
-                if (eq == 0 && sub.type == WebMolKit.Experiment.REAGENT)
+                if (eq == 0 && sub.type == WebMolKit.ExperimentComponentType.Reagent)
                     continue;
                 if (sub.valueMass != QuantityCalc.UNSPECIFIED)
                     gm.isBlank = false;
-                if (sub.type == WebMolKit.Experiment.REACTANT || sub.type == WebMolKit.Experiment.REAGENT) {
+                if (sub.type == WebMolKit.ExperimentComponentType.Reactant || sub.type == WebMolKit.ExperimentComponentType.Reagent) {
                     gm.massReact.push(sub.valueMass);
                     if (sub.step == gm.step && eq > 0 && sub.molw > 0)
                         gm.molwReact.push(eq * sub.molw);
                 }
-                else if (sub.type == WebMolKit.Experiment.PRODUCT) {
+                else if (sub.type == WebMolKit.ExperimentComponentType.Product) {
                     if (!sub.comp.waste) {
                         if (sub.step == gm.step)
                             gm.massProd.push(sub.valueMass);
@@ -17810,14 +19628,6 @@ var WebMolKit;
         }
     }
     QuantityCalc.UNSPECIFIED = -1;
-    QuantityCalc.ROLE_PRIMARY = 1;
-    QuantityCalc.ROLE_SECONDARY = 2;
-    QuantityCalc.ROLE_PRODUCT = 3;
-    QuantityCalc.ROLE_INDEPENDENT = 4;
-    QuantityCalc.STAT_UNKNOWN = 0;
-    QuantityCalc.STAT_ACTUAL = 1;
-    QuantityCalc.STAT_VIRTUAL = 2;
-    QuantityCalc.STAT_CONFLICT = 3;
     QuantityCalc.MAX_DENOM = 16;
     QuantityCalc.RATIO_FRACT = null;
     WebMolKit.QuantityCalc = QuantityCalc;
@@ -18319,8 +20129,10 @@ var WebMolKit;
         constructor(layout, vg) {
             this.layout = layout;
             this.vg = vg;
+            this.preDrawComponent = null;
             this.preDrawMolecule = null;
             this.postDrawMolecule = null;
+            this.molDrawn = [];
             this.entry = layout.entry;
             this.measure = layout.measure;
             this.policy = layout.policy;
@@ -18328,6 +20140,7 @@ var WebMolKit;
             this.invScale = 1.0 / this.scale;
         }
         draw() {
+            this.molDrawn = WebMolKit.Vec.anyArray(null, this.layout.components.length);
             for (let n = 0; n < this.layout.components.length; n++) {
                 let xc = this.layout.components[n];
                 if (xc.type == WebMolKit.ArrangeComponentType.Arrow)
@@ -18342,6 +20155,8 @@ var WebMolKit;
             let vg = this.vg, policy = this.policy;
             let bx = xc.box.x + xc.padding, by = xc.box.y + xc.padding;
             let bw = xc.box.w - 2 * xc.padding, bh = xc.box.h - 2 * xc.padding;
+            if (this.preDrawComponent)
+                this.preDrawComponent(vg, idx, xc);
             if (xc.srcIdx < 0 || (WebMolKit.MolUtil.isBlank(xc.mol) && !xc.text)) {
                 let fsz = 0.5 * bh;
                 vg.drawText(bx + 0.5 * bw, by + 0.5 * bh, '?', fsz, policy.data.foreground, WebMolKit.TextAlign.Centre | WebMolKit.TextAlign.Middle);
@@ -18387,6 +20202,7 @@ var WebMolKit;
                 drawmol.draw();
                 if (this.postDrawMolecule)
                     this.postDrawMolecule(vg, idx, xc, arrmol);
+                this.molDrawn[idx] = arrmol;
             }
         }
         drawSymbolArrow(xc) {
@@ -18577,6 +20393,7 @@ var WebMolKit;
             this.createDate = null;
             this.modifyDate = null;
             this.doi = '';
+            this.meta = '';
             this.steps = [];
         }
         clone() {
@@ -18585,6 +20402,7 @@ var WebMolKit;
             dup.createDate = this.createDate;
             dup.modifyDate = this.modifyDate;
             dup.doi = this.doi;
+            dup.meta = this.meta;
             for (let s of this.steps)
                 dup.steps.push(s.clone());
             return dup;
@@ -18613,7 +20431,7 @@ var WebMolKit;
             let d3 = this.modifyDate == null ? 0 : this.modifyDate.getTime(), d4 = other.modifyDate == null ? 0 : other.modifyDate.getTime();
             if (d3 != d4)
                 return false;
-            if (this.doi != other.doi)
+            if (this.doi != other.doi || this.meta != other.meta)
                 return false;
             if (this.steps.length != other.steps.length)
                 return false;
@@ -18623,11 +20441,11 @@ var WebMolKit;
             return true;
         }
         getComponent(step, type, idx) {
-            if (type == Experiment.REACTANT)
+            if (type == ExperimentComponentType.Reactant)
                 return this.steps[step].reactants[idx];
-            if (type == Experiment.REAGENT)
+            if (type == ExperimentComponentType.Reagent)
                 return this.steps[step].reagents[idx];
-            if (type == Experiment.PRODUCT)
+            if (type == ExperimentComponentType.Product)
                 return this.steps[step].products[idx];
             return new ExperimentComponent();
         }
@@ -18643,6 +20461,7 @@ var WebMolKit;
                 v[Experiment.COLNAME_EXPERIMENT_CREATEDATE] = 'Date the experiment was created (seconds since 1970)';
                 v[Experiment.COLNAME_EXPERIMENT_MODIFYDATE] = 'Date the experiment was last modified (seconds since 1970)';
                 v[Experiment.COLNAME_EXPERIMENT_DOI] = 'Digital object identifiers (DOI) for the experiment (whitespace separated)';
+                v[Experiment.COLNAME_EXPERIMENT_META] = 'Additional experiment metadata';
                 v[Experiment.COLNAME_REACTANT_MOL] = 'Molecular structure of reactant';
                 v[Experiment.COLNAME_REACTANT_NAME] = 'Name of reactant';
                 v[Experiment.COLNAME_REACTANT_STOICH] = 'Stoichiometry of reactant';
@@ -18715,6 +20534,9 @@ var WebMolKit;
             let doi = this.ds.getString(row, Experiment.COLNAME_EXPERIMENT_DOI);
             if (doi)
                 entry.doi = doi;
+            let meta = this.ds.getString(row, Experiment.COLNAME_EXPERIMENT_META);
+            if (meta)
+                entry.meta = meta;
             let [nreactants, nproducts, nreagents] = this.countComponents();
             for (let pos = row; pos < this.ds.numRows; pos++) {
                 if (pos > row && this.isFirstStep(pos))
@@ -18795,10 +20617,11 @@ var WebMolKit;
                 ds.setExtData(idxExp, '');
             else
                 ds.appendExtension(Experiment.NAME, Experiment.CODE, '');
-            this.forceColumn(Experiment.COLNAME_EXPERIMENT_TITLE, WebMolKit.DataSheet.COLTYPE_STRING);
-            this.forceColumn(Experiment.COLNAME_EXPERIMENT_CREATEDATE, WebMolKit.DataSheet.COLTYPE_REAL);
-            this.forceColumn(Experiment.COLNAME_EXPERIMENT_MODIFYDATE, WebMolKit.DataSheet.COLTYPE_REAL);
-            this.forceColumn(Experiment.COLNAME_EXPERIMENT_DOI, WebMolKit.DataSheet.COLTYPE_STRING);
+            this.forceColumn(Experiment.COLNAME_EXPERIMENT_TITLE, "string");
+            this.forceColumn(Experiment.COLNAME_EXPERIMENT_CREATEDATE, "real");
+            this.forceColumn(Experiment.COLNAME_EXPERIMENT_MODIFYDATE, "real");
+            this.forceColumn(Experiment.COLNAME_EXPERIMENT_DOI, "string");
+            this.forceColumn(Experiment.COLNAME_EXPERIMENT_META, "string");
             for (let n = 1; n <= nreactants; n++)
                 this.forceReactantColumns(n);
             for (let n = 1; n <= nreagents; n++)
@@ -18811,37 +20634,37 @@ var WebMolKit;
             this.ds.ensureColumn(useName, type, Experiment.COLUMN_DESCRIPTIONS[colName]);
         }
         forceReactantColumns(suffix) {
-            this.forceColumn(Experiment.COLNAME_REACTANT_MOL, WebMolKit.DataSheet.COLTYPE_MOLECULE, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_NAME, WebMolKit.DataSheet.COLTYPE_STRING, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_STOICH, WebMolKit.DataSheet.COLTYPE_STRING, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_MASS, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_VOLUME, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_MOLES, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_DENSITY, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_CONC, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REACTANT_PRIMARY, WebMolKit.DataSheet.COLTYPE_BOOLEAN, suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_MOL, "molecule", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_NAME, "string", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_STOICH, "string", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_MASS, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_VOLUME, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_MOLES, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_DENSITY, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_CONC, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REACTANT_PRIMARY, "boolean", suffix);
         }
         forceReagentColumns(suffix) {
-            this.forceColumn(Experiment.COLNAME_REAGENT_MOL, WebMolKit.DataSheet.COLTYPE_MOLECULE, suffix);
-            this.forceColumn(Experiment.COLNAME_REAGENT_NAME, WebMolKit.DataSheet.COLTYPE_STRING, suffix);
-            this.forceColumn(Experiment.COLNAME_REAGENT_EQUIV, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REAGENT_MASS, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REAGENT_VOLUME, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REAGENT_MOLES, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REAGENT_DENSITY, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_REAGENT_CONC, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_MOL, "molecule", suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_NAME, "string", suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_EQUIV, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_MASS, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_VOLUME, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_MOLES, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_DENSITY, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_REAGENT_CONC, "real", suffix);
         }
         forceProductColumns(suffix) {
-            this.forceColumn(Experiment.COLNAME_PRODUCT_MOL, WebMolKit.DataSheet.COLTYPE_MOLECULE, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_NAME, WebMolKit.DataSheet.COLTYPE_STRING, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_STOICH, WebMolKit.DataSheet.COLTYPE_STRING, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_MASS, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_VOLUME, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_MOLES, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_DENSITY, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_CONC, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_YIELD, WebMolKit.DataSheet.COLTYPE_REAL, suffix);
-            this.forceColumn(Experiment.COLNAME_PRODUCT_WASTE, WebMolKit.DataSheet.COLTYPE_BOOLEAN, suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_MOL, "molecule", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_NAME, "string", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_STOICH, "string", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_MASS, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_VOLUME, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_MOLES, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_DENSITY, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_CONC, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_YIELD, "real", suffix);
+            this.forceColumn(Experiment.COLNAME_PRODUCT_WASTE, "boolean", suffix);
         }
         parseReactionMetaData(content) {
             let nreactants = 1, nproducts = 1, nreagents = 0;
@@ -18955,6 +20778,7 @@ var WebMolKit;
             this.ds.setReal(row, Experiment.COLNAME_EXPERIMENT_CREATEDATE, entry.createDate == null ? null : entry.createDate.getTime() * 1E-3);
             this.ds.setReal(row, Experiment.COLNAME_EXPERIMENT_MODIFYDATE, entry.modifyDate == null ? null : entry.modifyDate.getTime() * 1E-3);
             this.ds.setString(row, Experiment.COLNAME_EXPERIMENT_DOI, entry.doi);
+            this.ds.setString(row, Experiment.COLNAME_EXPERIMENT_META, entry.meta);
             for (let s = 0; s < entry.steps.length; s++) {
                 let r = row + s;
                 if (s == 0)
@@ -19045,7 +20869,8 @@ var WebMolKit;
                 Experiment.COLNAME_EXPERIMENT_TITLE,
                 Experiment.COLNAME_EXPERIMENT_CREATEDATE,
                 Experiment.COLNAME_EXPERIMENT_MODIFYDATE,
-                Experiment.COLNAME_EXPERIMENT_DOI
+                Experiment.COLNAME_EXPERIMENT_DOI,
+                Experiment.COLNAME_EXPERIMENT_META
             ];
             let PREFIXES = [
                 Experiment.COLNAME_REACTANT_MOL,
@@ -19112,13 +20937,11 @@ var WebMolKit;
     Experiment.NAME = 'Experiment';
     Experiment.NAME_RXN = 'Reaction';
     Experiment.NAME_YLD = 'Yield';
-    Experiment.REACTANT = 1;
-    Experiment.REAGENT = 2;
-    Experiment.PRODUCT = 3;
     Experiment.COLNAME_EXPERIMENT_TITLE = 'ExperimentTitle';
     Experiment.COLNAME_EXPERIMENT_CREATEDATE = 'ExperimentCreateDate';
     Experiment.COLNAME_EXPERIMENT_MODIFYDATE = 'ExperimentModifyDate';
     Experiment.COLNAME_EXPERIMENT_DOI = 'ExperimentDOI';
+    Experiment.COLNAME_EXPERIMENT_META = 'ExperimentMeta';
     Experiment.COLNAME_REACTANT_MOL = 'ReactantMol';
     Experiment.COLNAME_REACTANT_NAME = 'ReactantName';
     Experiment.COLNAME_REACTANT_STOICH = 'ReactantStoich';
@@ -19285,13 +21108,13 @@ var WebMolKit;
                     got = true;
                     break;
                 }
-            this.ds.ensureColumn(AssayProvenance.COLNAME_MOLECULE, WebMolKit.DataSheet.COLTYPE_MOLECULE, 'Molecular structure of compound being measured');
-            this.ds.ensureColumn(AssayProvenance.COLNAME_NAME, WebMolKit.DataSheet.COLTYPE_STRING, 'Name of compound');
-            this.ds.ensureColumn(AssayProvenance.COLNAME_VALUE, WebMolKit.DataSheet.COLTYPE_REAL, 'Measured value');
-            this.ds.ensureColumn(AssayProvenance.COLNAME_ERROR, WebMolKit.DataSheet.COLTYPE_REAL, 'Experimental error of measurement');
-            this.ds.ensureColumn(AssayProvenance.COLNAME_UNITS, WebMolKit.DataSheet.COLTYPE_STRING, 'Units of measurement');
-            this.ds.ensureColumn(AssayProvenance.COLNAME_RELATION, WebMolKit.DataSheet.COLTYPE_STRING, 'Relation: exact, greater or less');
-            this.ds.ensureColumn(AssayProvenance.COLNAME_SOURCEURI, WebMolKit.DataSheet.COLTYPE_STRING, 'Source identifier for activity measurement');
+            this.ds.ensureColumn(AssayProvenance.COLNAME_MOLECULE, "molecule", 'Molecular structure of compound being measured');
+            this.ds.ensureColumn(AssayProvenance.COLNAME_NAME, "string", 'Name of compound');
+            this.ds.ensureColumn(AssayProvenance.COLNAME_VALUE, "real", 'Measured value');
+            this.ds.ensureColumn(AssayProvenance.COLNAME_ERROR, "real", 'Experimental error of measurement');
+            this.ds.ensureColumn(AssayProvenance.COLNAME_UNITS, "string", 'Units of measurement');
+            this.ds.ensureColumn(AssayProvenance.COLNAME_RELATION, "string", 'Relation: exact, greater or less');
+            this.ds.ensureColumn(AssayProvenance.COLNAME_SOURCEURI, "string", 'Source identifier for activity measurement');
             if (!got) {
                 let content = this.formatMetaData(header);
                 this.ds.appendExtension(AssayProvenance.NAME, AssayProvenance.CODE, content);
@@ -19655,19 +21478,19 @@ var WebMolKit;
             return outcome;
         }
         setOutcome(row, model, outcome) {
-            let col = this.ds.findColByName(model.colRaw, WebMolKit.DataSheet.COLTYPE_REAL);
+            let col = this.ds.findColByName(model.colRaw, "real");
             if (col >= 0)
                 this.ds.setReal(row, col, outcome.raw);
-            col = this.ds.findColByName(model.colScaled, WebMolKit.DataSheet.COLTYPE_REAL);
+            col = this.ds.findColByName(model.colScaled, "real");
             if (col >= 0)
                 this.ds.setReal(row, col, outcome.scaled);
-            col = this.ds.findColByName(model.colArcTan, WebMolKit.DataSheet.COLTYPE_REAL);
+            col = this.ds.findColByName(model.colArcTan, "real");
             if (col >= 0)
                 this.ds.setReal(row, col, outcome.arctan);
-            col = this.ds.findColByName(model.colDomain, WebMolKit.DataSheet.COLTYPE_REAL);
+            col = this.ds.findColByName(model.colDomain, "real");
             if (col >= 0)
                 this.ds.setReal(row, col, outcome.domain);
-            col = this.ds.findColByName(model.colAtoms, WebMolKit.DataSheet.COLTYPE_STRING);
+            col = this.ds.findColByName(model.colAtoms, "string");
             if (col >= 0)
                 this.ds.setString(row, col, outcome.atoms ? outcome.atoms.toString() : null);
         }
@@ -21593,6 +23416,300 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    let ForeignMoleculeExtra;
+    (function (ForeignMoleculeExtra) {
+        ForeignMoleculeExtra["ATOM_AROMATIC"] = "yAROMATIC";
+        ForeignMoleculeExtra["BOND_AROMATIC"] = "yAROMATIC";
+        ForeignMoleculeExtra["ATOM_CHIRAL_MDL_ODD"] = "yCHIRAL_MDL_ODD";
+        ForeignMoleculeExtra["ATOM_CHIRAL_MDL_EVEN"] = "yCHIRAL_MDL_EVEN";
+        ForeignMoleculeExtra["ATOM_CHIRAL_MDL_RACEMIC"] = "yCHIRAL_MDL_RACEMIC";
+    })(ForeignMoleculeExtra = WebMolKit.ForeignMoleculeExtra || (WebMolKit.ForeignMoleculeExtra = {}));
+    class ForeignMolecule {
+        static noteAromaticAtoms(mol) {
+            const sz = mol.numAtoms;
+            let mask = WebMolKit.Vec.booleanArray(false, sz);
+            for (let n = 1; n <= sz; n++)
+                mask[n - 1] = mol.atomTransient(n).indexOf(ForeignMoleculeExtra.ATOM_AROMATIC) >= 0;
+            return mask;
+        }
+        static noteAromaticBonds(mol) {
+            const sz = mol.numBonds;
+            let mask = WebMolKit.Vec.booleanArray(false, sz);
+            for (let n = 1; n <= sz; n++)
+                mask[n - 1] = mol.bondTransient(n).indexOf(ForeignMoleculeExtra.BOND_AROMATIC) >= 0;
+            return mask;
+        }
+    }
+    WebMolKit.ForeignMolecule = ForeignMolecule;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
+    let DotPathBond;
+    (function (DotPathBond) {
+        DotPathBond[DotPathBond["O0"] = 0] = "O0";
+        DotPathBond[DotPathBond["O01"] = 1] = "O01";
+        DotPathBond[DotPathBond["O1"] = 2] = "O1";
+        DotPathBond[DotPathBond["O12"] = 3] = "O12";
+        DotPathBond[DotPathBond["O2"] = 4] = "O2";
+        DotPathBond[DotPathBond["O23"] = 5] = "O23";
+        DotPathBond[DotPathBond["O3"] = 6] = "O3";
+        DotPathBond[DotPathBond["O3X"] = 7] = "O3X";
+    })(DotPathBond || (DotPathBond = {}));
+    let DotPathCharge;
+    (function (DotPathCharge) {
+        DotPathCharge[DotPathCharge["N1X"] = -3] = "N1X";
+        DotPathCharge[DotPathCharge["N1"] = -2] = "N1";
+        DotPathCharge[DotPathCharge["N01"] = -1] = "N01";
+        DotPathCharge[DotPathCharge["Z0"] = 0] = "Z0";
+        DotPathCharge[DotPathCharge["P01"] = 1] = "P01";
+        DotPathCharge[DotPathCharge["P1"] = 2] = "P1";
+        DotPathCharge[DotPathCharge["P1X"] = 3] = "P1X";
+    })(DotPathCharge || (DotPathCharge = {}));
+    class DotPath {
+        constructor(mol) {
+            this.mol = mol;
+            this.paths = [];
+            if (mol)
+                this.calculate();
+        }
+        clone() {
+            let dup = new DotPath(null);
+            dup.mol = this.mol;
+            dup.maskBlock = this.maskBlock;
+            dup.paths = this.paths.slice(0);
+            return dup;
+        }
+        getBondOrders() {
+            const mol = this.mol;
+            let orders = [];
+            for (let n = 1; n <= mol.numBonds; n++)
+                orders.push(mol.bondOrder(n));
+            for (let path of this.paths) {
+                let fract = path.numer / path.denom;
+                for (let n = 1; n <= 5; n++)
+                    if (WebMolKit.fltEqual(fract, n))
+                        fract = n;
+                for (let b of path.bonds)
+                    orders[b - 1] = fract;
+            }
+            return orders;
+        }
+        getBondClasses() {
+            const mol = this.mol;
+            let classes = [];
+            for (let n = 1; n <= mol.numBonds; n++) {
+                let bo = mol.bondOrder(n);
+                classes.push(bo == 0 ? DotPathBond.O0 :
+                    bo == 1 ? DotPathBond.O1 :
+                        bo == 2 ? DotPathBond.O2 :
+                            bo == 3 ? DotPathBond.O3 : DotPathBond.O3X);
+            }
+            for (let path of this.paths) {
+                let fract = path.numer / path.denom;
+                let bcls = WebMolKit.fltEqual(fract, 0) ? DotPathBond.O0 :
+                    WebMolKit.fltEqual(fract, 1) ? DotPathBond.O1 :
+                        WebMolKit.fltEqual(fract, 2) ? DotPathBond.O2 :
+                            WebMolKit.fltEqual(fract, 3) ? DotPathBond.O3 :
+                                fract < 1 ? DotPathBond.O01 :
+                                    fract < 2 ? DotPathBond.O12 :
+                                        fract < 3 ? DotPathBond.O23 : DotPathBond.O3X;
+                for (let b of path.bonds)
+                    classes[b - 1] = bcls;
+            }
+            return classes;
+        }
+        getChargeClasses() {
+            const mol = this.mol;
+            let classes = [];
+            for (let n = 1; n <= mol.numAtoms; n++) {
+                let chg = mol.atomCharge(n);
+                classes.push(chg == 0 ? DotPathCharge.Z0 :
+                    chg == -1 ? DotPathCharge.N1 :
+                        chg == 1 ? DotPathCharge.P1 :
+                            chg < -1 ? DotPathCharge.N1X : DotPathCharge.P1X);
+            }
+            for (let path of this.paths) {
+                let chg = 0;
+                for (let a of path.atoms)
+                    chg += mol.atomCharge(a);
+                chg /= path.atoms.length;
+                let ccls = WebMolKit.fltEqual(chg, 0) ? DotPathCharge.Z0 :
+                    WebMolKit.fltEqual(chg, -1) ? DotPathCharge.N1 :
+                        WebMolKit.fltEqual(chg, 1) ? DotPathCharge.P1 :
+                            chg > -1 && chg < 0 ? DotPathCharge.N01 :
+                                chg > 0 && chg < 1 ? DotPathCharge.P01 :
+                                    chg < -1 ? DotPathCharge.N1X : DotPathCharge.P1X;
+                for (let a of path.atoms)
+                    classes[a - 1] = ccls;
+            }
+            return classes;
+        }
+        getAggregateCharges() {
+            const mol = this.mol;
+            let chg = [];
+            for (let n = 1; n <= mol.numAtoms; n++)
+                chg[n - 1] = mol.atomCharge(n);
+            for (let path of this.paths) {
+                let total = 0;
+                for (let a of path.atoms)
+                    total += chg[a - 1];
+                for (let a of path.atoms)
+                    chg[a - 1] = total;
+            }
+            return chg;
+        }
+        toString() {
+            let str = 'blocking=' + JSON.stringify(this.maskBlock) + '; paths=' + this.paths.length;
+            for (let p of this.paths)
+                str += ' [' + p.numer + '/' + p.denom + ';a=' + JSON.stringify(p.atoms) + ';b=' + JSON.stringify(p.bonds) + ']';
+            return str;
+        }
+        calculate() {
+            const mol = this.mol, na = mol.numAtoms, nb = mol.numBonds;
+            let nonsingle = WebMolKit.Vec.booleanArray(false, na), pibonded = WebMolKit.Vec.booleanArray(false, na);
+            let bondsum = WebMolKit.Vec.numberArray(0, na);
+            for (let n = 0; n < na; n++)
+                bondsum[n] = mol.atomHydrogens(n + 1);
+            for (let n = 1; n <= nb; n++) {
+                let bo = mol.bondOrder(n), bfr = mol.bondFrom(n), bto = mol.bondTo(n);
+                if (bo != 1) {
+                    nonsingle[bfr - 1] = true;
+                    nonsingle[bto - 1] = true;
+                }
+                if (bo >= 2) {
+                    pibonded[bfr - 1] = true;
+                    pibonded[bto - 1] = true;
+                }
+                bondsum[bfr - 1] += bo;
+                bondsum[bto - 1] += bo;
+                if (mol.bondTransient(n).indexOf(WebMolKit.ForeignMoleculeExtra.BOND_AROMATIC) >= 0) {
+                    pibonded[bfr - 1] = true;
+                    pibonded[bto - 1] = true;
+                }
+            }
+            let impliedPi = WebMolKit.Vec.booleanArray(false, na);
+            for (let n = 1; n <= na; n++)
+                if (!pibonded[n - 1]) {
+                    let adjpi = 0;
+                    for (let adj of mol.atomAdjList(n))
+                        if (pibonded[adj - 1])
+                            adjpi++;
+                    if (adjpi >= 2)
+                        impliedPi[n - 1] = true;
+                }
+            for (let n = 0; n < na; n++)
+                if (impliedPi[n])
+                    pibonded[n] = true;
+            this.maskBlock = WebMolKit.Vec.booleanArray(false, na);
+            let maskMaybe = WebMolKit.Vec.booleanArray(false, na);
+            const COULD_BLOCK = [
+                WebMolKit.Chemistry.ELEMENT_H,
+                WebMolKit.Chemistry.ELEMENT_B, WebMolKit.Chemistry.ELEMENT_C, WebMolKit.Chemistry.ELEMENT_N, WebMolKit.Chemistry.ELEMENT_O, WebMolKit.Chemistry.ELEMENT_F,
+                WebMolKit.Chemistry.ELEMENT_Al, WebMolKit.Chemistry.ELEMENT_Si, WebMolKit.Chemistry.ELEMENT_P, WebMolKit.Chemistry.ELEMENT_S, WebMolKit.Chemistry.ELEMENT_Cl,
+                WebMolKit.Chemistry.ELEMENT_Ga, WebMolKit.Chemistry.ELEMENT_Ge, WebMolKit.Chemistry.ELEMENT_As, WebMolKit.Chemistry.ELEMENT_Se, WebMolKit.Chemistry.ELEMENT_Br,
+                WebMolKit.Chemistry.ELEMENT_In, WebMolKit.Chemistry.ELEMENT_Sn, WebMolKit.Chemistry.ELEMENT_Sb, WebMolKit.Chemistry.ELEMENT_Te, WebMolKit.Chemistry.ELEMENT_I,
+                WebMolKit.Chemistry.ELEMENT_Tl, WebMolKit.Chemistry.ELEMENT_Pb, WebMolKit.Chemistry.ELEMENT_Bi, WebMolKit.Chemistry.ELEMENT_Po, WebMolKit.Chemistry.ELEMENT_At,
+            ];
+            const ACIDS = [
+                WebMolKit.Chemistry.ELEMENT_B,
+                WebMolKit.Chemistry.ELEMENT_Al, WebMolKit.Chemistry.ELEMENT_Si,
+                WebMolKit.Chemistry.ELEMENT_Ga, WebMolKit.Chemistry.ELEMENT_Ge,
+                WebMolKit.Chemistry.ELEMENT_In, WebMolKit.Chemistry.ELEMENT_Sn,
+                WebMolKit.Chemistry.ELEMENT_Tl, WebMolKit.Chemistry.ELEMENT_Pb,
+            ];
+            const BASES = [
+                WebMolKit.Chemistry.ELEMENT_N, WebMolKit.Chemistry.ELEMENT_O, WebMolKit.Chemistry.ELEMENT_F,
+                WebMolKit.Chemistry.ELEMENT_P, WebMolKit.Chemistry.ELEMENT_S, WebMolKit.Chemistry.ELEMENT_Cl,
+                WebMolKit.Chemistry.ELEMENT_As, WebMolKit.Chemistry.ELEMENT_Se, WebMolKit.Chemistry.ELEMENT_Br,
+                WebMolKit.Chemistry.ELEMENT_Sb, WebMolKit.Chemistry.ELEMENT_Te, WebMolKit.Chemistry.ELEMENT_I,
+                WebMolKit.Chemistry.ELEMENT_Bi, WebMolKit.Chemistry.ELEMENT_Po, WebMolKit.Chemistry.ELEMENT_At,
+            ];
+            skip: for (let n = 0; n < na; n++) {
+                const a = n + 1;
+                if (nonsingle[n] || pibonded[n])
+                    continue;
+                if (mol.atomCharge(a) != 0 || mol.atomUnpaired(a) != 0)
+                    continue;
+                const atno = mol.atomicNumber(a);
+                if (atno == 0) {
+                    this.maskBlock[n] = true;
+                    continue;
+                }
+                if (COULD_BLOCK.indexOf(atno) < 0)
+                    continue;
+                if (bondsum[n] != WebMolKit.Chemistry.ELEMENT_BONDING[atno])
+                    continue;
+                if (ACIDS.indexOf(atno) >= 0) {
+                    for (let adj of mol.atomAdjList(a))
+                        if (BASES.indexOf(mol.atomicNumber(adj)) >= 0)
+                            continue skip;
+                }
+                if (BASES.indexOf(atno) >= 0) {
+                    for (let adj of mol.atomAdjList(a))
+                        if (ACIDS.indexOf(mol.atomicNumber(adj)) >= 0)
+                            continue skip;
+                }
+                maskMaybe[n] = true;
+                if (atno == WebMolKit.Chemistry.ELEMENT_C) {
+                    let hasMetal = false;
+                    for (let adj of mol.atomAdjList(a))
+                        if (COULD_BLOCK.indexOf(mol.atomicNumber(adj)) < 0)
+                            hasMetal = true;
+                    if (!hasMetal)
+                        this.maskBlock[n] = true;
+                }
+                else if (atno == WebMolKit.Chemistry.ELEMENT_H) {
+                    this.maskBlock[n] = true;
+                }
+            }
+            skip: for (let n = 0; n < na; n++)
+                if (maskMaybe[n] && !this.maskBlock[n]) {
+                    for (let a of mol.atomAdjList(n + 1))
+                        if (!maskMaybe[a - 1])
+                            continue skip;
+                    this.maskBlock[n] = true;
+                }
+            let g = WebMolKit.Graph.fromMolecule(mol);
+            for (let n = 0; n < na; n++)
+                if (this.maskBlock[n])
+                    g.isolateNode(n);
+            for (let cc of g.calculateComponentGroups()) {
+                if (cc.length == 1)
+                    continue;
+                let amask = WebMolKit.Vec.idxMask(cc, na);
+                WebMolKit.Vec.addTo(cc, 1);
+                let p = {
+                    'atoms': cc,
+                    'bonds': [],
+                    'numer': 0,
+                    'denom': 0
+                };
+                for (let n = 1; n <= nb; n++)
+                    if (amask[mol.bondFrom(n) - 1] && amask[mol.bondTo(n) - 1])
+                        p.bonds.push(n);
+                let totalHave = 0, totalWant = 0;
+                for (let a of p.atoms) {
+                    let others = mol.atomHydrogens(a);
+                    for (let o of mol.atomAdjList(a))
+                        if (!amask[o - 1])
+                            others++;
+                    let atno = mol.atomicNumber(a);
+                    let have = WebMolKit.Chemistry.ELEMENT_VALENCE[atno] - mol.atomCharge(a) - others;
+                    let want = WebMolKit.Chemistry.ELEMENT_SHELL[atno] - WebMolKit.Chemistry.ELEMENT_VALENCE[atno] - others;
+                    totalHave += have;
+                    totalWant += want;
+                }
+                let electrons = Math.min(totalHave, totalWant);
+                p.numer = electrons;
+                p.denom = 2 * p.bonds.length;
+                this.paths.push(p);
+            }
+        }
+    }
+    WebMolKit.DotPath = DotPath;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
     class FormatList {
     }
     FormatList.FMT_NATIVE = 'native';
@@ -21681,325 +23798,12 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
-    class Download extends WebMolKit.Dialog {
-        constructor(tokenID) {
-            super();
-            this.tokenID = tokenID;
-            this.mol = null;
-            this.ds = null;
-            this.policy = WebMolKit.RenderPolicy.defaultColourOnWhite();
-            this.formatKey = [];
-            this.formatGfx = [];
-        }
-        static openTransientMolecule(tokenID, mol) {
-            let dlg = new Download(tokenID);
-            dlg.mol = mol;
-            dlg.title = 'Download Molecule';
-            dlg.open();
-            return dlg;
-        }
-        static openTransientDataSheet(tokenID, ds) {
-            let dlg = new Download(tokenID);
-            dlg.ds = ds;
-            dlg.title = 'Download DataSheet';
-            dlg.open();
-            return dlg;
-        }
-        populate() {
-            let body = this.body();
-            this.mainArea = $('<p>Setting up...</p>').appendTo(body);
-            let paraBtn = $('<p align="right"></p>').appendTo(body);
-            this.downloadArea = $('<span style="padding-right: 2em;"></span>').appendTo(paraBtn);
-            this.btnPrepare = $('<button class="button button-primary">Prepare</button>').appendTo(paraBtn);
-            this.btnPrepare.click(() => this.clickPrepare());
-            if (this.mol != null) {
-                this.formatKey.push(WebMolKit.FormatList.FMT_NATIVE);
-                this.formatGfx.push(false);
-                this.formatKey.push(WebMolKit.FormatList.FMT_MDLMOL);
-                this.formatGfx.push(false);
-                this.formatKey.push(WebMolKit.FormatList.GFX_PNG);
-                this.formatGfx.push(true);
-                this.formatKey.push(WebMolKit.FormatList.GFX_SVG);
-                this.formatGfx.push(true);
-                this.formatKey.push(WebMolKit.FormatList.GFX_PDF);
-                this.formatGfx.push(true);
-                this.formatKey.push(WebMolKit.FormatList.GFX_EPS);
-                this.formatGfx.push(true);
-            }
-            else if (this.ds != null) {
-                let isReaction = false, isExperiment = false;
-                for (let n = 0; n < this.ds.numExtensions; n++) {
-                    if (this.ds.getExtType(n) == 'org.mmi.aspect.Reaction')
-                        isReaction = true;
-                    if (this.ds.getExtType(n) == 'org.mmi.aspect.Experiment')
-                        isExperiment = true;
-                }
-                this.formatKey.push(WebMolKit.FormatList.FMT_XMLDS);
-                this.formatGfx.push(false);
-                if (!isReaction) {
-                    this.formatKey.push(WebMolKit.FormatList.FMT_MDLSDF);
-                    this.formatGfx.push(false);
-                }
-                if (isReaction) {
-                    this.formatKey.push(WebMolKit.FormatList.FMT_MDLRDF);
-                    this.formatGfx.push(false);
-                    if (this.ds.numRows == 1) {
-                        this.formatKey.push(WebMolKit.FormatList.FMT_MDLRXN);
-                        this.formatGfx.push(false);
-                    }
-                }
-                if (this.ds.numRows == 1 || isExperiment) {
-                    if (!isReaction && this.ds.firstColOfType(WebMolKit.DataSheet.COLTYPE_MOLECULE) >= 0) {
-                        this.formatKey.push(WebMolKit.FormatList.FMT_NATIVE);
-                        this.formatGfx.push(false);
-                        this.formatKey.push(WebMolKit.FormatList.FMT_MDLMOL);
-                        this.formatGfx.push(false);
-                    }
-                    this.formatKey.push(WebMolKit.FormatList.GFX_PNG);
-                    this.formatGfx.push(true);
-                    this.formatKey.push(WebMolKit.FormatList.GFX_SVG);
-                    this.formatGfx.push(true);
-                    this.formatKey.push(WebMolKit.FormatList.GFX_EPS);
-                    this.formatGfx.push(true);
-                    this.formatKey.push(WebMolKit.FormatList.GFX_PDF);
-                    this.formatGfx.push(true);
-                }
-                this.formatKey.push(WebMolKit.FormatList.GFX_PNGZIP);
-                this.formatGfx.push(true);
-                this.formatKey.push(WebMolKit.FormatList.GFX_SVGZIP);
-                this.formatGfx.push(true);
-                this.formatKey.push(WebMolKit.FormatList.GFX_PDFZIP);
-                this.formatGfx.push(true);
-                this.formatKey.push(WebMolKit.FormatList.GFX_HTML);
-                this.formatGfx.push(true);
-            }
-            this.formatKey.push(WebMolKit.FormatList.GFX_OOXML_DOCX);
-            this.formatGfx.push(true);
-            this.formatKey.push(WebMolKit.FormatList.GFX_OOXML_XLSX);
-            this.formatGfx.push(true);
-            this.fillContent();
-        }
-        clickPrepare() {
-            let input = { 'tokenID': this.tokenID };
-            input.format = this.formatKey[this.optFormatList.getSelectedIndex()];
-            input.policy = WebMolKit.clone(this.policy.data);
-            let sizeType = this.optSizeType.getSelectedValue();
-            if (sizeType == 'Scale') {
-                input.policy.pointScale = this.lineScale.val();
-            }
-            else if (sizeType == 'Box') {
-                input.policy.pointScale = this.lineBoxMaxScale.val();
-                input.box = [this.lineBoxWidth.val(), this.lineBoxHeight.val()];
-            }
-            this.btnPrepare.prop('disabled', true);
-            if (this.mol != null) {
-                input.molNative = this.mol.toString();
-            }
-            else if (this.ds != null) {
-                input.dataXML = WebMolKit.DataSheetStream.writeXML(this.ds);
-            }
-            WebMolKit.Func.prepareDownloadable(input, (result, error) => this.downloadContent(result, error));
-        }
-        fillContent() {
-            let input = { 'tokenID': this.tokenID };
-            input.policy = this.policy.data;
-            if (this.mol != null) {
-                input.molNative = this.mol.toString();
-            }
-            else if (this.ds != null) {
-                input.dataXML = WebMolKit.DataSheetStream.writeXML(this.ds);
-                input.dataRow = 0;
-            }
-            WebMolKit.Func.renderStructure(input, (result, error) => this.updateStructure(result, error));
-        }
-        updateStructure(result, error) {
-            if (!result) {
-                alert('Request failed: ' + error.message);
-                return;
-            }
-            let metavec = result.metavec;
-            if (this.pictureArea == null)
-                this.buildDisplay();
-            this.pictureArea.empty();
-            let w = metavec.size[0], h = metavec.size[1], padding = 2, scale = 1;
-            if (w > 700) {
-                let mod = 700 / w;
-                scale *= mod;
-                w *= mod;
-                h *= mod;
-            }
-            if (h > 500) {
-                let mod = 500 / h;
-                scale *= mod;
-                w *= mod;
-                h *= mod;
-            }
-            let cw = Math.ceil(w) + 2 * padding, ch = Math.ceil(h) + 2 * padding;
-            let canvas = WebMolKit.newElement(this.pictureArea, 'canvas', { 'width': cw, 'height': ch });
-            let density = WebMolKit.pixelDensity();
-            canvas.width = cw * density;
-            canvas.height = ch * density;
-            canvas.style.width = cw + 'px';
-            canvas.style.height = ch + 'px';
-            let ctx = canvas.getContext('2d');
-            ctx.save();
-            ctx.scale(density, density);
-            let grad = ctx.createLinearGradient(0, 0, cw, ch);
-            if (this.policy.data.background != 0x000000) {
-                grad.addColorStop(0, WebMolKit.colourCode(0xF8F8F8));
-                grad.addColorStop(1, WebMolKit.colourCode(0xE0E0E0));
-            }
-            else {
-                grad.addColorStop(0, WebMolKit.colourCode(0x404040));
-                grad.addColorStop(1, WebMolKit.colourCode(0x101010));
-            }
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, cw, h + ch);
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(0.5, 0.5, cw - 1, ch - 1);
-            let draw = new WebMolKit.MetaVector(metavec);
-            draw.offsetX = padding;
-            draw.offsetY = padding;
-            draw.scale = scale;
-            draw.renderContext(ctx);
-            let isExperiment = false;
-            if (this.ds != null) {
-                for (let n = 0; n < this.ds.numExtensions; n++)
-                    if (this.ds.getExtType(n) == 'org.mmi.aspect.Experiment')
-                        isExperiment = true;
-            }
-            if (this.ds != null && this.ds.numRows > 1 && !isExperiment) {
-                let dstxt = '... and ' + (this.ds.numRows - 1) + ' more row' + (this.ds.numRows == 2 ? '' : 's') + '.';
-                WebMolKit.addText(WebMolKit.newElement(this.pictureArea, 'p'), dstxt);
-            }
-            ctx.restore();
-        }
-        buildDisplay() {
-            this.mainArea.empty();
-            this.pictureArea = $('<p align="center"></p>').appendTo(this.mainArea);
-            this.formatArea = $('<div style="text-align: left;"></div>').appendTo(this.mainArea);
-            this.graphicArea = $('<div style="text-align: left;"></div>').appendTo(this.mainArea);
-            this.formatArea.append($('<h2 class="tight">Choose Format</h2>'));
-            this.formatArea.append($('<hr class="thin"></hr>'));
-            let optList = [];
-            for (let n = 0; n < this.formatKey.length; n++)
-                optList.push('');
-            let optFormatList = new WebMolKit.OptionList(optList, true);
-            optFormatList.render(this.formatArea);
-            for (let n = 0; n < this.formatKey.length; n++) {
-                let k = this.formatKey[n];
-                $(optFormatList.getAuxiliaryCell(n)).append('\u00A0' + WebMolKit.FormatList.FORMAT_DESCR[k]);
-            }
-            optFormatList.callbackSelect = (idx, source) => this.changeFormat(idx);
-            this.graphicArea.append($('<h2 class="tight">Graphic Options</h2>'));
-            this.graphicArea.append($('<hr class="thin"></hr>'));
-            let paraSizeType = $('<p></p>').appendTo(this.graphicArea);
-            let paraSizeSpec = $('<p></p>').appendTo(this.graphicArea);
-            let paraRender = $('<p></p>').appendTo(this.graphicArea);
-            let trSize = $('<table><tr></tr></table>').appendTo(paraSizeType).find('tr');
-            trSize.append('<td style="vertical-align: middle; font-weight: bold;">Sizing: </td>');
-            let optSizeType = new WebMolKit.OptionList(['Scale', 'Box'], false);
-            optSizeType.setSelectedIndex(0);
-            optSizeType.render($('<td style="vertical-align: middle;"></td>').appendTo(trSize));
-            optSizeType.callbackSelect = (idx, source) => this.changeSizeType(idx);
-            let divSizeScale = $('<div></div>').appendTo(paraSizeSpec);
-            divSizeScale.append('<b>Angstroms-to-Points: </b>');
-            let lineScale = $('<input type="text" size="6"></input>"').appendTo(divSizeScale);
-            lineScale.val('30');
-            let divSizeBox = $('<div style="display: none;"></div>').appendTo(paraSizeSpec);
-            divSizeBox.append('<b>Width: </b>');
-            let lineBoxWidth = $('<input type="text" size="6"></input>"').appendTo(divSizeBox);
-            lineBoxWidth.val('400');
-            divSizeBox.append('<b> Height: </b>');
-            let lineBoxHeight = $('<input type="text" size="6"></input>"').appendTo(divSizeBox);
-            lineBoxHeight.val('300');
-            divSizeBox.append(' <b>Max Scale: </b>');
-            let lineBoxMaxScale = $('<input type="text" size="6"></input>"').appendTo(divSizeBox);
-            lineBoxMaxScale.val('30');
-            paraRender.append('<b>Rendering: </b>');
-            let selectRender = $('<select></select>').appendTo(paraRender);
-            selectRender.append('<option>Black-on-White</option>');
-            selectRender.append('<option>Colour-on-White</option>');
-            selectRender.append('<option>White-on-Black</option>');
-            selectRender.append('<option>Colour-on-Black</option>');
-            selectRender.append('<option>Printed Publication</option>');
-            selectRender.prop('selectedIndex', 1);
-            selectRender.change(() => this.changeRender());
-            this.optFormatList = optFormatList;
-            this.optSizeType = optSizeType;
-            this.divSizeScale = divSizeScale;
-            this.divSizeBox = divSizeBox;
-            this.lineScale = lineScale;
-            this.lineBoxWidth = lineBoxWidth;
-            this.lineBoxHeight = lineBoxHeight;
-            this.lineBoxMaxScale = lineBoxMaxScale;
-            this.selectRender = selectRender;
-        }
-        changeFormat(idx) {
-            let ftype = this.formatKey[idx];
-            let psz = 30;
-            if (ftype == WebMolKit.FormatList.GFX_OOXML_DOCX || ftype == WebMolKit.FormatList.GFX_OOXML_XLSX)
-                psz = 10;
-            this.lineScale.val(psz.toString());
-        }
-        changeSizeType(idx) {
-            if (idx == 0) {
-                this.divSizeScale.css('display', 'block');
-                this.divSizeBox.css('display', 'none');
-            }
-            else {
-                this.divSizeScale.css('display', 'none');
-                this.divSizeBox.css('display', 'block');
-            }
-        }
-        changeRender() {
-            let t = this.selectRender.prop('selectedIndex');
-            if (t == 0)
-                this.policy = WebMolKit.RenderPolicy.defaultBlackOnWhite();
-            else if (t == 1)
-                this.policy = WebMolKit.RenderPolicy.defaultColourOnWhite();
-            else if (t == 2)
-                this.policy = WebMolKit.RenderPolicy.defaultWhiteOnBlack();
-            else if (t == 3)
-                this.policy = WebMolKit.RenderPolicy.defaultColourOnBlack();
-            else if (t == 4)
-                this.policy = WebMolKit.RenderPolicy.defaultPrintedPublication();
-            let input = { 'tokenID': this.tokenID };
-            input.policy = this.policy.data;
-            if (this.mol != null) {
-                input.molNative = this.mol.toString();
-            }
-            else if (this.ds != null) {
-                input.dataXML = WebMolKit.DataSheetStream.writeXML(this.ds);
-                input.dataRow = 0;
-            }
-            WebMolKit.Func.renderStructure(input, () => this.updateStructure);
-        }
-        downloadContent(result, error) {
-            this.btnPrepare.prop('disabled', false);
-            if (!result) {
-                alert('Request failed: ' + error.message);
-                return;
-            }
-            let format = this.formatKey[this.optFormatList.getSelectedIndex()];
-            let id = result.transientID;
-            let fn = 'download' + WebMolKit.FormatList.FORMAT_EXTN[format];
-            let url = WebMolKit.RPC.BASE_URL + '/Download/' + fn + '?transientID=' + id;
-            this.downloadArea.empty();
-            WebMolKit.addText(this.downloadArea, 'Temporary download link: ');
-            WebMolKit.addText(WebMolKit.newElement(this.downloadArea, 'a', { 'href': url, 'target': '_blank' }), fn);
-        }
-    }
-    WebMolKit.Download = Download;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
     class EditCompound extends WebMolKit.Dialog {
         constructor(mol) {
             super();
             this.mol = mol;
             this.sketcher = new WebMolKit.Sketcher();
+            this.proxyClip = null;
             this.callbackSave = null;
             this.title = 'Edit Compound';
             this.minPortionWidth = 20;
@@ -22010,7 +23814,23 @@ var WebMolKit;
         }
         getMolecule() { return this.sketcher.getMolecule(); }
         defineClipboard(proxy) {
+            this.proxyClip = proxy;
+            let handler = new WebMolKit.ClipboardProxyHandler();
+            handler.copyEvent = (andCut, proxy) => {
+                this.sketcher.performCopySelection(andCut);
+                return true;
+            };
+            handler.pasteEvent = (proxy) => {
+                this.sketcher.pasteText(proxy.getString());
+                return true;
+            };
+            proxy.pushHandler(handler);
             this.sketcher.defineClipboard(proxy);
+        }
+        close() {
+            if (this.proxyClip)
+                this.proxyClip.popHandler();
+            super.close();
         }
         populate() {
             let buttons = this.buttons(), body = this.body();
@@ -22300,26 +24120,6 @@ var WebMolKit;
             mol2.setAtomMapNum(atom2, map);
         }
         autoConnect() {
-            WebMolKit.Func.atomMapping({ 'leftNative': this.mol1.toString(), 'rightNative': this.mol2.toString() }, (result, error) => {
-                if (!result)
-                    return;
-                let map1 = result.map1, map2 = result.map2;
-                if (map1 == null || map2 == null)
-                    return;
-                let modified = false;
-                for (let n = 1; n <= this.mol1.numAtoms && n <= map1.length; n++)
-                    if (map1[n - 1] > 0 && this.mol1.atomMapNum(n) == 0) {
-                        this.mol1.setAtomMapNum(n, map1[n - 1]);
-                        modified = true;
-                    }
-                for (let n = 1; n <= this.mol2.numAtoms && n <= map2.length; n++)
-                    if (map2[n - 1] > 0 && this.mol2.atomMapNum(n) == 0) {
-                        this.mol2.setAtomMapNum(n, map2[n - 1]);
-                        modified = true;
-                    }
-                if (modified)
-                    this.redrawCanvas();
-            });
         }
         clearAllMappings() {
             let anything = false;
@@ -22478,60 +24278,6 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
-    class Account {
-        static connectTransient(callback) {
-            new WebMolKit.RPC('account.connectTransient', {}, callback).invoke();
-        }
-        static refreshTransient(input, callback) {
-            new WebMolKit.RPC('account.refreshTransient', input, callback).invoke();
-        }
-    }
-    WebMolKit.Account = Account;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class Pile {
-        static uploadMolecule(input, callback) {
-            new WebMolKit.RPC('pile.uploadMolecule', input, callback).invoke();
-        }
-        static uploadDataSheet(input, callback) {
-            new WebMolKit.RPC('pile.uploadDataSheet', input, callback).invoke();
-        }
-        static downloadMolecule(input, callback) {
-            new WebMolKit.RPC('pile.downloadMolecule', input, callback).invoke();
-        }
-        static downloadDataSheet(input, callback) {
-            new WebMolKit.RPC('pile.downloadDataSheet', input, callback).invoke();
-        }
-        static fetchSelection(input, callback) {
-            new WebMolKit.RPC('pile.fetchSelection', input, callback).invoke();
-        }
-        static fetchMolecules(input, callback) {
-            new WebMolKit.RPC('pile.fetchMolecules', input, callback).invoke();
-        }
-    }
-    WebMolKit.Pile = Pile;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class Search {
-        static startMolSearch(input, callback) {
-            new WebMolKit.RPC('search.startMolSearch', input, callback).invoke();
-        }
-        static pollMolSearch(input, callback) {
-            new WebMolKit.RPC('search.pollMolSearch', input, callback).invoke();
-        }
-        static startRxnSearch(input, callback) {
-            new WebMolKit.RPC('search.startRxnSearch', input, callback).invoke();
-        }
-        static pollRxnSearch(input, callback) {
-            new WebMolKit.RPC('search.pollRxnSearch', input, callback).invoke();
-        }
-    }
-    WebMolKit.Search = Search;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
     class CircleButton extends WebMolKit.Widget {
         constructor(icon) {
             super();
@@ -22604,7 +24350,7 @@ var WebMolKit;
             this.ringProgress.hidden = true;
             this.thinBorder = renderBorder(1);
             this.thickBorder = renderBorder(2);
-            let svgurl = WebMolKit.RPC.BASE_URL + '/img/icons/' + this.icon;
+            let svgurl = WebMolKit.Theme.BASE_URL + '/img/icons/' + this.icon;
             this.svg = WebMolKit.newElement(div, 'object', { 'width': width, 'height': height, 'style': canvasStyle, 'data': svgurl, 'type': 'image/svg+xml' });
             this.updateLayers();
             div.mouseenter(() => this.mouseEnter());
@@ -22843,7 +24589,7 @@ var WebMolKit;
                         if (spec.aspect == null) {
                             if (ds.isNull(row, spec.idx))
                                 td.text(' ');
-                            else if (ds.colType(spec.idx) == WebMolKit.DataSheet.COLTYPE_MOLECULE)
+                            else if (ds.colType(spec.idx) == "molecule")
                                 this.renderMolecule(td, row, spec.idx);
                             else
                                 this.renderPrimitive(td, row, spec.idx);
@@ -22888,22 +24634,22 @@ var WebMolKit;
                     reserved[n] = reserved[n] || claimed[n];
             }
             for (let n = 0; n < ds.numCols; n++)
-                if (!reserved[n] && ds.colType(n) != WebMolKit.DataSheet.COLTYPE_EXTEND) {
+                if (!reserved[n] && ds.colType(n) != "extend") {
                     columns.push({ 'name': ds.colName(n), 'aspect': null, 'type': null, 'idx': n });
                 }
             return columns;
         }
         renderPrimitive(td, row, col) {
             let txt = '', ct = this.ds.colType(col), align = 'center';
-            if (ct == WebMolKit.DataSheet.COLTYPE_STRING) {
+            if (ct == "string") {
                 txt = this.ds.getString(row, col);
                 align = 'left';
             }
-            else if (ct == WebMolKit.DataSheet.COLTYPE_INTEGER)
+            else if (ct == "integer")
                 txt = this.ds.getInteger(row, col).toString();
-            else if (ct == WebMolKit.DataSheet.COLTYPE_REAL)
+            else if (ct == "real")
                 txt = this.ds.getReal(row, col).toString();
-            else if (ct == WebMolKit.DataSheet.COLTYPE_BOOLEAN)
+            else if (ct == "boolean")
                 txt = this.ds.getBoolean(row, col) ? 'true' : 'false';
             td.text(txt);
             td.css('text-align', align);
@@ -23326,63 +25072,63 @@ var WebMolKit;
             }
             if (qc.valueEquiv > 0) {
                 let text = qc.valueEquiv.toString(), stat = qc.statEquiv;
-                if (stat == WebMolKit.QuantityCalc.STAT_VIRTUAL)
+                if (stat == 2)
                     text = '<i>(' + text + ')</i>';
-                else if (stat == WebMolKit.QuantityCalc.STAT_CONFLICT)
+                else if (stat == 3)
                     text += ' (conflicting)';
                 title.push('Stoichiometry');
                 content.push(text);
             }
             if (qc.valueMass > 0) {
                 let text = WebMolKit.QuantityCalc.formatMass(qc.valueMass), stat = qc.statMass;
-                if (stat == WebMolKit.QuantityCalc.STAT_VIRTUAL)
+                if (stat == 2)
                     text = '<i>(' + text + ')</i>';
-                else if (stat == WebMolKit.QuantityCalc.STAT_CONFLICT)
+                else if (stat == 3)
                     text += ' (conflicting)';
                 title.push('Mass');
                 content.push(text);
             }
             if (qc.valueVolume > 0) {
                 let text = WebMolKit.QuantityCalc.formatVolume(qc.valueVolume), stat = qc.statVolume;
-                if (stat == WebMolKit.QuantityCalc.STAT_VIRTUAL)
+                if (stat == 2)
                     text = '<i>(' + text + ')</i>';
-                else if (stat == WebMolKit.QuantityCalc.STAT_CONFLICT)
+                else if (stat == 3)
                     text += ' (conflicting)';
                 title.push('Volume');
                 content.push(text);
             }
             if (qc.valueMoles > 0) {
                 let text = WebMolKit.QuantityCalc.formatMoles(qc.valueMoles), stat = qc.statMoles;
-                if (stat == WebMolKit.QuantityCalc.STAT_VIRTUAL)
+                if (stat == 2)
                     text = '<i>(' + text + ')</i>';
-                else if (stat == WebMolKit.QuantityCalc.STAT_CONFLICT)
+                else if (stat == 3)
                     text += ' (conflicting)';
                 title.push('Moles');
                 content.push(text);
             }
             if (qc.valueDensity > 0) {
                 let text = WebMolKit.QuantityCalc.formatDensity(qc.valueDensity), stat = qc.statDensity;
-                if (stat == WebMolKit.QuantityCalc.STAT_VIRTUAL)
+                if (stat == 2)
                     text = '<i>(' + text + ')</i>';
-                else if (stat == WebMolKit.QuantityCalc.STAT_CONFLICT)
+                else if (stat == 3)
                     text += ' (conflicting)';
                 title.push('Density');
                 content.push(text);
             }
             if (qc.valueConc > 0) {
                 let text = WebMolKit.QuantityCalc.formatConc(qc.valueConc), stat = qc.statConc;
-                if (stat == WebMolKit.QuantityCalc.STAT_VIRTUAL)
+                if (stat == 2)
                     text = '<i>(' + text + ')</i>';
-                else if (stat == WebMolKit.QuantityCalc.STAT_CONFLICT)
+                else if (stat == 3)
                     text += ' (conflicting)';
                 title.push('Concentration');
                 content.push(text);
             }
             if (qc.valueYield > 0 && !qc.comp.waste) {
                 let text = WebMolKit.QuantityCalc.formatPercent(qc.valueYield), stat = qc.statYield;
-                if (stat == WebMolKit.QuantityCalc.STAT_VIRTUAL)
+                if (stat == 2)
                     text = '<i>(' + text + ')</i>';
-                else if (stat == WebMolKit.QuantityCalc.STAT_CONFLICT)
+                else if (stat == 3)
                     text += ' (conflicting)';
                 title.push('Yield');
                 content.push(text);
@@ -23587,6 +25333,14 @@ var WebMolKit;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
+    class MenuProxy {
+        hasContextMenu() { return false; }
+        openContextMenu(menuItems, event) { }
+    }
+    WebMolKit.MenuProxy = MenuProxy;
+})(WebMolKit || (WebMolKit = {}));
+var WebMolKit;
+(function (WebMolKit) {
     const CSS_POPUP = `
 	*.wmk-popup
 	{
@@ -23596,6 +25350,7 @@ var WebMolKit;
     class Popup {
         constructor(parent) {
             this.parent = parent;
+            this.popupBackground = 'white';
             this.callbackClose = null;
             this.callbackPopulate = null;
             WebMolKit.installInlineCSS('popup', CSS_POPUP);
@@ -23605,25 +25360,17 @@ var WebMolKit;
         }
         open() {
             let body = $(document.documentElement);
-            let bg = this.obscureBackground = $('<div></div>').appendTo(body);
-            bg.css('width', '100%');
-            bg.css('height', document.documentElement.clientHeight + 'px');
-            bg.css('background-color', 'black');
-            bg.css('opacity', 0.2);
-            bg.css('position', 'absolute');
-            bg.css('left', 0);
-            bg.css('top', 0);
-            bg.css('z-index', 9999);
+            let bg = this.obscureBackground = $('<div/>').appendTo(body);
+            bg.css({ 'width': '100%', 'height': document.documentElement.clientHeight + 'px' });
+            bg.css({ 'background-color': 'black', 'opacity': 0.2 });
+            bg.css({ 'position': 'absolute', 'left': 0, 'top': 0, 'z-index': 19999 });
             bg.click(() => this.close());
             this.obscureBackground = bg;
-            let pb = this.panelBoundary = $('<div class="wmk-popup"></div>').appendTo(body);
+            let pb = this.panelBoundary = $('<div class="wmk-popup"/>').appendTo(body);
             pb.click((event) => event.stopPropagation());
-            pb.css('background-color', 'white');
-            pb.css('border', '1px solid black');
-            pb.css('position', 'absolute');
-            pb.css('z-index', 10000);
-            let bd = this.bodyDiv = $('<div></div>').appendTo(pb);
-            bd.css('padding', '0.5em');
+            pb.css({ 'background-color': this.popupBackground, 'border': '1px solid black' });
+            pb.css({ 'position': 'absolute', 'z-index': 20000 });
+            this.bodyDiv = $('<div/>').appendTo(pb).css('padding', '0.5em');
             bg.show();
             this.populate();
             this.positionAndShow();
@@ -23674,854 +25421,6 @@ var WebMolKit;
         }
     }
     WebMolKit.Popup = Popup;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class RowView extends WebMolKit.Widget {
-        constructor(tokenID) {
-            super();
-            this.tokenID = tokenID;
-            this.entries = null;
-            this.watermark = 0;
-        }
-        defineEntries(entries) {
-            this.entries = entries;
-        }
-        render(parent) {
-            super.render(parent);
-            if (this.entries == null)
-                throw 'molsync.ui.RowView: entries must be defined before rendering';
-            let tableStyle = 'border-collapse: collapse;';
-            let table = $('<table></table>').appendTo(this.content);
-            table.attr('style', tableStyle);
-            let roster = [];
-            this.watermark++;
-            for (let n = 0; n < this.entries.length; n++) {
-                let entry = this.entries[n];
-                entry.tr = $('<tr></tr>').appendTo(table);
-                entry = WebMolKit.clone(entry);
-                entry.tdStyle = '';
-                if (n > 0)
-                    entry.tdStyle += 'border-top: 1px solid #80C080;';
-                if (n < this.entries.length - 1)
-                    entry.tdStyle += 'border-bottom: 1px solid #80C080;';
-                entry.watermark = this.watermark;
-                roster.push(entry);
-            }
-            let fcnComposure = (result, error) => {
-                let entry = roster.shift();
-                if (entry.watermark != this.watermark)
-                    return;
-                if (error != null)
-                    throw 'molsync.ui.RowView: failed to obtain document composition: ' + error.message;
-                let nodes = [];
-                for (let n = 0; n < result.doc.nodes.length; n++) {
-                    let node = result.doc.nodes[n];
-                    let src = node.src;
-                    if (src.startsWith('experiment:') && src != 'experiment:header' && src != 'experiment:scheme')
-                        continue;
-                    nodes.push(node);
-                }
-                for (let n = 0; n < nodes.length; n++) {
-                    let tdStyle = entry.tdStyle + 'vertical-align: top;';
-                    if (n > 0)
-                        tdStyle += 'border-left: 1px solid #80C080;';
-                    if (n < nodes.length - 1)
-                        tdStyle += 'border-right: 1px solid #80C080;';
-                    if (nodes[n].type != 'graphics')
-                        tdStyle += 'padding: 0.5em;';
-                    let td = $('<td></td>').appendTo(entry.tr);
-                    td.attr('style', tdStyle);
-                    this.renderNode(td, nodes[n]);
-                }
-                if (roster.length > 0)
-                    WebMolKit.Func.composeDocument({ 'tokenID': this.tokenID, 'dataXML': roster[0].dataXML, 'subsumeTitle': true }, fcnComposure);
-            };
-            if (roster.length > 0)
-                WebMolKit.Func.composeDocument({ 'tokenID': this.tokenID, 'dataXML': roster[0].dataXML, 'subsumeTitle': true }, fcnComposure);
-        }
-        renderNode(parent, node) {
-            if (node.type == 'line')
-                this.renderLine(parent, node, true);
-            else if (node.type == 'link')
-                this.renderLink(parent, node);
-            else if (node.type == 'graphics')
-                this.renderGraphics(parent, node);
-            else if (node.type == 'para')
-                this.renderPara(parent, node);
-            else if (node.type == 'matrix')
-                this.renderMatrix(parent, node);
-        }
-        renderLine(parent, node, inPara) {
-            if (inPara)
-                parent = $(WebMolKit.newElement(parent, 'p'));
-            if (node.title) {
-                WebMolKit.addText(WebMolKit.newElement(parent, 'b'), node.title);
-                WebMolKit.addText(parent[0], ': ');
-            }
-            if (node.bold)
-                parent = $(WebMolKit.newElement(parent, 'b'));
-            if (node.italic)
-                parent = $(WebMolKit.newElement(parent, 'i'));
-            if (node.underline)
-                parent = $(WebMolKit.newElement(parent, 'u'));
-            if (node.formula)
-                this.renderFormula(parent, node.text);
-            else
-                WebMolKit.addText(parent, node.text);
-        }
-        renderLink(parent, node) {
-            if (node.title) {
-                WebMolKit.addText(WebMolKit.newElement(parent, 'b'), node.title);
-                WebMolKit.addText(parent[0], ': ');
-            }
-            let ahref = WebMolKit.newElement(parent, 'a', { 'href': node.url, 'target': '_blank' });
-            WebMolKit.addText(ahref, node.url);
-        }
-        renderGraphics(parent, node) {
-            let draw = new WebMolKit.MetaVector(node.metavec);
-            draw.renderInto(parent);
-        }
-        renderPara(parent, node) {
-            parent = $('<p></p>').appendTo(parent);
-            for (let n = 0; n < node.nodes.length; n++) {
-                let sub = node.nodes[n];
-                if (n > 0)
-                    WebMolKit.newElement(parent, 'br');
-                if (sub.type == 'line')
-                    this.renderLine(parent, sub, false);
-                else
-                    this.renderNode(parent, sub);
-            }
-        }
-        renderMatrix(parent, node) {
-            let ncols = node.ncols, nrows = node.nrows;
-            let table = WebMolKit.newElement(parent, 'table', { 'class': 'data', 'style': 'margin: 0;' });
-            let tableBody = WebMolKit.newElement(table, 'tbody');
-            for (let r = 0; r < nrows; r++) {
-                let tableRow = WebMolKit.newElement(tableBody, 'tr');
-                for (let c = 0; c < ncols; c++) {
-                    let cell = node.matrix[r][c];
-                    let tableCell = WebMolKit.newElement(tableRow, 'td', { 'class': 'data' });
-                    this.renderNode($(tableCell), cell);
-                }
-            }
-        }
-        renderFormula(parent, formula) {
-            for (let n = 0; n < formula.length; n++) {
-                let ch = formula.charAt(n);
-                if (ch == '|') { }
-                else if (ch == '{') {
-                    let end = formula.indexOf('}', n + 1);
-                    if (end >= 0) {
-                        let snip = formula.substring(n + 1, end);
-                        WebMolKit.addText(WebMolKit.newElement(parent, 'sub'), snip);
-                        n = end;
-                    }
-                    else
-                        WebMolKit.addText(parent, ch);
-                }
-                else
-                    WebMolKit.addText(parent, ch);
-            }
-        }
-    }
-    WebMolKit.RowView = RowView;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class SearchMolecules extends WebMolKit.Widget {
-        constructor(tokenID) {
-            super();
-            this.tokenID = tokenID;
-            this.molsearchToken = null;
-            this.cancelled = false;
-            this.started = false;
-            this.finished = false;
-            this.progress = 0;
-            this.count = 0;
-            this.results = [];
-            this.callbackStop = null;
-            this.callbackProgress = null;
-            this.callbackMol = null;
-            this.callbackDS = null;
-        }
-        render(parent) {
-            super.render(parent);
-            let tableStyle = 'border-collapse: collapse;';
-            this.table = $('<table></table>').appendTo(this.content);
-            this.table.attr('style', tableStyle);
-        }
-        startSearch(origin, mol, type, maxResults = 100) {
-            this.cancelled = false;
-            this.results = [];
-            this.table.empty();
-            this.placeholder = $('<tr><td>Starting search...</td></tr>').appendTo(this.table);
-            let molstr = mol == null ? null : mol.toString();
-            let param = { 'origin': origin, 'molNative': molstr, 'type': type, 'maxResults': maxResults };
-            WebMolKit.Search.startMolSearch(param, (result, error) => {
-                if (error != null)
-                    throw 'molsync.ui.SearchMolecules: failed to initiate search: ' + error.message;
-                this.molsearchToken = result.molsearchToken;
-                this.started = true;
-                this.finished = false;
-                WebMolKit.Search.pollMolSearch({ 'molsearchToken': this.molsearchToken }, () => this.batchSearch(result, error));
-            });
-        }
-        stopSearch() {
-            if (this.placeholder) {
-                this.placeholder.remove();
-                this.placeholder = null;
-            }
-            this.cancelled = true;
-            this.finished = true;
-            if (this.callbackStop)
-                this.callbackStop(this);
-        }
-        isRunning() {
-            return this.started && !this.finished;
-        }
-        batchSearch(result, error) {
-            if (this.placeholder) {
-                this.placeholder.remove();
-                this.placeholder = null;
-            }
-            if (error != null)
-                throw 'molsync.ui.SearchMolecules: failed to obtain next batch: ' + error.message;
-            if (this.cancelled)
-                return;
-            this.finished = result.finished;
-            this.progress = result.progress;
-            this.count = result.count;
-            if (result.modified)
-                this.updateResults(result.results);
-            if (!this.finished) {
-                WebMolKit.Search.pollMolSearch({ 'molsearchToken': this.molsearchToken }, (result, error) => this.batchSearch(result, error));
-                if (this.callbackProgress)
-                    this.callbackProgress(this.progress, this.count, this);
-            }
-            else {
-                if (this.callbackStop)
-                    this.callbackStop(this);
-            }
-        }
-        updateResults(results) {
-            for (let n = 0; n < results.length; n++) {
-                let res = results[n];
-                res.tr = $('<tr></tr>').appendTo(this.table);
-                res.td = $('<td></td>').appendTo(res.tr);
-                if (n > 0)
-                    res.td.css('border-top', '1px solid #80C080');
-                if (n < results.length - 1)
-                    res.td.css('border-bottom', '1px solid #80C080');
-                let table = $('<table></table>').appendTo(res.td), tr = $('<tr></tr>').appendTo(table);
-                if (res.similarity) {
-                    let td = $('<td></td>').appendTo(tr);
-                    let txt = res.similarity == 1 ? '100%' : (res.similarity * 100).toFixed(1) + '%';
-                    td.text(txt);
-                }
-                for (let sk of res.sketches) {
-                    let td = $('<td></td>').appendTo(tr);
-                    let vs = this.grabSketch(td, sk.molNative, sk.moleculeID);
-                    sk.viewMol = vs;
-                }
-                let td = $('<td></td>').appendTo(tr);
-                for (let src of res.sources) {
-                    let link = $('<a href="#' + src.datasheetID + '"></a>').appendTo(td);
-                    link.mouseenter((e) => e.target.style.backgroundColor = '#D0D0D0');
-                    link.mouseleave((e) => e.target.style.backgroundColor = 'transparent');
-                    let title = src.subTitle ? src.subTitle : src.title ? src.title : 'DataSheet#' + src.datasheetID;
-                    link.text(title);
-                    let body = '';
-                    if (src.title && src.title != title)
-                        body += '<div>Title: <i>' + WebMolKit.escapeHTML(src.title) + '</i></div>';
-                    if (src.descr)
-                        body += '<div>Description: <i>' + WebMolKit.escapeHTML(src.descr) + '</i></div>';
-                    body += '<div>Row ' + src.row + '</div>';
-                    WebMolKit.addTooltip(link, body, WebMolKit.escapeHTML(title));
-                    link.click(() => { if (this.callbackDS)
-                        this.callbackDS(src.datasheetID, this); });
-                    td.append(' ');
-                }
-            }
-            for (let res of this.results)
-                res.tr.remove();
-            this.results = results;
-        }
-        grabSketch(parent, molNative, moleculeID) {
-            for (let res of this.results)
-                for (let sk of res.sketches) {
-                    for (let mid of moleculeID)
-                        if (sk.moleculeID.indexOf(mid) >= 0 && sk.viewMol != null) {
-                            sk.viewMol.content.appendTo(parent);
-                            return sk.viewMol;
-                        }
-                }
-            const vs = new WebMolKit.ViewStructure(this.tokenID);
-            vs.content = parent;
-            vs.defineMoleculeString(molNative);
-            vs.borderCol = -1;
-            vs.backgroundCol1 = 0xF8F8F8;
-            vs.backgroundCol2 = 0xE0E0E0;
-            vs.padding = 4;
-            vs.setup(() => {
-                vs.render(parent);
-                vs.content.css('cursor', 'pointer');
-                vs.content.click(() => {
-                    if (this.callbackMol)
-                        this.callbackMol(moleculeID, WebMolKit.Molecule.fromString(molNative));
-                });
-            });
-            return vs;
-        }
-    }
-    SearchMolecules.TYPE_EXACT = 'exact';
-    SearchMolecules.TYPE_SUBSTRUCTURE = 'substructure';
-    SearchMolecules.TYPE_SIMILARITY = 'similarity';
-    SearchMolecules.TYPE_RANDOM = 'random';
-    WebMolKit.SearchMolecules = SearchMolecules;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class SearchPanel extends WebMolKit.Widget {
-        constructor(type) {
-            super();
-            this.type = type;
-            this.onChange = null;
-            this.highlight = 0;
-            this.pressed = 0;
-            this.mol1 = new WebMolKit.Molecule();
-            this.mol2 = new WebMolKit.Molecule();
-            this.isSketching = false;
-            this.height = 50;
-            this.molWidth = 80;
-            this.arrowWidth = 30;
-            this.HPADDING = 4;
-            this.VPADDING = 2;
-            this.emptyMsg1 = null;
-            this.emptyMsg2 = null;
-            this.proxyClip = null;
-        }
-        configureDisplay(molWidth, height, emptyMsg1, emptyMsg2) {
-            this.molWidth = molWidth;
-            this.height = height;
-            this.emptyMsg1 = emptyMsg1;
-            this.emptyMsg2 = emptyMsg2;
-        }
-        defineClipboard(proxy) {
-            this.proxyClip = proxy;
-        }
-        getMolecule1() { return this.mol1; }
-        getMolecule2() { return this.mol2; }
-        setMolecule1(mol) {
-            this.mol1 = mol;
-            this.renderMolecule(1);
-        }
-        setMolecule2(mol) {
-            this.mol2 = mol;
-            this.renderMolecule(2);
-        }
-        render(parent) {
-            super.render(parent);
-            this.content.addClass('no_selection');
-            const height = this.height, molw = this.molWidth, arrow = this.arrowWidth;
-            const density = WebMolKit.pixelDensity();
-            const hpad = this.HPADDING, vpad = this.VPADDING;
-            let isRxn = this.type == SearchPanel.TYPE_REACTION, isMol = !isRxn;
-            let div = this.content;
-            if (isMol)
-                div.css('width', (molw + 2 * hpad) + 'px');
-            else
-                div.css('width', (2 * molw + arrow + 4 * hpad) + 'px');
-            div.css('height', (height + 2 * vpad) + 'px');
-            div.css('position', 'relative');
-            let renderSolid = (col1, col2, style) => {
-                let node = WebMolKit.newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': style });
-                node.style.width = molw + 'px';
-                node.style.height = height + 'px';
-                let ctx = node.getContext('2d');
-                ctx.scale(density, density);
-                let grad = ctx.createLinearGradient(0, 0, molw, height);
-                grad.addColorStop(0, col1);
-                grad.addColorStop(1, col2);
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, molw, height);
-                return node;
-            };
-            let renderBorder = (lw, style) => {
-                let node = WebMolKit.newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': style });
-                node.style.width = molw + 'px';
-                node.style.height = height + 'px';
-                let ctx = node.getContext('2d');
-                ctx.scale(density, density);
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = lw;
-                ctx.strokeRect(0.5 * lw, 0.5 * lw, molw - lw, height - lw);
-                return node;
-            };
-            let renderArrow = (style) => {
-                let node = WebMolKit.newElement(div, 'canvas', { 'width': arrow * density, 'height': height * density, 'style': style });
-                node.style.width = arrow + 'px';
-                node.style.height = height + 'px';
-                let ctx = node.getContext('2d');
-                ctx.scale(density, density);
-                let midY = Math.round(0.5 * height);
-                ctx.beginPath();
-                ctx.moveTo(0, midY);
-                ctx.lineTo(arrow - 2, midY);
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(arrow, midY);
-                ctx.lineTo(arrow - 8, midY - 5);
-                ctx.lineTo(arrow - 8, midY + 5);
-                ctx.fillStyle = 'black';
-                ctx.fill();
-                return node;
-            };
-            let renderOutlineArrow = (style, col) => {
-                let node = WebMolKit.newElement(div, 'canvas', { 'width': arrow * density, 'height': height * density, 'style': style });
-                node.style.width = arrow + 'px';
-                node.style.height = height + 'px';
-                let ctx = node.getContext('2d');
-                ctx.scale(density, density);
-                let midY = Math.round(0.5 * height);
-                let path = WebMolKit.pathRoundedRect(0, midY - 8, arrow, midY + 8, 4);
-                ctx.fillStyle = col;
-                ctx.fill(path);
-                return node;
-            };
-            let styleMol1Pos = 'position: absolute; left: ' + hpad + 'px; top: ' + vpad + 'px;';
-            let styleMol1 = styleMol1Pos + 'pointer-events: none;';
-            this.normalMol1 = renderSolid('#FFFFFF', '#D0D0D0', styleMol1);
-            this.pressedMol1 = renderSolid('#00CA59', '#008650', styleMol1);
-            this.drawnMol1 = WebMolKit.newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': styleMol1Pos });
-            this.drawnMol1.style.cursor = 'pointer';
-            this.renderMolecule(1);
-            this.thinMol1 = renderBorder(1, styleMol1);
-            this.thickMol1 = renderBorder(2, styleMol1);
-            if (isRxn) {
-                let styleArrowPos = 'position: absolute; left: ' + (2 * hpad + molw) + 'px; top: ' + vpad + 'px;';
-                let styleArrow = styleArrowPos + 'pointer-events: none;';
-                this.hoverArrow = renderOutlineArrow(styleArrow, '#C0C0C0');
-                this.pressedArrow = renderOutlineArrow(styleArrow, '#00CA59');
-                this.drawnArrow = renderArrow(styleArrowPos);
-                let styleMol2Pos = 'position: absolute; left: ' + (3 * hpad + molw + arrow) + 'px; top: ' + vpad + 'px;';
-                let styleMol2 = styleMol2Pos + 'pointer-events: none;';
-                this.normalMol2 = renderSolid('#FFFFFF', '#D0D0D0', styleMol2);
-                this.pressedMol2 = renderSolid('#00CA59', '#008650', styleMol2);
-                this.drawnMol2 = WebMolKit.newElement(div, 'canvas', { 'width': molw * density, 'height': height * density, 'style': styleMol2Pos });
-                this.drawnMol2.style.cursor = 'pointer';
-                this.renderMolecule(2);
-                this.thinMol2 = renderBorder(1, styleMol2);
-                this.thickMol2 = renderBorder(2, styleMol2);
-            }
-            this.updateLayers();
-            $(this.drawnMol1).mouseenter(() => this.mouseEnter(1));
-            $(this.drawnMol1).mouseleave(() => this.mouseLeave(1));
-            $(this.drawnMol1).mousedown(() => this.mouseDown(1));
-            $(this.drawnMol1).mouseup(() => this.mouseUp(1));
-            $(this.drawnMol1).attr('ondragstart', () => false);
-            $(this.drawnMol1).click(() => this.editMolecule(1));
-            if (isRxn) {
-                $(this.drawnArrow).mouseenter(() => this.mouseEnter(3));
-                $(this.drawnArrow).mouseleave(() => this.mouseLeave(3));
-                $(this.drawnArrow).mousedown(() => this.mouseDown(3));
-                $(this.drawnArrow).mouseup(() => this.mouseUp(3));
-                $(this.drawnArrow).attr('ondragstart', () => false);
-                $(this.drawnArrow).click(() => this.editMapping());
-                $(this.drawnMol2).mouseenter(() => this.mouseEnter(2));
-                $(this.drawnMol2).mouseleave(() => this.mouseLeave(2));
-                $(this.drawnMol2).mousedown(() => this.mouseDown(2));
-                $(this.drawnMol2).mouseup(() => this.mouseUp(2));
-                $(this.drawnMol2).attr('ondragstart', () => false);
-                $(this.drawnMol2).click(() => this.editMolecule(2));
-            }
-            if (!isRxn) {
-                WebMolKit.addTooltip(this.drawnMol1, 'Edit the molecular structure.');
-            }
-            else {
-                WebMolKit.addTooltip(this.drawnMol1, 'Edit the reactant structures.');
-                WebMolKit.addTooltip(this.drawnMol2, 'Edit the product structures.');
-                WebMolKit.addTooltip(this.drawnArrow, 'Map the reactant and product atoms, for more precise searches.');
-            }
-            document.addEventListener('paste', (e) => {
-                if (this.isSketching)
-                    return true;
-                let wnd = window, txt = '';
-                if (wnd.clipboardData && wnd.clipboardData.getData)
-                    txt = wnd.clipboardData.getData('Text');
-                else if (e.clipboardData && e.clipboardData.getData)
-                    txt = e.clipboardData.getData('text/plain');
-                if (!txt)
-                    return true;
-                let mol = WebMolKit.MoleculeStream.readUnknown(txt);
-                if (!mol)
-                    return true;
-                let which = this.type == SearchPanel.TYPE_REACTION && !WebMolKit.MolUtil.isBlank(this.mol1) && WebMolKit.MolUtil.isBlank(this.mol2) ? 2 : 1;
-                if (which == 1)
-                    this.setMolecule1(mol);
-                else
-                    this.setMolecule2(mol);
-                e.preventDefault();
-                if (this.onChange)
-                    this.onChange(this);
-                return false;
-            });
-            this.drawnMol1.addEventListener('dragover', (event) => {
-                event.stopPropagation();
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'copy';
-            });
-            this.drawnMol1.addEventListener('drop', (event) => {
-                event.stopPropagation();
-                event.preventDefault();
-                this.dropInto(1, event.dataTransfer);
-            });
-            if (isRxn) {
-                this.drawnMol2.addEventListener('dragover', (event) => {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'copy';
-                });
-                this.drawnMol2.addEventListener('drop', (event) => {
-                    event.stopPropagation();
-                    event.preventDefault();
-                    this.dropInto(2, event.dataTransfer);
-                });
-            }
-        }
-        updateLayers() {
-            WebMolKit.setVisible(this.normalMol1, this.pressed != 1);
-            WebMolKit.setVisible(this.pressedMol1, this.pressed == 1);
-            WebMolKit.setVisible(this.thinMol1, this.highlight != 1);
-            WebMolKit.setVisible(this.thickMol1, this.highlight == 1);
-            WebMolKit.setVisible(this.hoverArrow, this.highlight == 3);
-            WebMolKit.setVisible(this.pressedArrow, this.pressed == 3);
-            WebMolKit.setVisible(this.normalMol2, this.pressed != 2);
-            WebMolKit.setVisible(this.pressedMol2, this.pressed == 2);
-            WebMolKit.setVisible(this.thinMol2, this.highlight != 2);
-            WebMolKit.setVisible(this.thickMol2, this.highlight == 2);
-        }
-        renderMolecule(which) {
-            let mol = which == 1 ? this.mol1 : this.mol2, canvas = which == 1 ? this.drawnMol1 : this.drawnMol2;
-            let withMapping = false;
-            if (this.type == SearchPanel.TYPE_REACTION)
-                for (let n = 1; n <= mol.numAtoms; n++)
-                    if (mol.atomMapNum(n) > 0) {
-                        withMapping = true;
-                        break;
-                    }
-            let width = this.molWidth, height = this.height;
-            let density = WebMolKit.pixelDensity();
-            let ctx = canvas.getContext('2d');
-            ctx.save();
-            ctx.scale(density, density);
-            ctx.clearRect(0, 0, width, height);
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-            if (mol.numAtoms > 0) {
-                let policy = WebMolKit.RenderPolicy.defaultColourOnWhite();
-                let measure = new WebMolKit.OutlineMeasurement(0, 0, policy.data.pointScale);
-                let layout = new WebMolKit.ArrangeMolecule(mol, measure, policy, new WebMolKit.RenderEffects());
-                layout.arrange();
-                let metavec = new WebMolKit.MetaVector();
-                new WebMolKit.DrawMolecule(layout, metavec).draw();
-                metavec.transformIntoBox(new WebMolKit.Box(2, 2, width - 4, height - 4));
-                metavec.renderContext(ctx);
-            }
-            else if ((which == 1 && this.emptyMsg1) || (which == 2 && this.emptyMsg2)) {
-                let lines = (which == 1 ? this.emptyMsg1 : this.emptyMsg2).split('\n');
-                const fsz = 10, fh = fsz * WebMolKit.ASCENT_FUDGE;
-                ctx.font = WebMolKit.fontSansSerif(fsz);
-                ctx.fillStyle = 'black';
-                let ty = 0.5 * (height - fh * (lines.length - 1));
-                for (let txt of lines) {
-                    let metrics = ctx.measureText(txt);
-                    ctx.fillText(txt, 0.5 * (width - metrics.width), ty);
-                    ty += fh;
-                }
-            }
-            ctx.restore();
-        }
-        mouseEnter(which) {
-            if (this.highlight != which) {
-                this.highlight = which;
-                this.updateLayers();
-            }
-        }
-        mouseLeave(which) {
-            if (this.highlight == which) {
-                this.highlight = 0;
-                this.pressed = 0;
-                this.updateLayers();
-            }
-        }
-        mouseDown(which) {
-            if (this.pressed != which) {
-                this.pressed = which;
-                this.updateLayers();
-            }
-        }
-        mouseUp(which) {
-            if (this.pressed == which) {
-                this.pressed = 0;
-                this.updateLayers();
-            }
-        }
-        editMolecule(which) {
-            let dlg = new WebMolKit.EditCompound(which == 1 ? this.mol1 : this.mol2);
-            this.isSketching = true;
-            if (this.proxyClip)
-                dlg.defineClipboard(this.proxyClip);
-            dlg.onSave(() => { if (which == 1)
-                this.saveMolecule1(dlg);
-            else
-                this.saveMolecule2(dlg); });
-            dlg.onClose(() => this.isSketching = false);
-            dlg.open();
-        }
-        editMapping() {
-            if (this.mol1.numAtoms == 0 || this.mol2.numAtoms == 0) {
-                alert('Draw structures on both sides of the arrow before mapping.');
-                return;
-            }
-            let dlg = new WebMolKit.MapReaction(this.mol1, this.mol2);
-            dlg.callbackSave = (source) => this.saveMapping(source);
-            dlg.open();
-        }
-        saveMolecule1(dlg) {
-            this.mol1 = dlg.getMolecule();
-            dlg.close();
-            this.renderMolecule(1);
-            let cookies = new WebMolKit.Cookies();
-            if (cookies.numMolecules() > 0)
-                cookies.stashMolecule(this.mol1);
-            if (this.onChange)
-                this.onChange(this);
-        }
-        saveMolecule2(dlg) {
-            this.mol2 = dlg.getMolecule();
-            dlg.close();
-            this.renderMolecule(2);
-            let cookies = new WebMolKit.Cookies();
-            if (cookies.numMolecules() > 0)
-                cookies.stashMolecule(this.mol2);
-            if (this.onChange)
-                this.onChange(this);
-        }
-        saveMapping(dlg) {
-            this.mol1 = dlg.getMolecule1();
-            this.mol2 = dlg.getMolecule2();
-            dlg.close();
-            this.renderMolecule(1);
-            this.renderMolecule(2);
-            if (this.onChange)
-                this.onChange(this);
-        }
-        dropInto(which, transfer) {
-            let items = transfer.items, files = transfer.files;
-            const SUFFIXES = ['.el', '.mol'];
-            const MIMES = ['text/plain', 'chemical/x-sketchel', 'x-mdl-molfile'];
-            for (let n = 0; n < items.length; n++) {
-                if (items[n].kind == 'string' && MIMES.indexOf(items[n].type) >= 0) {
-                    items[n].getAsString((str) => {
-                        let mol = WebMolKit.Molecule.fromString(str);
-                        if (mol != null) {
-                            if (which == 1)
-                                this.setMolecule1(mol);
-                            else
-                                this.setMolecule2(mol);
-                            if (this.onChange)
-                                this.onChange(this);
-                        }
-                        else
-                            console.log('Dragged data is not a SketchEl molecule: ' + str);
-                    });
-                    return;
-                }
-            }
-            for (let n = 0; n < files.length; n++) {
-                for (let sfx of SUFFIXES)
-                    if (files[n].name.endsWith(sfx)) {
-                        let reader = new FileReader();
-                        reader.onload = (event) => {
-                            let str = reader.result;
-                            let mol = WebMolKit.MoleculeStream.readUnknown(str.toString());
-                            if (mol != null) {
-                                if (which == 1)
-                                    this.setMolecule1(mol);
-                                else
-                                    this.setMolecule2(mol);
-                                if (this.onChange)
-                                    this.onChange(this);
-                            }
-                            else
-                                console.log('Dragged file is not a recognised molecule: ' + str);
-                        };
-                        reader.readAsText(files[n]);
-                        return;
-                    }
-            }
-        }
-    }
-    SearchPanel.TYPE_MOLECULE = 'molecule';
-    SearchPanel.TYPE_REACTION = 'reaction';
-    WebMolKit.SearchPanel = SearchPanel;
-})(WebMolKit || (WebMolKit = {}));
-var WebMolKit;
-(function (WebMolKit) {
-    class SearchReactions extends WebMolKit.Widget {
-        constructor(tokenID) {
-            super();
-            this.tokenID = tokenID;
-            this.rxnsearchToken = null;
-            this.cancelled = false;
-            this.started = false;
-            this.finished = false;
-            this.progress = 0;
-            this.count = 0;
-            this.results = [];
-            this.callbackStop = null;
-            this.callbackProgress = null;
-            this.callbackRxn = null;
-            this.callbackDS = null;
-        }
-        render(parent) {
-            super.render(parent);
-            let tableStyle = 'border-collapse: collapse;';
-            this.table = $('<table></table>').appendTo(this.content);
-            this.table.attr('style', tableStyle);
-        }
-        startSearch(origin, mol1, mol2, type, maxResults = 100) {
-            this.cancelled = false;
-            this.results = [];
-            this.table.empty();
-            this.placeholder = $('<tr><td>Starting search...</td></tr>').appendTo(this.table);
-            let molstr1 = mol1 == null ? null : mol1.toString();
-            let molstr2 = mol2 == null ? null : mol2.toString();
-            let param = { 'origin': origin, 'molNative1': molstr1, 'molNative2': molstr2, 'type': type, 'maxResults': maxResults };
-            WebMolKit.Search.startRxnSearch(param, (result, error) => {
-                if (error != null)
-                    throw 'molsync.ui.SearchReactions: failed to initiate search: ' + error.message;
-                this.rxnsearchToken = result.rxnsearchToken;
-                this.started = true;
-                this.finished = false;
-                WebMolKit.Search.pollRxnSearch({ 'rxnsearchToken': this.rxnsearchToken }, (result, error) => this.batchSearch(result, error));
-            });
-        }
-        stopSearch() {
-            if (this.placeholder) {
-                this.placeholder.remove();
-                this.placeholder = null;
-            }
-            this.cancelled = true;
-            this.finished = true;
-            if (this.callbackStop)
-                this.callbackStop(this);
-        }
-        isRunning() {
-            return this.started && !this.finished;
-        }
-        batchSearch(result, error) {
-            if (error != null)
-                throw 'molsync.ui.SearchReactions: failed to obtain next batch: ' + error.message;
-            if (this.cancelled)
-                return;
-            this.finished = result.finished;
-            this.progress = result.progress;
-            this.count = result.count;
-            if (result.modified) {
-                if (this.placeholder) {
-                    this.placeholder.remove();
-                    this.placeholder = null;
-                }
-                this.updateResults(result.results);
-            }
-            if (!this.finished) {
-                WebMolKit.Search.pollRxnSearch({ 'rxnsearchToken': this.rxnsearchToken }, (result, error) => this.batchSearch(result, error));
-                if (this.callbackProgress)
-                    this.callbackProgress(this.progress, this.count, this);
-            }
-            else {
-                if (this.placeholder) {
-                    this.placeholder.remove();
-                    this.placeholder = null;
-                }
-                if (this.callbackStop)
-                    this.callbackStop(this);
-            }
-        }
-        updateResults(results) {
-            for (let n = 0; n < results.length; n++) {
-                let res = results[n];
-                res.tr = $('<tr></tr>').appendTo(this.table);
-                res.td = $('<td></td>').appendTo(res.tr);
-                if (n > 0)
-                    res.td.css('border-top', '1px solid #80C080');
-                if (n < results.length - 1)
-                    res.td.css('border-bottom', '1px solid #80C080');
-                let table = $('<table></table>').appendTo(res.td), tr = $('<tr></tr>').appendTo(table);
-                if (res.similarity) {
-                    let td = $('<td></td>').appendTo(tr);
-                    let txt = res.similarity == 1 ? '100%' : (res.similarity * 100).toFixed(1) + '%';
-                    td.text(txt);
-                }
-                if (res.dataXML) {
-                    let td = $('<td></td>').appendTo(tr);
-                    let vs = this.grabSketch(td, res.dataXML, res.datasheetID, res.row, res.batchID);
-                    res.viewRxn = vs;
-                }
-                let td = $('<td></td>').appendTo(tr);
-                let link = $('<a href="#' + res.datasheetID + '"></a>').appendTo(td);
-                link.mouseenter((e) => e.target.style.backgroundColor = '#D0D0D0');
-                link.mouseleave((e) => e.target.style.backgroundColor = 'transparent');
-                let title = res.subTitle ? res.subTitle : res.title ? res.title : 'DataSheet#' + res.datasheetID;
-                link.text(title);
-                let body = '';
-                if (res.title && res.title != title)
-                    body += '<div>Title: <i>' + WebMolKit.escapeHTML(res.title) + '</i></div>';
-                if (res.descr)
-                    body += '<div>Description: <i>' + WebMolKit.escapeHTML(res.descr) + '</i></div>';
-                WebMolKit.addTooltip(link, body, WebMolKit.escapeHTML(title));
-                link.click(() => { if (this.callbackDS)
-                    this.callbackDS(res.datasheetID, this); });
-                td.append(' ');
-            }
-            for (let res of this.results)
-                res.tr.remove();
-            this.results = results;
-        }
-        grabSketch(parent, dataXML, datasheetID, row, batchID) {
-            for (let res of this.results)
-                if (res.batchID == batchID) {
-                    res.viewRxn.content.appendTo(parent);
-                    return res.viewRxn;
-                }
-            const vs = new WebMolKit.ViewStructure(this.tokenID);
-            vs.content = parent;
-            vs.defineDataSheetString(dataXML, 0);
-            vs.borderCol = -1;
-            vs.backgroundCol1 = 0xF8F8F8;
-            vs.backgroundCol2 = 0xE0E0E0;
-            vs.padding = 4;
-            vs.setup(() => {
-                vs.render(parent);
-                vs.content.css('cursor', 'pointer');
-                vs.content.click(() => {
-                    if (this.callbackRxn)
-                        this.callbackRxn(dataXML, datasheetID, row, this);
-                });
-            });
-            return vs;
-        }
-    }
-    SearchReactions.TYPE_COMPONENT = 'component';
-    SearchReactions.TYPE_TRANSFORM = 'transform';
-    SearchReactions.TYPE_SIMILARITY = 'similarity';
-    SearchReactions.TYPE_RANDOM = 'random';
-    WebMolKit.SearchReactions = SearchReactions;
 })(WebMolKit || (WebMolKit = {}));
 var WebMolKit;
 (function (WebMolKit) {
