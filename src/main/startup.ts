@@ -11,7 +11,7 @@
 */
 
 ///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
-///<reference path='../../../WebMolKit/src/decl/jquery.d.ts'/>
+///<reference path='../../../WebMolKit/src/decl/jquery/index.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 
 ///<reference path='../decl/node.d.ts'/>
@@ -55,17 +55,21 @@ export function runSketchEl(rootID:string):void
 		else if (key == 'fn') filename = val;
 	}	
 
+	let dw:MainPanel;
 	if (!panelClass)
 	{
-		let dw = new DrawPanel(root);
+		dw = new DrawPanel(root);
 		if (filename) dw.loadFile(filename);
 	}
 	else
 	{
 		let constructor = eval(panelClass);
-		let dw:MainPanel = new constructor(root);
+		dw = new constructor(root);
 		if (filename) dw.loadFile(filename);
 	}
+
+	const {ipcRenderer} = electron;
+	ipcRenderer.on('menuAction', (event, args) => dw.menuAction(args));
 }
 
 // high level functionality for opening a window, with a given panel as content

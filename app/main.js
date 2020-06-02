@@ -27,8 +27,9 @@ for (let n = 0; n < argv.length; n++)
 }
 if (files.length == 0) files.push(null);
 
-const WEBPREF = {'nodeIntegration': true};
-const BROWSER_PARAMS = {'width': 800, 'height': 700, 'icon': 'app/img/icon.png', 'webPreferences': WEBPREF};
+const WEBPREF = {'nodeIntegration': true, 'enableRemoteModule': true};
+const ICONFN = __dirname + '/img/icon.png';
+const BROWSER_PARAMS = {'width': 800, 'height': 700, 'icon': ICONFN, 'webPreferences': WEBPREF};
 const INIT_URL = 'file://' + __dirname + '/index.html';
 
 let mainWindows = [];

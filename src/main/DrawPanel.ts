@@ -11,7 +11,7 @@
 */
 
 ///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
-///<reference path='../../../WebMolKit/src/decl/jquery.d.ts'/>
+///<reference path='../../../WebMolKit/src/decl/jquery/index.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 ///<reference path='../../../WebMolKit/src/sketcher/Sketcher.ts'/>
 ///<reference path='../../../WebMolKit/src/ui/ClipboardProxy.ts'/>
@@ -132,7 +132,7 @@ export class DrawPanel extends MainPanel
 	{
 		const electron = require('electron');
 		const dialog = electron.remote.dialog; 
-		let params:any =
+		let params:Electron.OpenDialogOptions =
 		{
 			'title': 'Open Molecule',
 			'properties': ['openFile'],
@@ -142,10 +142,11 @@ export class DrawPanel extends MainPanel
 				{'name': 'MDL Molfile', 'extensions': ['mol']}
 			]
 		};
-		dialog.showOpenDialog(params, (filenames:string[]):void =>
+		dialog.showOpenDialog(params).then((value) =>
 		{
+			if (value.canceled) return;
 			let inPlace = this.sketcher.getMolecule().numAtoms == 0;
-			if (filenames) for (let fn of filenames) 
+			for (let fn of value.filePaths) 
 			{
 				if (inPlace)
 				{
@@ -171,7 +172,7 @@ export class DrawPanel extends MainPanel
 	{
 		const electron = require('electron');
 		const dialog = electron.remote.dialog; 
-		let params:any =
+		let params:Electron.SaveDialogOptions =
 		{
 			'title': 'Save Molecule',
 			//defaultPath...
@@ -181,10 +182,11 @@ export class DrawPanel extends MainPanel
 				{'name': 'MDL Molfile', 'extensions': ['mol']}
 			]
 		};
-		dialog.showSaveDialog(params, (filename:string):void =>
+		dialog.showSaveDialog(params).then((value) =>
 		{
-			this.saveFile(filename);
-			this.filename = filename;
+			if (value.canceled) return;
+			this.saveFile(value.filePath);
+			this.filename = value.filePath;
 			this.updateTitle();
 		});
 	}
