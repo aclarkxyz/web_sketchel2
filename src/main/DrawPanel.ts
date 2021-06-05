@@ -4,23 +4,11 @@
     (c) 2010-2016 Molecular Materials Informatics, Inc.
 
     All rights reserved
-    
+
     http://molmatinf.com
 
 	[PKG=sketchel2]
 */
-
-///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
-///<reference path='../../../WebMolKit/src/decl/jquery/index.d.ts'/>
-///<reference path='../../../WebMolKit/src/util/util.ts'/>
-///<reference path='../../../WebMolKit/src/sketcher/Sketcher.ts'/>
-///<reference path='../../../WebMolKit/src/ui/ClipboardProxy.ts'/>
-///<reference path='../../../WebMolKit/src/data/Molecule.ts'/>
-///<reference path='../../../WebMolKit/src/data/MoleculeStream.ts'/>
-///<reference path='../../../WebMolKit/src/data/MDLWriter.ts'/>
-
-///<reference path='../decl/node.d.ts'/>
-///<reference path='../decl/electron.d.ts'/>
 
 ///<reference path='./MainPanel.ts'/>
 
@@ -36,10 +24,10 @@ export class DrawPanel extends MainPanel
 	private filename:string = null;
 
 	private proxyClip = new ClipboardProxy();
-	
+
 	// ------------ public methods ------------
 
-	constructor(root:JQuery)
+	constructor(root:DOM)
 	{
 		super(root);
 
@@ -77,7 +65,7 @@ export class DrawPanel extends MainPanel
 
 			this.filename = filename;
 			this.updateTitle();
-		});		
+		});
 	}
 
 	public saveFile(filename:string):void
@@ -86,7 +74,7 @@ export class DrawPanel extends MainPanel
 
 		let mol = this.sketcher.getMolecule();
 		let content = '';
-		if (filename.endsWith('.mol')) 
+		if (filename.endsWith('.mol'))
 			content = MoleculeStream.writeMDLMOL(mol);
 		else
 			content = MoleculeStream.writeNative(mol);
@@ -94,6 +82,29 @@ export class DrawPanel extends MainPanel
 		fs.writeFile(filename, content, (err:any):void =>
 		{
 			if (err) alert('Unable to save: ' + err);
+		});
+	}
+
+	public exportAsSVG(filename:string):void
+	{
+		const fs = require('fs');
+
+		let mol = this.sketcher.getMolecule()
+		let policy = RenderPolicy.defaultColourOnWhite(20);
+		let effects = new RenderEffects();
+		let measure = new OutlineMeasurement(0, 0, policy.data.pointScale);
+
+		let gfx = new MetaVector();
+		let layout = new ArrangeMolecule(mol as Molecule, measure, policy, effects);
+		layout.arrange();
+		layout.limitBounds(100, 100);
+		new DrawMolecule(layout, gfx).draw();
+		gfx.normalise();
+		let svg = gfx.createSVG();
+
+		fs.writeFile(filename, svg, (err:any):void =>
+		{
+			if (err) alert('Unable to export SVG: ' + err);
 		});
 	}
 
@@ -130,8 +141,7 @@ export class DrawPanel extends MainPanel
 
 	private actionFileOpen():void
 	{
-		const electron = require('electron');
-		const dialog = electron.remote.dialog; 
+		const {dialog} = require('@electron/remote') as Electron.Remote;
 		let params:Electron.OpenDialogOptions =
 		{
 			'title': 'Open Molecule',
@@ -146,7 +156,7 @@ export class DrawPanel extends MainPanel
 		{
 			if (value.canceled) return;
 			let inPlace = this.sketcher.getMolecule().numAtoms == 0;
-			for (let fn of value.filePaths) 
+			for (let fn of value.filePaths)
 			{
 				if (inPlace)
 				{
@@ -170,8 +180,7 @@ export class DrawPanel extends MainPanel
 
 	private actionFileSaveAs():void
 	{
-		const electron = require('electron');
-		const dialog = electron.remote.dialog; 
+		const {dialog} = require('@electron/remote') as Electron.Remote;
 		let params:Electron.SaveDialogOptions =
 		{
 			'title': 'Save Molecule',
@@ -193,7 +202,21 @@ export class DrawPanel extends MainPanel
 
 	private actionFileExportSVG():void
 	{
-		// !!
+		const {dialog} = require('@electron/remote') as Electron.Remote;
+		let params:Electron.SaveDialogOptions =
+		{
+			'title': 'Export as SVG',
+			//defaultPath...
+			'filters':
+			[
+				{'name': 'Scalable Vector Graphics', 'extensions': ['svg']},
+			]
+		};
+		dialog.showSaveDialog(params).then((value) =>
+		{
+			if (value.canceled) return;
+			this.exportAsSVG(value.filePath);
+		});
 	}
 
 	private actionCopy(andCut:boolean):void
@@ -204,7 +227,7 @@ export class DrawPanel extends MainPanel
 		else if (input.currentAtom > 0) mask[input.currentAtom - 1] = true;
 		else if (input.currentBond > 0) {mask[mol.bondFrom(input.currentBond) - 1] = true; mask[mol.bondTo(input.currentBond) - 1] = true;}
 		else mask = Vec.booleanArray(true, mol.numAtoms);
-		
+
 		let copyMol = Vec.allTrue(mask) ? mol.clone() : MolUtil.subgraphWithAttachments(mol, mask);
 
 		if (andCut)

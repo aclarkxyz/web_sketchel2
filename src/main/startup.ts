@@ -10,16 +10,16 @@
 	[PKG=sketchel2]
 */
 
+/*
 ///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
 ///<reference path='../../../WebMolKit/src/decl/jquery/index.d.ts'/>
 ///<reference path='../../../WebMolKit/src/util/util.ts'/>
 
 ///<reference path='../decl/node.d.ts'/>
 ///<reference path='./DrawPanel.ts'/>
+*/
 
 namespace WebMolKit /* BOF */ {
-
-$ = require('./jquery.js');
 
 /*
 	Startup: gets the ball rolling, and provide some high level window handling.
@@ -29,7 +29,7 @@ let BASE_APP = ''; // base URL location for the app's program files (could be UR
 
 export function runSketchEl(rootID:string):void
 {
-	let root = $('#' + rootID);
+	let root = DOM.find('#' + rootID);
 
 	// node/electron imports; note these are defined inside the function so as not to perturb normal web-access, which does not
 	// include these libraries
@@ -76,7 +76,7 @@ export function runSketchEl(rootID:string):void
 export function openNewWindow(panelClass:string, filename?:string):void
 {
 	const electron = require('electron');
-	const WEBPREF = {'nodeIntegration': true};
+	const WEBPREF = {'nodeIntegration': true, 'contextIsolation': false, 'enableRemoteModule': true, 'spellcheck': false};
 	let bw = new electron.remote.BrowserWindow({'width':800, 'height':700, 'icon': 'app/img/icon.png', 'webPreferences': WEBPREF});
 	let url = BASE_APP + '/index.html?panel=' + panelClass;
 	if (filename) url += '&fn=' + encodeURIComponent(filename);
