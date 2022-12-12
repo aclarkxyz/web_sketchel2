@@ -10,10 +10,6 @@
 	[PKG=sketchel2]
 */
 
-///<reference path='../../../WebMolKit/src/decl/corrections.d.ts'/>
-///<reference path='../../../WebMolKit/src/decl/jquery/index.d.ts'/>
-///<reference path='../../../WebMolKit/src/util/util.ts'/>
-
 namespace WebMolKit /* BOF */ {
 
 /*
@@ -22,15 +18,13 @@ namespace WebMolKit /* BOF */ {
 
 export class MainPanel
 {
-	constructor(public root:JQuery)
+	constructor(public root:DOM)
 	{
-		$('body').css('overflow', 'hidden');
+		DOM.find('body').setCSS('overflow', 'hidden');
 
-		root.css('width', '100%');
-		root.css('height', document.documentElement.clientHeight + 'px');
-		$(window).resize(() => this.onResize()); 
-
-		root.on('menuAction', (event:any, cmd:string) => this.menuAction(cmd));
+		//root.css({'width': '100%', 'height': document.documentElement.clientHeight + 'px'});
+		root.css({'width': '100vw', 'height': '100vh'});
+		window.onresize = () => this.onResize();
 	}
 
 	// stub: may be called early on to provide a source file upon which to work
@@ -41,7 +35,7 @@ export class MainPanel
 	// minimum required functionality for resizing windows; override to capture
 	protected onResize()
 	{
-		this.root.css('height', document.documentElement.clientHeight + 'px');
+		this.root.setCSS('height', document.documentElement.clientHeight + 'px');
 	}
 
 	// stub: override this to receive menu events

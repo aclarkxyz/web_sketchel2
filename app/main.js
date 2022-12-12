@@ -3,9 +3,12 @@
 */
 
 const electron = require('electron');
-const {app, BrowserWindow} = electron;
+const {app, BrowserWindow, ipcMain} = electron;
+const path = require('path');
 
+app.allowRendererProcessReuse = true;
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = true;
+require('@electron/remote/main').initialize();
 
 app.on('window-all-closed', function() 
 {
@@ -27,7 +30,7 @@ for (let n = 0; n < argv.length; n++)
 }
 if (files.length == 0) files.push(null);
 
-const WEBPREF = {'nodeIntegration': true, 'enableRemoteModule': true};
+const WEBPREF = {'nodeIntegration': true, 'contextIsolation': false, 'enableRemoteModule': true, 'spellcheck': false};
 const ICONFN = __dirname + '/img/icon.png';
 const BROWSER_PARAMS = {'width': 800, 'height': 700, 'icon': ICONFN, 'webPreferences': WEBPREF};
 const INIT_URL = 'file://' + __dirname + '/index.html';
@@ -60,9 +63,7 @@ function setupMenu()
 	function sendCommand(cmd)
 	{
 		let browser = BrowserWindow.getFocusedWindow();
-		if (!browser) return;
-		let js = '$("#root").trigger("menuAction", "' + cmd + '")';
-		browser.webContents.executeJavaScript(js);
+		if (browser) browser.webContents.send('menuAction', cmd);
 	}
 
 	let template = 
